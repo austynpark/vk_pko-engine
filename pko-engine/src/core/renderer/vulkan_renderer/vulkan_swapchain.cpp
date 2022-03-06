@@ -107,24 +107,57 @@ b8 vulkan_swapchain_create(vulkan_context* context, i32 width, i32 height,vulkan
 
 	VK_CHECK(vkCreateSwapchainKHR(context->device_context.handle, &swapchain_create_info, context->allocator, &swapchain->handle));
 
+    swapchain->image_count = 0;
+    vkGetSwapchainImagesKHR(context->device_context.handle, swapchain->handle, &swapchain->image_count, 0);
+
+    if (swapchain->image_count != 0)
+    {
+	    swapchain->images.resize(swapchain->image_count);
+		swapchain->image_views.resize(swapchain->image_count);
+    }
+      
+    vkGetSwapchainImagesKHR(context->device_context.handle, swapchain->handle, &swapchain->image_count, swapchain->images.data());
+    
+
+    for (u32 i = 0; i < swapchain->image_count; ++i) {
+
+        VkImageViewCreateInfo create_info{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+        create_info.image = swapchain->images.at(i);
+        create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        create_info.format = swapchain->image_format.format;
+        create_info.components = { VK_COMPONENT_SWIZZLE_IDENTITY };
+        create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        create_info.subresourceRange.baseArrayLayer = 0;
+        create_info.subresourceRange.baseMipLevel = 0;
+        create_info.subresourceRange.layerCount = 1;
+        create_info.subresourceRange.levelCount = 1;
+
+        VK_CHECK(vkCreateImageView(context->device_context.handle, &create_info, context->allocator, &context->swapchain.image_views.at(i)));
+    }
+
+    std::cout << "swapchain created" << std::endl;
+
 	return true;
 }
 
 b8 vulkan_swapchain_destroy(vulkan_context* context, vulkan_swapchain* swapchain)
 {
+    for (u32 i = 0; i < swapchain->image_count; ++i) {
+        vkDestroyImageView(context->device_context.handle, swapchain->image_views.at(i), context->allocator);
+    }
 
+    vkDestroySwapchainKHR(context->device_context.handle, swapchain->handle, context->allocator);
 
-	return b8();
+	return true;
 }
 
 b8 vulkan_swapchain_recreate(vulkan_context* context, i32 width, i32 height)
 {
     vulkan_swapchain out_swapchain{};
-
+	
+    vulkan_swapchain_destroy(context, &context->swapchain);
     if (!vulkan_swapchain_create(context, width, height, &out_swapchain))
         return false;
-
-    vulkan_swapchain_destroy(context, &context->swapchain);
 
     context->swapchain = out_swapchain;
 
@@ -135,11 +168,61 @@ void vulkan_swapchain_get_support_info(vulkan_context* context, vulkan_swapchain
 {
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context->device_context.physical_device, context->surface, &out_support_info->surface_capabilites);
 
-    vkGetPhysicalDeviceSurfaceFormatsKHR(context->device_context.physical_device, context->surface, &out_support_info->format_count, out_support_info->surface_formats.data());
-    out_support_info->surface_formats.resize(out_support_info->format_count);
     vkGetPhysicalDeviceSurfaceFormatsKHR(context->device_context.physical_device, context->surface, &out_support_info->format_count, 0);
+    out_support_info->surface_formats.resize(out_support_info->format_count);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(context->device_context.physical_device, context->surface, &out_support_info->format_count, out_support_info->surface_formats.data());
 
     vkGetPhysicalDeviceSurfacePresentModesKHR(context->device_context.physical_device, context->surface, &out_support_info->present_mode_count, 0);
     out_support_info->present_modes.resize(out_support_info->present_mode_count);
     vkGetPhysicalDeviceSurfacePresentModesKHR(context->device_context.physical_device, context->surface, &out_support_info->present_mode_count, out_support_info->present_modes.data());
+}
+
+b8 acquire_next_image_index_swapchain(
+    vulkan_context* context,
+    vulkan_swapchain* swapchain,
+    u64 timeout_ns,
+    VkSemaphore image_available_semaphore,
+    VkFence fence,
+    u32* image_index)
+{
+    VkResult result = vkAcquireNextImageKHR(context->device_context.handle, swapchain->handle, timeout_ns, image_available_semaphore, fence, image_index);
+
+    switch (result) {
+    case VK_ERROR_OUT_OF_DATE_KHR:
+        vulkan_swapchain_recreate(context, context->framebuffer_width, context->framebuffer_width);
+        return false;
+    case VK_SUBOPTIMAL_KHR:
+        break;
+        // if the swapchain no longer matches the surface properties exactly,
+        // -but can still be used for presentation
+    }
+
+    return true;
+}
+
+b8 present_image_swapchain(
+    vulkan_context* context,
+    vulkan_swapchain* swapchain,
+    VkQueue present_queue,
+    VkSemaphore render_complete_semaphore,
+    u32 current_image_index
+) 
+{
+    VkPresentInfoKHR present_info{ VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
+    present_info.waitSemaphoreCount = 1;
+    present_info.pWaitSemaphores = &render_complete_semaphore;
+    present_info.swapchainCount = 1;
+    present_info.pSwapchains = &swapchain->handle;
+    present_info.pImageIndices = &current_image_index;
+
+    VkResult result = vkQueuePresentKHR(present_queue, &present_info);
+
+    switch (result) {
+    case VK_ERROR_OUT_OF_DATE_KHR:
+    case VK_SUBOPTIMAL_KHR:
+        vulkan_swapchain_recreate(context, context->framebuffer_width, context->framebuffer_height);
+        return false;
+    }
+
+    return true;
 }

@@ -21,13 +21,14 @@ struct vulkan_swapchain_support_info {
 };
 
 struct vulkan_swapchain {
-
 	VkSwapchainKHR handle;
 	VkPresentModeKHR present_mode;
 	VkSurfaceFormatKHR image_format;
-
+	u32 image_count;
 	std::vector<VkImage> images;
 	std::vector<VkImageView> image_views;
+
+	u32 image_index;
 };
 
 struct vulkan_queue_family {
@@ -67,4 +68,7 @@ struct vulkan_context {
 	vulkan_device device_context;
 	vulkan_swapchain_support_info swapchain_support_info;
 	vulkan_swapchain swapchain;
+
+	u32 framebuffer_width;
+	u32 framebuffer_height;
 };

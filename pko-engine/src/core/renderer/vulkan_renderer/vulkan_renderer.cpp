@@ -3,6 +3,7 @@
 #include "vulkan_types.inl"
 
 #include "vulkan_device.h"
+#include "vulkan_swapchain.h"
 
 #include <iostream>
 
@@ -32,11 +33,10 @@ static VKAPI_ATTR VkBool32 debugCallback(
     return VK_FALSE;
 }
 
-b8 load_exported_entry_ponts();
+b8 load_exported_entry_points();
 b8 load_global_level_function();
 b8 load_instance_level_function();
 b8 load_device_level_function();
-
 
 vulkan_renderer::vulkan_renderer(void* platform_internal_state) : renderer(platform_internal_state)
 {
@@ -64,7 +64,7 @@ b8 vulkan_renderer::init()
 		return false;
 	}
 
-	if (!load_exported_entry_ponts())
+	if (!load_exported_entry_points())
 		return false;
 
     if (!load_global_level_function())
@@ -98,6 +98,11 @@ b8 vulkan_renderer::init()
     create_debug_util_message();
 #endif 
 
+    if (!vulkan_swapchain_create(&context, context.framebuffer_width, context.framebuffer_height, &context.swapchain)) {
+        std::cout << "create swapchain failed" << std::endl;
+        return false;
+    }
+
 	return true;
 }
 
@@ -109,8 +114,10 @@ b8 vulkan_renderer::draw(f32 dt)
 
 void vulkan_renderer::shutdown()
 {
+    vulkan_swapchain_destroy(&context, &context.swapchain);
     vulkan_device_destroy(&context, &context.device_context);
     vkDestroySurfaceKHR(context.instance, context.surface, context.allocator);
+    vkDestroyDebugUtilsMessengerEXT(context.instance, context.debug_messenger, context.allocator);
     vkDestroyInstance(context.instance, context.allocator);
 }
 
@@ -222,7 +229,7 @@ b8 vulkan_renderer::create_surface()
     return false;
 }
 
-b8 load_exported_entry_ponts()
+b8 load_exported_entry_points()
 {
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
 #define LoadProcAddress GetProcAddress
