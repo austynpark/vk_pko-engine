@@ -5,7 +5,7 @@
 #endif
 
 #define VK_NO_PROTOTYPES
-#include <vulkan/vulkan.h>
+#include <vulkan.h>
 
 #define VK_EXPORTED_FUNCTION( fun ) extern PFN_##fun fun;
 #define VK_GLOBAL_LEVEL_FUNCTION( fun ) extern PFN_##fun fun;

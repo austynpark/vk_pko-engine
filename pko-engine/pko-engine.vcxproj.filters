@@ -45,6 +45,24 @@
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_swapchain.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_command_buffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_renderpass.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_framebuffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_mesh.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\core\file_handle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -66,6 +84,24 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_swapchain.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_command_buffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_renderpass.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_framebuffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_mesh.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\file_handle.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_shader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

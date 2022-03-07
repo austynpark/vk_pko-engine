@@ -1,9 +1,13 @@
 #include "vulkan_renderer.h"
+#include "core/application.h"
 #include "platform/platform.h"
 #include "vulkan_types.inl"
 
 #include "vulkan_device.h"
 #include "vulkan_swapchain.h"
+#include "vulkan_command_buffer.h"
+#include "vulkan_renderpass.h"
+#include "vulkan_framebuffer.h"
 
 #include <iostream>
 
@@ -78,6 +82,8 @@ b8 vulkan_renderer::init()
     if (!load_instance_level_function())
         return false;
 
+    get_app_framebuffer_size(&context.framebuffer_width, &context.framebuffer_height);
+
     if (!create_surface()) {
         std::cout << "create surface failed" << std::endl;
         return false;
@@ -102,18 +108,115 @@ b8 vulkan_renderer::init()
         std::cout << "create swapchain failed" << std::endl;
         return false;
     }
+    
+    vulkan_command_pool_create(&context, &context.graphics_command, context.device_context.graphics_family.index);
+    vulkan_command_buffer_allocate(&context, &context.graphics_command, true);
+
+
+    vulkan_renderpass_create(&context, &context.main_renderpass, 0, 0, context.framebuffer_width, context.framebuffer_height);
+    
+    context.framebuffers.resize(context.swapchain.image_count);
+
+    for (u32 i = 0; i < context.swapchain.image_count; ++i) {
+       vulkan_framebuffer_create(&context, &context.main_renderpass, &context.swapchain.image_views.at(i), &context.framebuffers.at(i));
+    }
+
+    std::cout << "framebuffers created" << std::endl;
+
+    context.image_available_semaphores.resize(context.swapchain.image_count);
+    context.ready_to_render_semaphores.resize(context.swapchain.image_count);
+
+    VkSemaphoreCreateInfo semaphore_create_info{ VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+    VK_CHECK(vkCreateSemaphore(context.device_context.handle, &semaphore_create_info, context.allocator, &context.image_available_semaphores.at(0)));
+    VK_CHECK(vkCreateSemaphore(context.device_context.handle, &semaphore_create_info, context.allocator, &context.ready_to_render_semaphores.at(0)));
+    VkFenceCreateInfo fence_create_info{ VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+    fence_create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+    vkCreateFence(context.device_context.handle, &fence_create_info, context.allocator, &context.fence);
 
 	return true;
 }
 
 b8 vulkan_renderer::draw(f32 dt)
 {
+    VK_CHECK(vkWaitForFences(context.device_context.handle, 1, &context.fence, true, UINT64_MAX));
+    VK_CHECK(vkResetFences(context.device_context.handle, 1, &context.fence));
+
+    if (!acquire_next_image_index_swapchain(
+        &context,
+        &context.swapchain,
+        UINT64_MAX,
+        context.image_available_semaphores.at(0),
+        0,
+        &context.image_index)
+        ) 
+    {
+        std::cout << "image acquire failed" << std::endl;
+		return false;
+    }
+
+    VkCommandBuffer command_buffer = context.graphics_command.buffer;
+
+    VK_CHECK(vkResetCommandBuffer(command_buffer, 0));
+    VkCommandBufferBeginInfo cmd_begin_info{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+    cmd_begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    VK_CHECK(vkBeginCommandBuffer(command_buffer, &cmd_begin_info));
+
+    VkClearValue clear_value{};
+    clear_value.color = { {0.3f, 0.2f, 0.1f, 1.0f} };
+
+    VkRenderPassBeginInfo renderpass_begin_info{ VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
+    renderpass_begin_info.renderPass = context.main_renderpass.handle;
+    renderpass_begin_info.framebuffer = context.framebuffers.at(context.image_index);
+    renderpass_begin_info.renderArea.extent = { context.main_renderpass.width, context.main_renderpass.height };
+    renderpass_begin_info.renderArea.offset.x = context.main_renderpass.x;
+    renderpass_begin_info.renderArea.offset.y = context.main_renderpass.y;
+    renderpass_begin_info.clearValueCount = 1;
+    renderpass_begin_info.pClearValues = &clear_value;
+
+    vkCmdBeginRenderPass(command_buffer, &renderpass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdEndRenderPass(command_buffer);
+
+    VK_CHECK(vkEndCommandBuffer(command_buffer));
+
+    VkPipelineStageFlags wait_stages = {
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+    };
+
+    VkSubmitInfo submit_info{ VK_STRUCTURE_TYPE_SUBMIT_INFO };
+    submit_info.waitSemaphoreCount = 1;
+    submit_info.pWaitSemaphores = &context.image_available_semaphores.at(0);
+    submit_info.pWaitDstStageMask = &wait_stages;
+
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &command_buffer;
+    submit_info.signalSemaphoreCount = 1;
+    submit_info.pSignalSemaphores = &context.ready_to_render_semaphores.at(0);
+
+    VK_CHECK(vkQueueSubmit(context.device_context.graphics_queue, 1, &submit_info, context.fence));
+
+    VkPresentInfoKHR present_info{ VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
+    present_info.waitSemaphoreCount = 1;
+    present_info.pWaitSemaphores = &context.ready_to_render_semaphores.at(0);
+    present_info.swapchainCount = 1;
+    present_info.pSwapchains = &context.swapchain.handle;
+    present_info.pImageIndices = &context.image_index;
+
+    VK_CHECK(vkQueuePresentKHR(context.device_context.graphics_queue, &present_info));
+
+    ++frame_number;
 
 	return true;
 }
 
 void vulkan_renderer::shutdown()
 {
+    for (u32 i = 0; i < context.swapchain.image_count; ++i) {
+        vulkan_framebuffer_destroy(&context, &context.framebuffers.at(i));
+    }
+
+    vulkan_renderpass_destroy(&context, &context.main_renderpass);
+    vulkan_command_pool_destroy(&context, &context.graphics_command);
     vulkan_swapchain_destroy(&context, &context.swapchain);
     vulkan_device_destroy(&context, &context.device_context);
     vkDestroySurfaceKHR(context.instance, context.surface, context.allocator);
@@ -121,7 +224,7 @@ void vulkan_renderer::shutdown()
     vkDestroyInstance(context.instance, context.allocator);
 }
 
-b8 vulkan_renderer::on_resize()
+b8 vulkan_renderer::on_resize(u32 w, u32 h)
 {
 	return true;
 }

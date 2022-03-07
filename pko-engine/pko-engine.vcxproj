@@ -20,10 +20,16 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\core\application.h" />
+    <ClInclude Include="src\core\file_handle.h" />
     <ClInclude Include="src\core\renderer\renderer.h" />
+    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_command_buffer.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_device.h" />
+    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_framebuffer.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_functions.h" />
+    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_mesh.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_renderer.h" />
+    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_renderpass.h" />
+    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_shader.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_swapchain.h" />
     <ClInclude Include="src\defines.h" />
     <ClInclude Include="src\platform\platform.h" />
@@ -32,8 +38,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\core\application.cpp" />
+    <ClCompile Include="src\core\file_handle.cpp" />
+    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_command_buffer.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_device.cpp" />
+    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_framebuffer.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_functions.cpp" />
+    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_mesh.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_renderer.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">pch.h</PrecompiledHeaderFile>
@@ -44,6 +54,8 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">pch.h</PrecompiledHeaderFile>
     </ClCompile>
+    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_renderpass.cpp" />
+    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_shader.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_swapchain.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\platform\platform_win32.cpp" />
@@ -106,19 +118,19 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(ProjectDir)vendor;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)vendor\vulkan;$(ProjectDir)vendor;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(ProjectDir)vendor;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)vendor\vulkan;$(ProjectDir)vendor\glm;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(ProjectDir)vendor;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)vendor\vulkan;$(ProjectDir)vendor;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(ProjectDir)vendor;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)vendor\vulkan;$(ProjectDir)vendor\glm;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

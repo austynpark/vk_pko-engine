@@ -12,9 +12,10 @@ public:
 	virtual	b8 draw(f32 dt) = 0;
 	virtual	void shutdown() = 0;
 
-	virtual b8 on_resize() = 0;
+	virtual b8 on_resize(u32 w, u32 h) = 0;
 
 protected:
 	// platform internal state
 	void* plat_state;
+	u32 frame_number;
 };

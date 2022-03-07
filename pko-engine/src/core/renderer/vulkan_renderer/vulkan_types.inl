@@ -1,6 +1,8 @@
 #pragma once
-
 #include "vulkan_functions.h"
+#define VMA_IMPLEMENTATION
+#include <vk_mem_alloc.h>
+#include "defines.h"
 
 #include <vector>
 #include <cassert>
@@ -56,6 +58,28 @@ struct vulkan_device {
 
 };
 
+struct vulkan_command {
+	VkCommandPool pool;
+	VkCommandBuffer buffer;
+};
+
+struct vulkan_renderpass {
+	VkRenderPass handle;
+	u32 x;
+	u32 y;
+	u32 width;
+	u32 height;
+};
+
+struct vulkan_pipeline {
+	VkPipeline handle;
+};
+
+struct vulkan_allocated_buffer {
+	VkBuffer buffer;
+	VmaAllocation allocation;
+};
+
 struct vulkan_context {
 	VkAllocationCallbacks* allocator;
 	VkInstance					instance;
@@ -71,4 +95,16 @@ struct vulkan_context {
 
 	u32 framebuffer_width;
 	u32 framebuffer_height;
+
+	vulkan_command graphics_command;
+	std::vector<VkFramebuffer>	framebuffers;
+
+	vulkan_renderpass main_renderpass;
+
+	std::vector<VkSemaphore> ready_to_render_semaphores;
+	std::vector<VkSemaphore> image_available_semaphores;
+	VkFence fence;
+
+	u32 image_index;
+
 };

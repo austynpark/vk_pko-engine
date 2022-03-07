@@ -13,11 +13,10 @@ public:
 	b8 init() override;
 	b8 draw(f32 dt) override;
 	void shutdown() override;
-	b8 on_resize() override;
+	b8 on_resize(u32 w, u32 h) override;
 private:
-
+z
 	b8 create_instance();
 	void create_debug_util_message();
-
 	b8 create_surface();
 };

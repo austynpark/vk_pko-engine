@@ -168,7 +168,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
     case WM_SIZE:
         // Get the updated size
         //RECT r;
-        //GetClientRect(hwnd, &r);
+        //GetClientRect(hWnd, &r);
         //u32 width = r.right - r.left;
         //u32 height = r.bottom - r.top;
 

@@ -81,6 +81,7 @@ VK_DEVICE_LEVEL_FUNCTION(vkDestroyPipeline)
 VK_DEVICE_LEVEL_FUNCTION(vkCreateFramebuffer)
 VK_DEVICE_LEVEL_FUNCTION(vkDestroyFramebuffer)
 
+VK_DEVICE_LEVEL_FUNCTION(vkResetCommandBuffer)
 VK_DEVICE_LEVEL_FUNCTION(vkBeginCommandBuffer)
 VK_DEVICE_LEVEL_FUNCTION(vkEndCommandBuffer)
 VK_DEVICE_LEVEL_FUNCTION(vkCmdBeginRenderPass)

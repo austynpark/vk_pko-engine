@@ -1,9 +1,7 @@
 #ifndef VULKAN_SWAPCHAIN_H
 #define VULKAN_SWAPCHAIN_H
 
-#include "defines.h"
 #include "vulkan_types.inl"
-
 
 b8 vulkan_swapchain_create(vulkan_context* context, i32 width, i32 height, vulkan_swapchain* out_swapchain);
 b8 vulkan_swapchain_destroy(vulkan_context* context, vulkan_swapchain* out_swapchain);

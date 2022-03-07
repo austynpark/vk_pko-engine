@@ -33,6 +33,8 @@ struct platform_state {
         // Internal state
         void* state;
     private:
+        u32 width;
+        u32 height;
 };
 
 #endif // !PLATFORM_H
