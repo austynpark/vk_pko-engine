@@ -3,7 +3,7 @@
 
 #include "vulkan_types.inl"
 
-#include <vec3.hpp>
+#include <glm/vec3.hpp>
 
 struct vertex {
 	glm::vec3 position;

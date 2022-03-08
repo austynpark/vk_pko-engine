@@ -4,11 +4,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-b8 read(const char* file_path, file_handle* file)
+b8 pko_file_read(const char* file_path, file_handle* file)
 {
 
     if ((FILE*)file->f != nullptr) {
-        close(file);
+        pko_file_close(file);
     }
 
     file->f = fopen(file_path, "rb");
@@ -32,7 +32,7 @@ b8 read(const char* file_path, file_handle* file)
     return true;
 }
 
-void close(file_handle* file)
+void pko_file_close(file_handle* file)
 {
     if ((FILE*)file->f != nullptr) {
         fclose((FILE*)file->f);

@@ -1,8 +1,9 @@
 #pragma once
+
 #include "vulkan_functions.h"
-#define VMA_IMPLEMENTATION
-#include <vk_mem_alloc.h>
 #include "defines.h"
+
+#include <vk_mem_alloc.h>
 
 #include <vector>
 #include <cassert>
@@ -73,6 +74,7 @@ struct vulkan_renderpass {
 
 struct vulkan_pipeline {
 	VkPipeline handle;
+	VkPipelineLayout layout;
 };
 
 struct vulkan_allocated_buffer {
@@ -81,6 +83,7 @@ struct vulkan_allocated_buffer {
 };
 
 struct vulkan_context {
+	VmaAllocator vma_allocator;
 	VkAllocationCallbacks* allocator;
 	VkInstance					instance;
 
@@ -107,4 +110,5 @@ struct vulkan_context {
 
 	u32 image_index;
 
+	vulkan_pipeline graphics_pipeline;
 };

@@ -60,7 +60,10 @@
     <ClInclude Include="src\core\file_handle.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_shader.h">
+    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_pipeline.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_memory_allocate.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -101,7 +104,10 @@
     <ClCompile Include="src\core\file_handle.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_shader.cpp">
+    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_pipeline.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_memory_allocate.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -112,5 +118,7 @@
     <None Include="src\core\renderer\vulkan_renderer\list_of_functions.inl">
       <Filter>Header Files</Filter>
     </None>
+    <None Include="shader\test.vert" />
+    <None Include="shader\test.frag" />
   </ItemGroup>
 </Project>

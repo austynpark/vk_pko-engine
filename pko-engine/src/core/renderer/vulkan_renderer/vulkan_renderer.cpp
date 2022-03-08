@@ -1,13 +1,18 @@
 #include "vulkan_renderer.h"
-#include "core/application.h"
-#include "platform/platform.h"
+
+#define VMA_IMPLEMENTATION
 #include "vulkan_types.inl"
 
+#include "core/application.h"
+#include "platform/platform.h"
+
 #include "vulkan_device.h"
+#include "vulkan_memory_allocate.h"
 #include "vulkan_swapchain.h"
 #include "vulkan_command_buffer.h"
 #include "vulkan_renderpass.h"
 #include "vulkan_framebuffer.h"
+#include "vulkan_pipeline.h"
 
 #include <iostream>
 
@@ -97,6 +102,8 @@ b8 vulkan_renderer::init()
     if (!load_device_level_function())
         return false;
 
+    vulkan_memory_allocator_create(&context);
+
     vulkan_get_device_queue(&context.device_context);
 
 	    //validation debug logger create
@@ -132,6 +139,17 @@ b8 vulkan_renderer::init()
     VkFenceCreateInfo fence_create_info{ VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
     fence_create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
     vkCreateFence(context.device_context.handle, &fence_create_info, context.allocator, &context.fence);
+
+    std::cout << "sync objects created" << std::endl;
+
+    if (!vulkan_graphics_pipeline_create(
+        &context, &context.main_renderpass,
+        &context.graphics_pipeline,
+        "shader/test.vert.spv", "shader/test.frag.spv")) {
+        std::cout << "graphics pipeline create failed\n";
+
+        return false;
+    }
 
 	return true;
 }
@@ -175,6 +193,10 @@ b8 vulkan_renderer::draw(f32 dt)
     renderpass_begin_info.pClearValues = &clear_value;
 
     vkCmdBeginRenderPass(command_buffer, &renderpass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+
+    vulkan_pipeline_bind(&context.graphics_command, VK_PIPELINE_BIND_POINT_GRAPHICS, &context.graphics_pipeline);
+    vkCmdDraw(command_buffer, 3, 1, 0, 0);
+
     vkCmdEndRenderPass(command_buffer);
 
     VK_CHECK(vkEndCommandBuffer(command_buffer));
@@ -211,6 +233,14 @@ b8 vulkan_renderer::draw(f32 dt)
 
 void vulkan_renderer::shutdown()
 {
+    vulkan_pipeline_destroy(&context, &context.graphics_pipeline);
+
+    vkDestroyFence(context.device_context.handle, context.fence, context.allocator);
+
+    for (u32 i = 0; i < context.swapchain.image_count; ++i) {
+        vkDestroySemaphore(context.device_context.handle, context.image_available_semaphores.at(i), context.allocator);
+        vkDestroySemaphore(context.device_context.handle, context.ready_to_render_semaphores.at(i), context.allocator);
+    }
     for (u32 i = 0; i < context.swapchain.image_count; ++i) {
         vulkan_framebuffer_destroy(&context, &context.framebuffers.at(i));
     }
@@ -218,6 +248,7 @@ void vulkan_renderer::shutdown()
     vulkan_renderpass_destroy(&context, &context.main_renderpass);
     vulkan_command_pool_destroy(&context, &context.graphics_command);
     vulkan_swapchain_destroy(&context, &context.swapchain);
+    vulkan_memory_allocator_destroy(&context);
     vulkan_device_destroy(&context, &context.device_context);
     vkDestroySurfaceKHR(context.instance, context.surface, context.allocator);
     vkDestroyDebugUtilsMessengerEXT(context.instance, context.debug_messenger, context.allocator);

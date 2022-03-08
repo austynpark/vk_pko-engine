@@ -1,5 +1,7 @@
 #include "vulkan_command_buffer.h"
 
+#include "vulkan_types.inl"
+
 void vulkan_command_pool_create(vulkan_context* context, vulkan_command* command, u32 queue_family_index)
 {
 	VkCommandPoolCreateInfo create_info{ VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };

@@ -26,10 +26,11 @@
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_device.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_framebuffer.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_functions.h" />
+    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_memory_allocate.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_mesh.h" />
+    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_pipeline.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_renderer.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_renderpass.h" />
-    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_shader.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_swapchain.h" />
     <ClInclude Include="src\defines.h" />
     <ClInclude Include="src\platform\platform.h" />
@@ -43,7 +44,9 @@
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_device.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_framebuffer.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_functions.cpp" />
+    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_memory_allocate.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_mesh.cpp" />
+    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_pipeline.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_renderer.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">pch.h</PrecompiledHeaderFile>
@@ -55,12 +58,13 @@
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">pch.h</PrecompiledHeaderFile>
     </ClCompile>
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_renderpass.cpp" />
-    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_shader.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_swapchain.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\platform\platform_win32.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="shader\test.frag" />
+    <None Include="shader\test.vert" />
     <None Include="src\core\renderer\vulkan_renderer\list_of_functions.inl" />
     <None Include="src\core\renderer\vulkan_renderer\vulkan_types.inl" />
   </ItemGroup>

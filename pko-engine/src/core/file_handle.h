@@ -9,8 +9,8 @@ struct file_handle {
     u32 size = 0;
 };
 
-bool read(const char* file_path, file_handle* file);
-void close(file_handle* file);
+bool pko_file_read(const char* file_path, file_handle* file);
+void pko_file_close(file_handle* file);
 
 
 #endif // !FILE_HANDLE_H
