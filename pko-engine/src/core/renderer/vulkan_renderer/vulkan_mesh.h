@@ -2,18 +2,18 @@
 #define VULKAN_MESH_H
 
 #include "vulkan_types.inl"
+#include "core/object.h"
 
-#include <glm/vec3.hpp>
+class vulkan_render_object : public object
+{
+public:
+	vulkan_render_object(const char* object_name);
+	void upload_mesh(vulkan_context* context);
+	void vulkan_render_object_destroy(vulkan_context* context);
+	~vulkan_render_object() override;
 
-struct vertex {
-	glm::vec3 position;
-	glm::vec3 normal;
-	glm::vec3 color;
-};
-
-struct mesh {
-	std::vector<vertex> vertices;
 	vulkan_allocated_buffer vertex_buffer;
 };
+
 
 #endif // !VULKAN_MESH_H

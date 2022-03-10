@@ -1,21 +1,20 @@
-#version 450
+#version 450 core
+layout (location = 0) in vec3 vPos;
+layout (location = 1) in vec3 vNormal;
+layout (location = 2) in vec2 vUV;
 
-layout (location = 0) out vec3 out_color;
+layout(push_constant) uniform transforms
+{
+    mat4 projection;
+    mat4 view;
+};
+
+//uniform mat4 model;
+//uniform mat4 normalMatrix;
 
 void main()
 {
-	const vec3 positions[3] = vec3[3](
-		vec3(1.f,1.f, 0.0f),
-		vec3(-1.f,1.f, 0.0f),
-		vec3(0.f,-1.f, 0.0f)
-	);
+    //vs_out.fragNormal = (normalMatrix * vec4(vNormal, 0.0)).xyz; 
 
-	const vec3 colors[3] = vec3[3](
-		vec3(1.0f, 0.0f, 0.0f), //red
-		vec3(0.0f, 1.0f, 0.0f), //green
-		vec3(00.f, 0.0f, 1.0f)  //blue
-	);
-
-	gl_Position = vec4(positions[gl_VertexIndex], 1.0f);
-	out_color = colors[gl_VertexIndex];
+    gl_Position = projection * view * vec4(vPos, 1.0);
 }

@@ -13,7 +13,10 @@
 #include "vulkan_renderpass.h"
 #include "vulkan_framebuffer.h"
 #include "vulkan_pipeline.h"
+#include "vulkan_mesh.h"
 
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/transform.hpp>
 #include <iostream>
 
 static vulkan_library vulkan_library_loader;
@@ -142,19 +145,65 @@ b8 vulkan_renderer::init()
 
     std::cout << "sync objects created" << std::endl;
 
+    VkVertexInputBindingDescription binding_description{};
+    binding_description.binding = 0;
+    binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    binding_description.stride = sizeof(vertex);
+
+    VkVertexInputAttributeDescription position_attribute{};
+    position_attribute.binding = 0;
+    position_attribute.location = 0;
+    position_attribute.format = VK_FORMAT_R32G32B32_SFLOAT;
+
+    VkVertexInputAttributeDescription normal_attribute{};
+    normal_attribute.binding = 0;
+    normal_attribute.location = 1;
+    normal_attribute.format = VK_FORMAT_R32G32B32_SFLOAT;
+
+    VkVertexInputAttributeDescription uv_attribute{};
+    uv_attribute.binding = 0;
+    uv_attribute.location = 2;
+    uv_attribute.format = VK_FORMAT_R32G32_SFLOAT;
+
+    VkVertexInputAttributeDescription attribute_descriptions[] = {
+        position_attribute,
+        normal_attribute,
+        uv_attribute
+    };
+
+    global_ubo.projection = glm::perspective(glm::radians(45.0f), (f32)context.framebuffer_width / context.framebuffer_height, 0.1f, 100.0f);
+    // camera pos, pos + front, up
+    global_ubo.view = glm::lookAt(glm::vec3(0.0f, 0.0f, -10.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+
+    VkPushConstantRange push_constant_range{};
+    push_constant_range.offset = 0;
+    push_constant_range.size = sizeof(global_ubo);
+    push_constant_range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
     if (!vulkan_graphics_pipeline_create(
         &context, &context.main_renderpass,
         &context.graphics_pipeline,
+        1,
+        &binding_description,
+        3,
+        attribute_descriptions,
+        1,
+        &push_constant_range,
         "shader/test.vert.spv", "shader/test.frag.spv")) {
         std::cout << "graphics pipeline create failed\n";
 
         return false;
     }
 
+    for (const auto& obj : object_manager) {
+        vulkan_render_object* vk_render_obj = (vulkan_render_object*)(obj.second.get());
+        vk_render_obj->upload_mesh(&context);
+    }
+
 	return true;
 }
 
-b8 vulkan_renderer::draw(f32 dt)
+b8 vulkan_renderer::draw()
 {
     VK_CHECK(vkWaitForFences(context.device_context.handle, 1, &context.fence, true, UINT64_MAX));
     VK_CHECK(vkResetFences(context.device_context.handle, 1, &context.fence));
@@ -195,7 +244,15 @@ b8 vulkan_renderer::draw(f32 dt)
     vkCmdBeginRenderPass(command_buffer, &renderpass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
     vulkan_pipeline_bind(&context.graphics_command, VK_PIPELINE_BIND_POINT_GRAPHICS, &context.graphics_pipeline);
-    vkCmdDraw(command_buffer, 3, 1, 0, 0);
+    
+	vkCmdPushConstants(command_buffer, context.graphics_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(global_ubo), &global_ubo);
+
+    for (const auto& obj : object_manager) {
+        VkDeviceSize offset = 0;
+        vulkan_render_object* vk_render_obj = (vulkan_render_object*)(obj.second.get());
+        vkCmdBindVertexBuffers(command_buffer, 0, 1, &vk_render_obj->vertex_buffer.buffer, &offset);
+        vkCmdDraw(command_buffer, vk_render_obj->p_mesh->vertices.size(), 1, 0, 0);
+    }
 
     vkCmdEndRenderPass(command_buffer);
 
@@ -233,6 +290,13 @@ b8 vulkan_renderer::draw(f32 dt)
 
 void vulkan_renderer::shutdown()
 {
+    vkQueueWaitIdle(context.device_context.graphics_queue);
+
+    for (const auto& obj : object_manager) {
+        vulkan_render_object* vk_render_obj = (vulkan_render_object*)(obj.second.get());
+        vk_render_obj->vulkan_render_object_destroy(&context);
+    }
+
     vulkan_pipeline_destroy(&context, &context.graphics_pipeline);
 
     vkDestroyFence(context.device_context.handle, context.fence, context.allocator);

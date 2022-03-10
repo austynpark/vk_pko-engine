@@ -9,6 +9,12 @@ b8 vulkan_graphics_pipeline_create(
 	vulkan_context* context,
 	vulkan_renderpass* renderpass,
 	vulkan_pipeline* out_pipeline,
+	u32 binding_description_count,
+	VkVertexInputBindingDescription* binding_descriptions,
+	u32 attribute_description_count,
+	VkVertexInputAttributeDescription* attribute_descriptions,
+	u32 push_constant_range_count,
+	VkPushConstantRange* push_constant_range,
 	const char* vertex_file_path,
 	const char* fragment_file_path
 )
@@ -47,10 +53,10 @@ b8 vulkan_graphics_pipeline_create(
 	// format of the vertex data
 	VkPipelineVertexInputStateCreateInfo vert_input_info{};
 	vert_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vert_input_info.vertexBindingDescriptionCount = 0;
-	vert_input_info.pVertexBindingDescriptions = nullptr; // Optional
-	vert_input_info.vertexAttributeDescriptionCount = 0;
-	vert_input_info.pVertexAttributeDescriptions = nullptr; // Optional
+	vert_input_info.vertexBindingDescriptionCount = binding_description_count;
+	vert_input_info.pVertexBindingDescriptions = binding_descriptions;
+	vert_input_info.vertexAttributeDescriptionCount = attribute_description_count;
+	vert_input_info.pVertexAttributeDescriptions = attribute_descriptions;
  
 	VkPipelineInputAssemblyStateCreateInfo input_assembly_info{};
 	input_assembly_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -127,8 +133,8 @@ b8 vulkan_graphics_pipeline_create(
 	dynamic_state_info.pDynamicStates = dynamic_states;
 
 	VkPipelineLayoutCreateInfo pipeline_layout_info{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-	pipeline_layout_info.pushConstantRangeCount = 0;
-	pipeline_layout_info.pPushConstantRanges = 0;
+	pipeline_layout_info.pushConstantRangeCount = push_constant_range_count;
+	pipeline_layout_info.pPushConstantRanges = push_constant_range;
 	pipeline_layout_info.setLayoutCount = 0;
 	pipeline_layout_info.pSetLayouts = 0;
 
@@ -163,7 +169,7 @@ b8 vulkan_graphics_pipeline_create(
 
 void vulkan_pipeline_destroy(vulkan_context* context, vulkan_pipeline* pipeline)
 {
-	vkQueueWaitIdle(context->device_context.graphics_queue);
+	//vkQueueWaitIdle(context->device_context.graphics_queue);
 
 	vkDestroyPipelineLayout(context->device_context.handle, pipeline->layout, context->allocator);
 	vkDestroyPipeline(context->device_context.handle, pipeline->handle, context->allocator);

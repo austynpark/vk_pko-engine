@@ -11,7 +11,7 @@ public:
 	~vulkan_renderer() override;
 
 	b8 init() override;
-	b8 draw(f32 dt) override;
+	b8 draw() override;
 	void shutdown() override;
 	b8 on_resize(u32 w, u32 h) override;
 private:

@@ -1,15 +1,15 @@
 #include "application.h"
 
 #include "platform/platform.h"
-#include "renderer/renderer.h"
-#include "renderer/vulkan_renderer/vulkan_renderer.h"
+#include "renderer/renderer_frontend.h"
+#include "object_manager.h"
 
 #include <iostream>
 
 struct application_state
 {
 	platform_state platform;
-	renderer* renderer;
+	renderer_frontend* renderer;
 
 	f32 delta_time;
 	f64 last_time;
@@ -30,7 +30,7 @@ b8 application::init(const char* app_name ,i32 x, i32 y,u32 w, u32 h)
 	if (!app_state.platform.init(app_name, x, y, w, h))
 		return false;
 
-	app_state.renderer = new vulkan_renderer(app_state.platform.state);
+	app_state.renderer = new renderer_frontend(app_state.platform.state);
 	
 	if (!app_state.renderer->init())
 		return false;
