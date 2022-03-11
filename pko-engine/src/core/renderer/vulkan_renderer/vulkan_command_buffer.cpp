@@ -18,10 +18,13 @@ void vulkan_command_pool_destroy(vulkan_context* context, vulkan_command* comman
 
 void vulkan_command_buffer_allocate(vulkan_context* context, vulkan_command* command, b8 is_primary)
 {
+	command->buffers.resize(1);
+
+	//TODO: multiple command buffer
 	VkCommandBufferAllocateInfo alloc_info{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
 	alloc_info.commandPool = command->pool;
 	alloc_info.commandBufferCount = 1;
 	alloc_info.level = is_primary ? VK_COMMAND_BUFFER_LEVEL_PRIMARY : VK_COMMAND_BUFFER_LEVEL_SECONDARY;
 
-	VK_CHECK(vkAllocateCommandBuffers(context->device_context.handle, &alloc_info, &command->buffer));
+	VK_CHECK(vkAllocateCommandBuffers(context->device_context.handle, &alloc_info, command->buffers.data()));
 }

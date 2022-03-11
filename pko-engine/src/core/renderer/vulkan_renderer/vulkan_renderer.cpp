@@ -119,9 +119,12 @@ b8 vulkan_renderer::init()
         return false;
     }
     
-    vulkan_command_pool_create(&context, &context.graphics_command, context.device_context.graphics_family.index);
-    vulkan_command_buffer_allocate(&context, &context.graphics_command, true);
-
+    // create command pool per frame
+	context.graphics_commands.resize(context.swapchain.max_frames_in_flight);
+    for (u32 i = 0; i < context.swapchain.max_frames_in_flight; ++i) {
+		vulkan_command_pool_create(&context, &context.graphics_commands.at(i), context.device_context.graphics_family.index);
+		vulkan_command_buffer_allocate(&context, &context.graphics_commands.at(i), true);
+    }
 
     vulkan_renderpass_create(&context, &context.main_renderpass, 0, 0, context.framebuffer_width, context.framebuffer_height);
     
@@ -141,16 +144,18 @@ b8 vulkan_renderer::init()
 
     std::cout << "framebuffers created" << std::endl;
 
-    context.image_available_semaphores.resize(context.swapchain.image_count);
-    context.ready_to_render_semaphores.resize(context.swapchain.image_count);
+    context.image_available_semaphores.resize(context.swapchain.max_frames_in_flight);
+    context.ready_to_render_semaphores.resize(context.swapchain.max_frames_in_flight);
+    context.render_fences.resize(context.swapchain.max_frames_in_flight);
 
-    VkSemaphoreCreateInfo semaphore_create_info{ VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-    VK_CHECK(vkCreateSemaphore(context.device_context.handle, &semaphore_create_info, context.allocator, &context.image_available_semaphores.at(0)));
-    VK_CHECK(vkCreateSemaphore(context.device_context.handle, &semaphore_create_info, context.allocator, &context.ready_to_render_semaphores.at(0)));
-    VkFenceCreateInfo fence_create_info{ VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
-    fence_create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-    vkCreateFence(context.device_context.handle, &fence_create_info, context.allocator, &context.fence);
-
+    for (u32 i = 0; i < context.swapchain.max_frames_in_flight; ++i) {
+        VkSemaphoreCreateInfo semaphore_create_info{ VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+        VK_CHECK(vkCreateSemaphore(context.device_context.handle, &semaphore_create_info, context.allocator, &context.image_available_semaphores.at(i)));
+        VK_CHECK(vkCreateSemaphore(context.device_context.handle, &semaphore_create_info, context.allocator, &context.ready_to_render_semaphores.at(i)));
+        VkFenceCreateInfo fence_create_info{ VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+        fence_create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+        vkCreateFence(context.device_context.handle, &fence_create_info, context.allocator, &context.render_fences.at(i));
+    }
     std::cout << "sync objects created" << std::endl;
 
     VkVertexInputBindingDescription binding_description{};
@@ -213,23 +218,25 @@ b8 vulkan_renderer::init()
 
 b8 vulkan_renderer::draw()
 {
-    VK_CHECK(vkWaitForFences(context.device_context.handle, 1, &context.fence, true, UINT64_MAX));
-    VK_CHECK(vkResetFences(context.device_context.handle, 1, &context.fence));
+    context.current_frame = frame_number % context.swapchain.max_frames_in_flight;
+
+    VK_CHECK(vkWaitForFences(context.device_context.handle, 1, &context.render_fences.at(context.current_frame), true, UINT64_MAX));
+    VK_CHECK(vkResetFences(context.device_context.handle, 1, &context.render_fences.at(context.current_frame)));
 
     if (!acquire_next_image_index_swapchain(
         &context,
         &context.swapchain,
         UINT64_MAX,
-        context.image_available_semaphores.at(0),
+        context.image_available_semaphores.at(context.current_frame),
         0,
-        &context.image_index)
-        ) 
+        &context.image_index))
     {
         std::cout << "image acquire failed" << std::endl;
 		return false;
     }
 
-    VkCommandBuffer command_buffer = context.graphics_command.buffer;
+    //TODO: multiple command buffers
+    VkCommandBuffer command_buffer = context.graphics_commands.at(context.current_frame).buffers.at(0);
 
     VK_CHECK(vkResetCommandBuffer(command_buffer, 0));
     VkCommandBufferBeginInfo cmd_begin_info{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
@@ -255,7 +262,7 @@ b8 vulkan_renderer::draw()
 
     vkCmdBeginRenderPass(command_buffer, &renderpass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
-    vulkan_pipeline_bind(&context.graphics_command, VK_PIPELINE_BIND_POINT_GRAPHICS, &context.graphics_pipeline);
+    vulkan_pipeline_bind(&context.graphics_commands.at(context.current_frame), VK_PIPELINE_BIND_POINT_GRAPHICS, &context.graphics_pipeline);
     
 	vkCmdPushConstants(command_buffer, context.graphics_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(global_ubo), &global_ubo);
 
@@ -276,16 +283,17 @@ b8 vulkan_renderer::draw()
 
     VkSubmitInfo submit_info{ VK_STRUCTURE_TYPE_SUBMIT_INFO };
     submit_info.waitSemaphoreCount = 1;
-    submit_info.pWaitSemaphores = &context.image_available_semaphores.at(0);
+    submit_info.pWaitSemaphores = &context.image_available_semaphores.at(context.current_frame);
     submit_info.pWaitDstStageMask = &wait_stages;
 
     submit_info.commandBufferCount = 1;
     submit_info.pCommandBuffers = &command_buffer;
     submit_info.signalSemaphoreCount = 1;
-    submit_info.pSignalSemaphores = &context.ready_to_render_semaphores.at(0);
+    submit_info.pSignalSemaphores = &context.ready_to_render_semaphores.at(context.current_frame);
 
-    VK_CHECK(vkQueueSubmit(context.device_context.graphics_queue, 1, &submit_info, context.fence));
+    VK_CHECK(vkQueueSubmit(context.device_context.graphics_queue, 1, &submit_info, context.render_fences.at(context.current_frame)));
 
+    /*
     VkPresentInfoKHR present_info{ VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
     present_info.waitSemaphoreCount = 1;
     present_info.pWaitSemaphores = &context.ready_to_render_semaphores.at(0);
@@ -294,6 +302,12 @@ b8 vulkan_renderer::draw()
     present_info.pImageIndices = &context.image_index;
 
     VK_CHECK(vkQueuePresentKHR(context.device_context.graphics_queue, &present_info));
+    */
+    present_image_swapchain(&context,
+        &context.swapchain,
+        context.device_context.present_queue,
+        context.ready_to_render_semaphores.at(context.current_frame),
+        context.image_index);
 
     ++frame_number;
 
@@ -311,18 +325,20 @@ void vulkan_renderer::shutdown()
 
     vulkan_pipeline_destroy(&context, &context.graphics_pipeline);
 
-    vkDestroyFence(context.device_context.handle, context.fence, context.allocator);
 
-    for (u32 i = 0; i < context.swapchain.image_count; ++i) {
+    for (u32 i = 0; i < context.swapchain.max_frames_in_flight; ++i) {
         vkDestroySemaphore(context.device_context.handle, context.image_available_semaphores.at(i), context.allocator);
         vkDestroySemaphore(context.device_context.handle, context.ready_to_render_semaphores.at(i), context.allocator);
+		vkDestroyFence(context.device_context.handle, context.render_fences.at(i), context.allocator);
     }
     for (u32 i = 0; i < context.swapchain.image_count; ++i) {
         vulkan_framebuffer_destroy(&context, &context.framebuffers.at(i));
     }
 
     vulkan_renderpass_destroy(&context, &context.main_renderpass);
-    vulkan_command_pool_destroy(&context, &context.graphics_command);
+
+    for (u32 i = 0; i < context.swapchain.max_frames_in_flight; ++i)
+        vulkan_command_pool_destroy(&context, &context.graphics_commands.at(i));
     vulkan_swapchain_destroy(&context, &context.swapchain);
     vulkan_memory_allocator_destroy(&context);
     vulkan_device_destroy(&context, &context.device_context);

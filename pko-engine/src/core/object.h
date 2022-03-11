@@ -26,8 +26,14 @@ public:
 
 	std::unique_ptr<mesh> p_mesh;
 
+	glm::mat4 get_transform_matrix() const;
+	void rotate(float degree, glm::vec3 axis);
+
 	glm::vec3 position;
 	glm::vec3 scale;
+
+	glm::mat4 rotation_matrix;
+	
 	// rotation (quat)
 };
 

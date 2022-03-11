@@ -5,8 +5,15 @@
 #include <iostream>
 #include <memory>
 
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/transform.hpp>
+
 object::object(const char* object_name)
 {
+	position = glm::vec3(0.0f);
+	scale = glm::vec3(1.0f);
+	rotation_matrix = glm::mat4(1.0f);
+
 	p_mesh = std::make_unique<mesh>();
 	
 	//attrib will contain the vertex arrays of the file
@@ -74,4 +81,14 @@ object::object(const char* object_name)
 			index_offset += fv;
 		}
 	}
+}
+
+glm::mat4 object::get_transform_matrix() const
+{
+	return glm::translate(position) * rotation_matrix * glm::scale(scale);
+}
+
+void object::rotate(float degree, glm::vec3 axis)
+{
+	rotation_matrix = glm::rotate(glm::radians(degree), axis);
 }

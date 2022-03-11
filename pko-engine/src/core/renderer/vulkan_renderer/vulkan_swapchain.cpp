@@ -49,6 +49,7 @@ b8 vulkan_swapchain_create(vulkan_context* context, i32 width, i32 height,vulkan
     VkSurfaceCapabilitiesKHR surface_capabilites = context->swapchain_support_info.surface_capabilites;
 
     u32 number_of_images = surface_capabilites.minImageCount + 1;
+    swapchain->max_frames_in_flight = number_of_images - 1;
 
     if (surface_capabilites.maxImageCount > 0 &&
         number_of_images > surface_capabilites.maxImageCount) {
@@ -163,6 +164,8 @@ b8 vulkan_swapchain_create(vulkan_context* context, i32 width, i32 height,vulkan
 
 b8 vulkan_swapchain_destroy(vulkan_context* context, vulkan_swapchain* swapchain)
 {
+    vkWaitForFences()
+
     vulkan_image_destroy(context, &swapchain->depth_attachment);
    
     for (u32 i = 0; i < swapchain->image_count; ++i) {

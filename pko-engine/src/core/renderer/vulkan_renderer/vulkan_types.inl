@@ -45,7 +45,7 @@ struct vulkan_device {
 
 struct vulkan_command {
 	VkCommandPool pool;
-	VkCommandBuffer buffer;
+	std::vector<VkCommandBuffer> buffers;
 };
 
 struct vulkan_image {
@@ -73,8 +73,7 @@ struct vulkan_swapchain {
 	std::vector<VkImage> images;
 	std::vector<VkImageView> image_views;
 	vulkan_image depth_attachment;
-
-	u32 image_index;
+	u8 max_frames_in_flight;
 };
 
 struct vulkan_renderpass {
@@ -112,16 +111,17 @@ struct vulkan_context {
 	u32 framebuffer_width;
 	u32 framebuffer_height;
 
-	vulkan_command graphics_command;
+	std::vector<vulkan_command> graphics_commands;
 	std::vector<VkFramebuffer>	framebuffers;
 
 	vulkan_renderpass main_renderpass;
 
 	std::vector<VkSemaphore> ready_to_render_semaphores;
 	std::vector<VkSemaphore> image_available_semaphores;
-	VkFence fence;
-
-	u32 image_index;
+	std::vector<VkFence> render_fences;
 
 	vulkan_pipeline graphics_pipeline;
+
+	u32 image_index;
+	u32 current_frame;
 };

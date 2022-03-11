@@ -184,7 +184,8 @@ void vulkan_pipeline_destroy(vulkan_context* context, vulkan_pipeline* pipeline)
 }
 
 void vulkan_pipeline_bind(vulkan_command* command_buffer,VkPipelineBindPoint bind_point ,vulkan_pipeline* pipeline) {
-	vkCmdBindPipeline(command_buffer->buffer, bind_point, pipeline->handle);
+	//TODO: command buffer
+	vkCmdBindPipeline(command_buffer->buffers.at(0), bind_point, pipeline->handle);
 }
 
 b8 vulkan_shader_module_create(vulkan_context* context, VkShaderModule* out_shader_module, const char* path)
