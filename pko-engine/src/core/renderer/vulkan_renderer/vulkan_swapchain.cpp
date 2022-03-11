@@ -1,6 +1,8 @@
 #include "vulkan_swapchain.h"
 
 #include "vulkan_types.inl"
+#include "vulkan_device.h"
+#include "vulkan_image.h"
 
 #include <iostream>
 
@@ -135,6 +137,25 @@ b8 vulkan_swapchain_create(vulkan_context* context, i32 width, i32 height,vulkan
         VK_CHECK(vkCreateImageView(context->device_context.handle, &create_info, context->allocator, &context->swapchain.image_views.at(i)));
     }
 
+    if (!vulkan_device_detect_depth_format(&context->device_context)) {
+        std::cout << "depth format not detected" << std::endl;
+        return false;
+    }
+
+    vulkan_image_create(
+        context,
+        VK_IMAGE_TYPE_2D,
+        width,
+        height,
+        context->device_context.depth_format,
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, //GPU ONLY
+        true,
+        VK_IMAGE_ASPECT_DEPTH_BIT,
+        &context->swapchain.depth_attachment
+    );
+
     std::cout << "swapchain created" << std::endl;
 
 	return true;
@@ -142,6 +163,8 @@ b8 vulkan_swapchain_create(vulkan_context* context, i32 width, i32 height,vulkan
 
 b8 vulkan_swapchain_destroy(vulkan_context* context, vulkan_swapchain* swapchain)
 {
+    vulkan_image_destroy(context, &swapchain->depth_attachment);
+   
     for (u32 i = 0; i < swapchain->image_count; ++i) {
         vkDestroyImageView(context->device_context.handle, swapchain->image_views.at(i), context->allocator);
     }

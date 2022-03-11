@@ -16,25 +16,6 @@
 		assert(result_ == VK_SUCCESS); \
 	} while(0)
 
-struct vulkan_swapchain_support_info {
-	VkSurfaceCapabilitiesKHR surface_capabilites;
-	std::vector<VkSurfaceFormatKHR> surface_formats;
-	std::vector<VkPresentModeKHR> present_modes;
-
-	u32 format_count;
-	u32 present_mode_count;
-};
-
-struct vulkan_swapchain {
-	VkSwapchainKHR handle;
-	VkPresentModeKHR present_mode;
-	VkSurfaceFormatKHR image_format;
-	u32 image_count;
-	std::vector<VkImage> images;
-	std::vector<VkImageView> image_views;
-
-	u32 image_index;
-};
 
 struct vulkan_queue_family {
 	u32 index;
@@ -59,11 +40,41 @@ struct vulkan_device {
 	VkQueue transfer_queue;
 	VkQueue compute_queue;
 
+	VkFormat depth_format;
 };
 
 struct vulkan_command {
 	VkCommandPool pool;
 	VkCommandBuffer buffer;
+};
+
+struct vulkan_image {
+	VkImage handle;
+	VkImageView view;
+	VmaAllocation allocation; 
+	u32 width;
+	u32 height;
+};
+
+struct vulkan_swapchain_support_info {
+	VkSurfaceCapabilitiesKHR surface_capabilites;
+	std::vector<VkSurfaceFormatKHR> surface_formats;
+	std::vector<VkPresentModeKHR> present_modes;
+
+	u32 format_count;
+	u32 present_mode_count;
+};
+
+struct vulkan_swapchain {
+	VkSwapchainKHR handle;
+	VkPresentModeKHR present_mode;
+	VkSurfaceFormatKHR image_format;
+	u32 image_count;
+	std::vector<VkImage> images;
+	std::vector<VkImageView> image_views;
+	vulkan_image depth_attachment;
+
+	u32 image_index;
 };
 
 struct vulkan_renderpass {

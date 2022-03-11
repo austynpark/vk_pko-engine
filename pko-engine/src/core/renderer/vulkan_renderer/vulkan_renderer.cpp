@@ -128,7 +128,15 @@ b8 vulkan_renderer::init()
     context.framebuffers.resize(context.swapchain.image_count);
 
     for (u32 i = 0; i < context.swapchain.image_count; ++i) {
-       vulkan_framebuffer_create(&context, &context.main_renderpass, &context.swapchain.image_views.at(i), &context.framebuffers.at(i));
+
+        VkImageView image_views[] = {
+            context.swapchain.image_views.at(i),
+            context.swapchain.depth_attachment.view
+        };
+
+        u32 attachment_count = 2;
+
+       vulkan_framebuffer_create(&context, &context.main_renderpass, attachment_count, image_views, &context.framebuffers.at(i));
     }
 
     std::cout << "framebuffers created" << std::endl;
@@ -229,8 +237,12 @@ b8 vulkan_renderer::draw()
 
     VK_CHECK(vkBeginCommandBuffer(command_buffer, &cmd_begin_info));
 
-    VkClearValue clear_value{};
-    clear_value.color = { {0.3f, 0.2f, 0.1f, 1.0f} };
+    VkClearValue clear_values[] = {
+        // color
+        { {0.3f, 0.2f, 0.1f, 1.0f} },
+        // depth, stencil
+        {{1.0f, 0.0f}}
+    };
 
     VkRenderPassBeginInfo renderpass_begin_info{ VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
     renderpass_begin_info.renderPass = context.main_renderpass.handle;
@@ -238,8 +250,8 @@ b8 vulkan_renderer::draw()
     renderpass_begin_info.renderArea.extent = { context.main_renderpass.width, context.main_renderpass.height };
     renderpass_begin_info.renderArea.offset.x = context.main_renderpass.x;
     renderpass_begin_info.renderArea.offset.y = context.main_renderpass.y;
-    renderpass_begin_info.clearValueCount = 1;
-    renderpass_begin_info.pClearValues = &clear_value;
+    renderpass_begin_info.clearValueCount = 2;
+    renderpass_begin_info.pClearValues = clear_values;
 
     vkCmdBeginRenderPass(command_buffer, &renderpass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 

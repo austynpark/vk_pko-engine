@@ -28,6 +28,7 @@
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_device.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_framebuffer.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_functions.h" />
+    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_image.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_memory_allocate.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_mesh.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_pipeline.h" />
@@ -48,6 +49,7 @@
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_device.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_framebuffer.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_functions.cpp" />
+    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_image.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_memory_allocate.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_mesh.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_pipeline.cpp" />

@@ -2,11 +2,11 @@
 
 #include <iostream>
 
-void vulkan_framebuffer_create(vulkan_context* context, vulkan_renderpass* renderpass, VkImageView* image_view,VkFramebuffer* out_framebuffer)
+void vulkan_framebuffer_create(vulkan_context* context, vulkan_renderpass* renderpass, u32 attachment_count, VkImageView* image_view, VkFramebuffer* out_framebuffer)
 {
 	VkFramebufferCreateInfo create_info{ VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
 	create_info.renderPass = renderpass->handle;
-	create_info.attachmentCount = 1;
+	create_info.attachmentCount = attachment_count;
 	create_info.pAttachments = image_view;
 	create_info.width = renderpass->width;
 	create_info.height = renderpass->height;

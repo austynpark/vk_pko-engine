@@ -104,7 +104,15 @@ b8 vulkan_graphics_pipeline_create(
 
 	// TODO: depth attachment
 	VkPipelineDepthStencilStateCreateInfo depth_stencil_info{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
-	//depth_stencil_info.depthTestEnable
+	depth_stencil_info.depthTestEnable = VK_TRUE;
+	depth_stencil_info.depthWriteEnable = VK_TRUE;
+	depth_stencil_info.depthCompareOp = VK_COMPARE_OP_LESS;
+	depth_stencil_info.depthBoundsTestEnable = VK_FALSE;
+	depth_stencil_info.minDepthBounds = 0.0f; // Optional
+	depth_stencil_info.maxDepthBounds = 1.0f; // Optional
+	depth_stencil_info.stencilTestEnable = VK_FALSE;
+	depth_stencil_info.front = {}; // Optional
+	depth_stencil_info.back = {}; // Optional
 
 	VkPipelineColorBlendAttachmentState color_blend_attachment{};
 	color_blend_attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
