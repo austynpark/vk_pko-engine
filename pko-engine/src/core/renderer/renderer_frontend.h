@@ -12,6 +12,7 @@ public:
 
 	b8 init();
 	b8 draw(f32 dt);
+	b8 on_resize(u32 w, u32 h);
 	void shutdown();
 private:
 	renderer* renderer_backend;

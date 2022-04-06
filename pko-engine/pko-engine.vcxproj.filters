@@ -78,6 +78,12 @@
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_image.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\core\input.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\core\event.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -129,6 +135,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_image.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\input.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\event.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

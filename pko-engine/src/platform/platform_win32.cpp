@@ -1,5 +1,8 @@
 #include "platform.h"
 
+#include "core/input.h"
+#include "core/event.h"
+
 #if _WIN32
 
 #define SERIES_NAME "pko_window_class"
@@ -165,14 +168,20 @@ void platform_state::sleep(u64 ms) {
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
-    case WM_SIZE:
+    case WM_SIZE: {
         // Get the updated size
-        //RECT r;
-        //GetClientRect(hWnd, &r);
-        //u32 width = r.right - r.left;
-        //u32 height = r.bottom - r.top;
+        RECT r;
+        GetClientRect(hWnd, &r);
+        u32 width = r.right - r.left;
+        u32 height = r.bottom - r.top;
 
-        //TODO: Fire an event for window resize.
+        event_context context;
+        context.data.u32[0] = width;
+        context.data.u32[1] = height;
+
+        event_system::fire_event(event_code::EVENT_CODE_ONRESIZED, context);
+        break;
+    }
     case WM_EXITSIZEMOVE:
         PostMessage(hWnd, WM_USER + 1, wParam, lParam);
         break;
@@ -184,16 +193,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
     case WM_KEYUP:
     case WM_SYSKEYUP: {
         // Key pressed/released
-        // bool pressed = (message == WM_KEYDOWN || message == WM_SYSKEYDOWN);
-        // TODO: input processing
+        b8 pressed = (message == WM_KEYDOWN || message == WM_SYSKEYDOWN);
+
+        input_system::process_key((keys)wParam, pressed);
     } break;
 
     case WM_MOUSEMOVE: {
         // Mouse move
-        //i32 x_position = GET_X_LPARAM(lParam);
-        //i32 y_position = GET_Y_LPARAM(lParam);
+        i32 x_position = GET_X_LPARAM(lParam);
+        i32 y_position = GET_Y_LPARAM(lParam);
 
         //TODO: input processing
+        //event_system::fire_event(e)
+
     } break;
     case WM_MOUSEWHEEL: {
         i32 z_delta = GET_WHEEL_DELTA_WPARAM(wParam);

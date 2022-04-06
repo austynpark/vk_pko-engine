@@ -90,6 +90,7 @@ b8 vulkan_renderer::init()
     if (!load_instance_level_function())
         return false;
 
+    //TODO: not using this (instead will use event_system)
     get_app_framebuffer_size(&context.framebuffer_width, &context.framebuffer_height);
 
     if (!create_surface()) {
@@ -349,6 +350,8 @@ void vulkan_renderer::shutdown()
 
 b8 vulkan_renderer::on_resize(u32 w, u32 h)
 {
+    std::cout << "resize " << w << h << std::endl;
+
 	return true;
 }
 

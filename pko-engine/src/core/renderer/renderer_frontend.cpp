@@ -33,6 +33,11 @@ b8 renderer_frontend::draw(f32 dt)
 	return renderer_backend->draw();
 }
 
+b8 renderer_frontend::on_resize(u32 w, u32 h)
+{
+	return 	renderer_backend->on_resize(w, h);
+}
+
 void renderer_frontend::shutdown()
 {
 	renderer_backend->shutdown();

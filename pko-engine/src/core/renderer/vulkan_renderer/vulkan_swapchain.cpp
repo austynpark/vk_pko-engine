@@ -164,7 +164,7 @@ b8 vulkan_swapchain_create(vulkan_context* context, i32 width, i32 height,vulkan
 
 b8 vulkan_swapchain_destroy(vulkan_context* context, vulkan_swapchain* swapchain)
 {
-    vkWaitForFences()
+    //vkWaitForFences()
 
     vulkan_image_destroy(context, &swapchain->depth_attachment);
    

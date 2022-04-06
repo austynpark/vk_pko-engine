@@ -3,14 +3,16 @@
 
 #include "defines.h"
 
+#include "event.h"
+
 class renderer;
 
 struct application {
 	
-	b8 init(const char* app_name ,i32 x, i32 y,u32 width, u32 height);
-	b8 run();
-	void shutdown();
-	//b8 on_resize();
+	static b8 init(const char* app_name ,i32 x, i32 y,u32 width, u32 height);
+	static b8 run();
+	static void shutdown();
+	static b8 on_resize(u16 code, event_context context);
 };
 
 void get_app_framebuffer_size(u32* w, u32* h);
