@@ -71,8 +71,8 @@ void application::shutdown()
 
 b8 application::on_resize(u16 code, event_context context)
 {
-	u16 width = context.data.u16[0];
-	u16 height = context.data.u16[1];
+	u16 width = context.data.u32[0];
+	u16 height = context.data.u32[1];
 
 	b8 result =	app_state.renderer->on_resize(width, height);
 

@@ -185,10 +185,7 @@ b8 vulkan_renderer::init()
         uv_attribute
     };
 
-    global_ubo.projection = glm::perspective(glm::radians(45.0f), (f32)context.framebuffer_width / context.framebuffer_height, 0.1f, 100.0f);
-    // camera pos, pos + front, up
-    global_ubo.view = glm::lookAt(glm::vec3(0.0f, 0.0f, -10.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
-
+    // Init global data
     VkPushConstantRange push_constant_range{};
     push_constant_range.offset = 0;
     push_constant_range.size = sizeof(global_ubo);
@@ -351,6 +348,24 @@ void vulkan_renderer::shutdown()
 b8 vulkan_renderer::on_resize(u32 w, u32 h)
 {
     std::cout << "resize " << w << h << std::endl;
+
+    vulkan_swapchain_recreate(&context, w, h);
+    vulkan_renderpass_destroy(&context, &context.main_renderpass);
+    vulkan_renderpass_create(&context, &context.main_renderpass, 0, 0, w, h);
+
+    for (u32 i = 0; i < context.swapchain.image_count; ++i) {
+
+		vulkan_framebuffer_destroy(&context, &context.framebuffers.at(i));
+
+        VkImageView image_views[] = {
+            context.swapchain.image_views.at(i),
+            context.swapchain.depth_attachment.view
+        };
+
+        u32 attachment_count = 2;
+
+        vulkan_framebuffer_create(&context, &context.main_renderpass, attachment_count, image_views, &context.framebuffers.at(i));
+    }
 
 	return true;
 }
