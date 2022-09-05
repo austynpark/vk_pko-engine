@@ -75,6 +75,11 @@ b8 vulkan_swapchain_create(vulkan_context* context, i32 width, i32 height, vulka
         extent = surface_capabilites.currentExtent;
     }
 
+    width = extent.width;
+    height = extent.height;
+    context->framebuffer_width = width;
+    context->framebuffer_height = height;
+
 	VkSwapchainCreateInfoKHR swapchain_create_info{ VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
     swapchain_create_info.surface = context->surface;
     swapchain_create_info.minImageCount = number_of_images;
@@ -164,7 +169,8 @@ b8 vulkan_swapchain_create(vulkan_context* context, i32 width, i32 height, vulka
 
 b8 vulkan_swapchain_destroy(vulkan_context* context, vulkan_swapchain* swapchain)
 {
-    vkDeviceWaitIdle(context->device_context.handle);
+    if (context->render_fences.at(context->current_frame) != VK_NULL_HANDLE)
+        VK_CHECK(vkWaitForFences(context->device_context.handle, 1, &context->render_fences.at(context->current_frame), true, UINT64_MAX));
 
     vulkan_image_destroy(context, &swapchain->depth_attachment);
    
@@ -185,6 +191,9 @@ b8 vulkan_swapchain_recreate(vulkan_context* context, i32 width, i32 height)
 	
     if (!vulkan_swapchain_create(context, width, height, &out_swapchain))
         return false;
+
+
+	vulkan_swapchain_destroy(context, &context->swapchain);
 
 	if(context->swapchain.handle != nullptr) {
         vkDestroySwapchainKHR(context->device_context.handle, context->swapchain.handle, context->allocator);
@@ -251,7 +260,6 @@ b8 present_image_swapchain(
     switch (result) {
     case VK_ERROR_OUT_OF_DATE_KHR:
     case VK_SUBOPTIMAL_KHR:
-        vulkan_swapchain_recreate(context, context->framebuffer_width, context->framebuffer_height);
         return false;
     }
 

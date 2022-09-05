@@ -83,9 +83,3 @@ b8 application::on_resize(u16 code, event_context context)
 
 	return true;
 }
-
-void get_app_framebuffer_size(u32* w, u32* h)
-{
-	*w = app_state.width;
-	*h = app_state.height;
-}

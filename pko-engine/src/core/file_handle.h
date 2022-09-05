@@ -2,6 +2,7 @@
 #define FILE_HANDLE_H
 
 #include "defines.h"
+#include <string>
 
 struct file_handle {
     void* f = nullptr;
@@ -12,5 +13,6 @@ struct file_handle {
 bool pko_file_read(const char* file_path, file_handle* file);
 void pko_file_close(file_handle* file);
 
+void read_file(std::string& buffer, const std::string& filename);
 
 #endif // !FILE_HANDLE_H

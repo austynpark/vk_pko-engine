@@ -4,6 +4,13 @@
 #include "vulkan_types.inl"
 #include "core/object.h"
 
+struct vertex_input_description {
+	std::vector<VkVertexInputAttributeDescription> attributes;
+	std::vector<VkVertexInputBindingDescription> bindings;
+
+	VkPipelineVertexInputStateCreateFlags flags = 0;
+};
+
 class vulkan_render_object : public object
 {
 public:
@@ -11,6 +18,8 @@ public:
 	void upload_mesh(vulkan_context* context);
 	void vulkan_render_object_destroy(vulkan_context* context);
 	~vulkan_render_object() override;
+
+	static vertex_input_description get_vertex_input_description();
 
 	vulkan_allocated_buffer vertex_buffer;
 };

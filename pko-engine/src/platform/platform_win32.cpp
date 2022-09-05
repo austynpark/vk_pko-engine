@@ -226,7 +226,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
         //b8 pressed = message == WM_LBUTTONDOWN || message == WM_RBUTTONDOWN || message == WM_MBUTTONDOWN;
         //TODO: input processing
     } break;
-
+    case WM_CANCELMODE:
+        break;
     default:
         return DefWindowProcA(hWnd, message, wParam, lParam);
     }

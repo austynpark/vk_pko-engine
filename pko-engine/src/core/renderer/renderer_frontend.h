@@ -3,6 +3,9 @@
 
 #include "defines.h"
 
+#include <memory>
+#include <vector>
+
 class renderer;
 
 class renderer_frontend {

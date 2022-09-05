@@ -15,6 +15,4 @@ struct application {
 	static b8 on_resize(u16 code, event_context context);
 };
 
-void get_app_framebuffer_size(u32* w, u32* h);
-
 #endif // APPLICATION_H

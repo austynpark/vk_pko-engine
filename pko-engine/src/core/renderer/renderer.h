@@ -9,7 +9,7 @@
 
 class renderer_frontend;
 class object;
-//#include "vulkan_renderer/vulkan_mesh.h"
+class vulkan_shader;
 
 struct global_uniform_object {
 	glm::mat4 projection;
@@ -20,22 +20,32 @@ class renderer {
 	friend renderer_frontend;
 public:
 	renderer() = delete;
-	renderer(void* state) : plat_state(state) {};
+	renderer(void* state) : plat_state(state), frame_number(0) {};
 	virtual ~renderer() = 0 {};
 
 	virtual b8 init() = 0;
+	virtual b8 begin_frame(f32 dt) = 0;
+	virtual b8 end_frame() = 0;
+	virtual b8 begin_renderpass() = 0;
+	virtual b8 end_renderpass() = 0;
+
 	virtual	b8 draw() = 0;
 	virtual	void shutdown() = 0;
 
 	virtual b8 on_resize(u32 w, u32 h) = 0;
 
+	virtual b8 add_shader(const char* name) = 0;
+
+	// Must be called from child class
+	virtual void update_global_data();
+
+	virtual b8 bind_global_data() = 0;
 protected:
 	// platform internal state
 	void* plat_state;
 	u32 frame_number;
 	
 	std::unordered_map<const char*, std::unique_ptr<object>> object_manager;
-
+	std::unordered_map<const char*, std::unique_ptr<vulkan_shader>> shader_manager;
 	global_uniform_object global_ubo;
-
 };

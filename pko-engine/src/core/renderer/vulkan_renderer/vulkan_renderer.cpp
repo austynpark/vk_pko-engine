@@ -14,9 +14,11 @@
 #include "vulkan_framebuffer.h"
 #include "vulkan_pipeline.h"
 #include "vulkan_mesh.h"
+#include "vulkan_buffer.h"
+#include "vulkan_shader.h"
+#include "vulkan_scene/vulkan_scene.h"
+#include "vulkan_scene/default_scene.h"
 
-#define GLM_ENABLE_EXPERIMENTAL
-#include <glm/gtx/transform.hpp>
 #include <iostream>
 
 static vulkan_library vulkan_library_loader;
@@ -52,6 +54,9 @@ b8 load_device_level_function();
 
 vulkan_renderer::vulkan_renderer(void* platform_internal_state) : renderer(platform_internal_state)
 {
+    scene_index = 0;
+    scene.resize(scene_count);
+    scene[0] = std::make_unique<default_scene>();
 }
 
 vulkan_renderer::~vulkan_renderer()
@@ -90,9 +95,6 @@ b8 vulkan_renderer::init()
     if (!load_instance_level_function())
         return false;
 
-    //TODO: not using this (instead will use event_system)
-    get_app_framebuffer_size(&context.framebuffer_width, &context.framebuffer_height);
-
     if (!create_surface()) {
         std::cout << "create surface failed" << std::endl;
         return false;
@@ -120,30 +122,29 @@ b8 vulkan_renderer::init()
         return false;
     }
     
+/* Moved to vulkan_scene.cpp
     // create command pool per frame
-	context.graphics_commands.resize(context.swapchain.max_frames_in_flight);
     for (u32 i = 0; i < context.swapchain.max_frames_in_flight; ++i) {
 		vulkan_command_pool_create(&context, &context.graphics_commands.at(i), context.device_context.graphics_family.index);
 		vulkan_command_buffer_allocate(&context, &context.graphics_commands.at(i), true);
     }
 
     vulkan_renderpass_create(&context, &context.main_renderpass, 0, 0, context.framebuffer_width, context.framebuffer_height);
-    
-    context.framebuffers.resize(context.swapchain.image_count);
+*/
 
-    for (u32 i = 0; i < context.swapchain.image_count; ++i) {
-
-        VkImageView image_views[] = {
-            context.swapchain.image_views.at(i),
-            context.swapchain.depth_attachment.view
-        };
-
-        u32 attachment_count = 2;
-
-       vulkan_framebuffer_create(&context, &context.main_renderpass, attachment_count, image_views, &context.framebuffers.at(i));
+    // create command buffer, pool, renderpass, framebuffer 
+    for (const auto& s : scene) {
+        s->init(&context);
     }
 
+    /*
+
+    context.framebuffers.resize(context.swapchain.image_count);
+
+    regenerate_framebuffer();
+
     std::cout << "framebuffers created" << std::endl;
+	*/
 
     context.image_available_semaphores.resize(context.swapchain.max_frames_in_flight);
     context.ready_to_render_semaphores.resize(context.swapchain.max_frames_in_flight);
@@ -159,6 +160,20 @@ b8 vulkan_renderer::init()
     }
     std::cout << "sync objects created" << std::endl;
 
+	// descriptor allocator init
+    context.dynamic_descriptor_allocators.resize(MAX_FRAME);
+    for (auto& desc_alloc : context.dynamic_descriptor_allocators) {
+        desc_alloc.init(context.device_context.handle);
+    }
+
+    /*
+    * global descriptor initialize
+    */
+    vulkan_global_data_initialize(&context, sizeof(global_ubo));
+
+    /*
+
+    //TODO: move to shader
     VkVertexInputBindingDescription binding_description{};
     binding_description.binding = 0;
     binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
@@ -185,12 +200,18 @@ b8 vulkan_renderer::init()
         uv_attribute
     };
 
+    /*
+    global_ubo.projection = glm::perspective(glm::radians(45.0f), (f32)context.framebuffer_width / context.framebuffer_height, 0.1f, 100.0f);
+    // camera pos, pos + front, up
+    global_ubo.view = glm::lookAt(glm::vec3(0.0f, 0.0f, -10.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
     // Init global data
     VkPushConstantRange push_constant_range{};
     push_constant_range.offset = 0;
     push_constant_range.size = sizeof(global_ubo);
     push_constant_range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    */
 
+    /*
     if (!vulkan_graphics_pipeline_create(
         &context, &context.main_renderpass,
         &context.graphics_pipeline,
@@ -198,13 +219,17 @@ b8 vulkan_renderer::init()
         &binding_description,
         3,
         attribute_descriptions,
+        0,
+        nullptr,
         1,
-        &push_constant_range,
+        &context.global_data.set_layout,
         "shader/test.vert.spv", "shader/test.frag.spv")) {
         std::cout << "graphics pipeline create failed\n";
 
         return false;
     }
+    */
+    
 
     for (const auto& obj : object_manager) {
         vulkan_render_object* vk_render_obj = (vulkan_render_object*)(obj.second.get());
@@ -214,11 +239,11 @@ b8 vulkan_renderer::init()
 	return true;
 }
 
-b8 vulkan_renderer::draw()
+b8 vulkan_renderer::begin_frame(f32 dt)
 {
     context.current_frame = frame_number % context.swapchain.max_frames_in_flight;
 
-    VK_CHECK(vkWaitForFences(context.device_context.handle, 1, &context.render_fences.at(context.current_frame), true, UINT64_MAX));
+	VK_CHECK(vkWaitForFences(context.device_context.handle, 1, &context.render_fences.at(context.current_frame), true, UINT64_MAX));
     VK_CHECK(vkResetFences(context.device_context.handle, 1, &context.render_fences.at(context.current_frame)));
 
     if (!acquire_next_image_index_swapchain(
@@ -227,14 +252,14 @@ b8 vulkan_renderer::draw()
         UINT64_MAX,
         context.image_available_semaphores.at(context.current_frame),
         0,
-        &context.image_index))
+        &scene[scene_index]->image_index))
     {
         std::cout << "image acquire failed" << std::endl;
-		return false;
+        return false;
     }
 
     //TODO: multiple command buffers
-    VkCommandBuffer command_buffer = context.graphics_commands.at(context.current_frame).buffers.at(0);
+    VkCommandBuffer command_buffer = scene[scene_index]->graphics_commands.at(context.current_frame).buffer;
 
     VK_CHECK(vkResetCommandBuffer(command_buffer, 0));
     VkCommandBufferBeginInfo cmd_begin_info{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
@@ -242,36 +267,23 @@ b8 vulkan_renderer::draw()
 
     VK_CHECK(vkBeginCommandBuffer(command_buffer, &cmd_begin_info));
 
-    VkClearValue clear_values[] = {
-        // color
-        { {0.3f, 0.2f, 0.1f, 1.0f} },
-        // depth, stencil
-        {{1.0f, 0.0f}}
-    };
+    return scene[scene_index]->begin_frame(dt);
+}
 
-    VkRenderPassBeginInfo renderpass_begin_info{ VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
-    renderpass_begin_info.renderPass = context.main_renderpass.handle;
-    renderpass_begin_info.framebuffer = context.framebuffers.at(context.image_index);
-    renderpass_begin_info.renderArea.extent = { context.main_renderpass.width, context.main_renderpass.height };
-    renderpass_begin_info.renderArea.offset.x = context.main_renderpass.x;
-    renderpass_begin_info.renderArea.offset.y = context.main_renderpass.y;
-    renderpass_begin_info.clearValueCount = 2;
-    renderpass_begin_info.pClearValues = clear_values;
+b8 vulkan_renderer::begin_renderpass()
+{
+    return scene[scene_index]->begin_renderpass(context.current_frame);
+}
 
-    vkCmdBeginRenderPass(command_buffer, &renderpass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+b8 vulkan_renderer::end_renderpass()
+{
+    return scene[scene_index]->end_renderpass(context.current_frame);
+}
 
-    vulkan_pipeline_bind(&context.graphics_commands.at(context.current_frame), VK_PIPELINE_BIND_POINT_GRAPHICS, &context.graphics_pipeline);
-    
-	vkCmdPushConstants(command_buffer, context.graphics_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(global_ubo), &global_ubo);
-
-    for (const auto& obj : object_manager) {
-        VkDeviceSize offset = 0;
-        vulkan_render_object* vk_render_obj = (vulkan_render_object*)(obj.second.get());
-        vkCmdBindVertexBuffers(command_buffer, 0, 1, &vk_render_obj->vertex_buffer.buffer, &offset);
-        vkCmdDraw(command_buffer, vk_render_obj->p_mesh->vertices.size(), 1, 0, 0);
-    }
-
-    vkCmdEndRenderPass(command_buffer);
+b8 vulkan_renderer::end_frame()
+{
+	//TODO: multiple command buffers
+    VkCommandBuffer command_buffer = scene[scene_index]->graphics_commands.at(context.current_frame).buffer;
 
     VK_CHECK(vkEndCommandBuffer(command_buffer));
 
@@ -301,43 +313,54 @@ b8 vulkan_renderer::draw()
 
     VK_CHECK(vkQueuePresentKHR(context.device_context.graphics_queue, &present_info));
     */
-    present_image_swapchain(&context,
+    if (!present_image_swapchain(&context,
         &context.swapchain,
         context.device_context.present_queue,
         context.ready_to_render_semaphores.at(context.current_frame),
-        context.image_index);
+        scene[scene_index]->image_index)) {
 
-    ++frame_number;
+        /*
+        get_app_framebuffer_size(&context.framebuffer_width, &context.framebuffer_height);
+        vulkan_swapchain_recreate(&context, context.framebuffer_width, context.framebuffer_height);
+        regenerate_framebuffer();
+        */
+    }
 
-	return true;
+
+    return scene[scene_index]->end_frame();
+}
+
+b8 vulkan_renderer::draw()
+{       
+    //
+	return scene[scene_index]->draw();
 }
 
 void vulkan_renderer::shutdown()
 {
     vkQueueWaitIdle(context.device_context.graphics_queue);
 
+    for (u32 i = 0; i < context.swapchain.max_frames_in_flight; ++i) {
+        vkDestroySemaphore(context.device_context.handle, context.image_available_semaphores.at(i), context.allocator);
+        vkDestroySemaphore(context.device_context.handle, context.ready_to_render_semaphores.at(i), context.allocator);
+        vkDestroyFence(context.device_context.handle, context.render_fences.at(i), context.allocator);
+
+        context.image_available_semaphores.at(i) = VK_NULL_HANDLE;
+        context.ready_to_render_semaphores.at(i) = VK_NULL_HANDLE;
+        context.render_fences.at(i) = VK_NULL_HANDLE;
+    }
+
     for (const auto& obj : object_manager) {
         vulkan_render_object* vk_render_obj = (vulkan_render_object*)(obj.second.get());
         vk_render_obj->vulkan_render_object_destroy(&context);
     }
 
-    vulkan_pipeline_destroy(&context, &context.graphics_pipeline);
+    vulkan_global_data_destroy(&context);
 
+    scene[scene_index]->shutdown();
 
-    for (u32 i = 0; i < context.swapchain.max_frames_in_flight; ++i) {
-        vkDestroySemaphore(context.device_context.handle, context.image_available_semaphores.at(i), context.allocator);
-        vkDestroySemaphore(context.device_context.handle, context.ready_to_render_semaphores.at(i), context.allocator);
-		vkDestroyFence(context.device_context.handle, context.render_fences.at(i), context.allocator);
-    }
-    for (u32 i = 0; i < context.swapchain.image_count; ++i) {
-        vulkan_framebuffer_destroy(&context, &context.framebuffers.at(i));
-    }
-
-    vulkan_renderpass_destroy(&context, &context.main_renderpass);
-
-    for (u32 i = 0; i < context.swapchain.max_frames_in_flight; ++i)
-        vulkan_command_pool_destroy(&context, &context.graphics_commands.at(i));
     vulkan_swapchain_destroy(&context, &context.swapchain);
+
     vulkan_memory_allocator_destroy(&context);
     vulkan_device_destroy(&context, &context.device_context);
     vkDestroySurfaceKHR(context.instance, context.surface, context.allocator);
@@ -347,27 +370,50 @@ void vulkan_renderer::shutdown()
 
 b8 vulkan_renderer::on_resize(u32 w, u32 h)
 {
-    std::cout << "resize " << w << h << std::endl;
+    if (context.device_context.handle != nullptr) {
+        vkDeviceWaitIdle(context.device_context.handle);
 
-    vulkan_swapchain_recreate(&context, w, h);
-    vulkan_renderpass_destroy(&context, &context.main_renderpass);
-    vulkan_renderpass_create(&context, &context.main_renderpass, 0, 0, w, h);
+		//get_app_framebuffer_size(&context.framebuffer_width, &context.framebuffer_height);
+        context.framebuffer_width = w;
+        context.framebuffer_height = h;
 
-    for (u32 i = 0; i < context.swapchain.image_count; ++i) {
+        if (!vulkan_swapchain_recreate(&context, context.framebuffer_width, context.framebuffer_height))
+            return false;
 
-		vulkan_framebuffer_destroy(&context, &context.framebuffers.at(i));
+        scene[scene_index]->on_resize(w, h);
 
-        VkImageView image_views[] = {
-            context.swapchain.image_views.at(i),
-            context.swapchain.depth_attachment.view
-        };
-
-        u32 attachment_count = 2;
-
-        vulkan_framebuffer_create(&context, &context.main_renderpass, attachment_count, image_views, &context.framebuffers.at(i));
+        return true;
     }
 
-	return true;
+	return false;
+}
+
+b8 vulkan_renderer::add_shader(const char* name)
+{
+    if (shader_manager.find(name) != shader_manager.end())
+    {
+        std::cout << "shader already exists!" << std::endl;
+        return false;
+    }
+
+    shader_manager[name] = std::make_unique<vulkan_shader>(&context, &scene[scene_index]->main_renderpass);
+
+    return true;
+}
+
+void vulkan_renderer::update_global_data()
+{
+    renderer::update_global_data();
+
+    vulkan_buffer_upload(&context, &context.global_data.ubo_data[context.current_frame].buffer, &global_ubo, sizeof(global_ubo));
+}
+
+b8 vulkan_renderer::bind_global_data()
+{
+    vkCmdBindDescriptorSets(scene[scene_index]->graphics_commands[context.current_frame].buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, scene[scene_index]->graphics_pipeline.layout,
+        0, 1, &context.global_data.ubo_data[context.current_frame].descriptor_set, 0, nullptr);
+
+    return true;
 }
 
 b8 vulkan_renderer::create_instance()
@@ -454,7 +500,7 @@ void vulkan_renderer::create_debug_util_message()
     debugCreateInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT
         | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT;
     debugCreateInfo.pfnUserCallback = (PFN_vkDebugUtilsMessengerCallbackEXT)debugCallback;
-    debugCreateInfo.pUserData = this;
+    debugCreateInfo.pUserData = 0;
 
     VK_CHECK(vkCreateDebugUtilsMessengerEXT(context.instance, &debugCreateInfo, nullptr, &context.debug_messenger));
 }
@@ -526,3 +572,4 @@ b8 load_device_level_function() {
 #include "list_of_functions.inl"
     return true;
 }
+
