@@ -1,6 +1,6 @@
-#include "vulkan_memory_allocate.h"
-
 #include "vulkan_types.inl"
+
+#include "vulkan_memory_allocate.h"
 
 void vulkan_memory_allocator_create(vulkan_context* context)
 {
@@ -20,3 +20,7 @@ void vulkan_memory_allocator_destroy(vulkan_context* context)
 {
 	vmaDestroyAllocator(context->vma_allocator);
 }
+
+
+
+

@@ -8,8 +8,8 @@ void vulkan_framebuffer_create(vulkan_context* context, vulkan_renderpass* rende
 	create_info.renderPass = renderpass->handle;
 	create_info.attachmentCount = attachment_count;
 	create_info.pAttachments = image_view;
-	create_info.width = renderpass->width;
-	create_info.height = renderpass->height;
+	create_info.width = context->framebuffer_width;
+	create_info.height = context->framebuffer_height;
 	create_info.layers = 1;
 
 	VK_CHECK(vkCreateFramebuffer(

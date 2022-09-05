@@ -75,6 +75,11 @@ b8 vulkan_swapchain_create(vulkan_context* context, i32 width, i32 height,vulkan
         extent = surface_capabilites.currentExtent;
     }
 
+    width = extent.width;
+    height = extent.height;
+    context->framebuffer_width = width;
+    context->framebuffer_height = height;
+
 	VkSwapchainCreateInfoKHR swapchain_create_info{ VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
     swapchain_create_info.surface = context->surface;
     swapchain_create_info.minImageCount = number_of_images;
@@ -135,7 +140,7 @@ b8 vulkan_swapchain_create(vulkan_context* context, i32 width, i32 height,vulkan
         create_info.subresourceRange.layerCount = 1;
         create_info.subresourceRange.levelCount = 1;
 
-        VK_CHECK(vkCreateImageView(context->device_context.handle, &create_info, context->allocator, &context->swapchain.image_views.at(i)));
+        VK_CHECK(vkCreateImageView(context->device_context.handle, &create_info, context->allocator, &swapchain->image_views.at(i)));
     }
 
     if (!vulkan_device_detect_depth_format(&context->device_context)) {
@@ -154,7 +159,7 @@ b8 vulkan_swapchain_create(vulkan_context* context, i32 width, i32 height,vulkan
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, //GPU ONLY
         true,
         VK_IMAGE_ASPECT_DEPTH_BIT,
-        &context->swapchain.depth_attachment
+        &swapchain->depth_attachment
     );
 
     std::cout << "swapchain created" << std::endl;
@@ -164,7 +169,8 @@ b8 vulkan_swapchain_create(vulkan_context* context, i32 width, i32 height,vulkan
 
 b8 vulkan_swapchain_destroy(vulkan_context* context, vulkan_swapchain* swapchain)
 {
-    vkWaitForFences()
+    if (context->render_fences.at(context->current_frame) != VK_NULL_HANDLE)
+        VK_CHECK(vkWaitForFences(context->device_context.handle, 1, &context->render_fences.at(context->current_frame), true, UINT64_MAX));
 
     vulkan_image_destroy(context, &swapchain->depth_attachment);
    
@@ -181,9 +187,11 @@ b8 vulkan_swapchain_recreate(vulkan_context* context, i32 width, i32 height)
 {
     vulkan_swapchain out_swapchain{};
 	
-    vulkan_swapchain_destroy(context, &context->swapchain);
     if (!vulkan_swapchain_create(context, width, height, &out_swapchain))
         return false;
+
+	vulkan_swapchain_destroy(context, &context->swapchain);
+
 
     context->swapchain = out_swapchain;
 
@@ -246,7 +254,6 @@ b8 present_image_swapchain(
     switch (result) {
     case VK_ERROR_OUT_OF_DATE_KHR:
     case VK_SUBOPTIMAL_KHR:
-        vulkan_swapchain_recreate(context, context->framebuffer_width, context->framebuffer_height);
         return false;
     }
 

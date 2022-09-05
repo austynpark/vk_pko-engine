@@ -1,5 +1,7 @@
 #include "vulkan_mesh.h"
 
+#include "vulkan_buffer.h"
+
 vulkan_render_object::vulkan_render_object(const char* object_name) : object(object_name)
 {
 	
@@ -7,24 +9,8 @@ vulkan_render_object::vulkan_render_object(const char* object_name) : object(obj
 
 void vulkan_render_object::upload_mesh(vulkan_context* context)
 {
-	VkBufferCreateInfo buffer_create_info{ VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
-	buffer_create_info.size = p_mesh->vertices.size() * sizeof(vertex);
-	buffer_create_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-
-	VmaAllocationCreateInfo alloc_create_info{};
-	alloc_create_info.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
-
-	//VmaAllocationInfo alloc_info{};
-	//alloc_info.
-
-	VK_CHECK(vmaCreateBuffer(
-		context->vma_allocator,
-		&buffer_create_info,
-		&alloc_create_info,
-		&vertex_buffer.buffer,
-		&vertex_buffer.allocation,
-		nullptr
-	));
+	vulkan_buffer_create(context, p_mesh->vertices.size() * sizeof(vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY, &vertex_buffer);
+	
 
 	void* data;
 	VK_CHECK(vmaMapMemory(context->vma_allocator , vertex_buffer.allocation, &data));
@@ -32,14 +18,46 @@ void vulkan_render_object::upload_mesh(vulkan_context* context)
 	memcpy(data, p_mesh->vertices.data(), p_mesh->vertices.size() * sizeof(vertex));
 
 	vmaUnmapMemory(context->vma_allocator, vertex_buffer.allocation);
-
 }
 
 void vulkan_render_object::vulkan_render_object_destroy(vulkan_context* context)
 {
-	vmaDestroyBuffer(context->vma_allocator, vertex_buffer.buffer, vertex_buffer.allocation);
+	vmaDestroyBuffer(context->vma_allocator, vertex_buffer.handle, vertex_buffer.allocation);
 }
 
 vulkan_render_object::~vulkan_render_object()
 {
+}
+
+vertex_input_description vulkan_render_object::get_vertex_input_description()
+{
+	vertex_input_description result;
+
+	VkVertexInputBindingDescription input_binding_description;
+	input_binding_description.binding = 0;
+	input_binding_description.stride = sizeof(vertex);
+	input_binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+	result.bindings.push_back(input_binding_description);
+
+	std::vector<VkVertexInputAttributeDescription> input_attribute_descriptions(3);
+
+	input_attribute_descriptions[0].binding = 0;
+	input_attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+	input_attribute_descriptions[0].location = 0;
+	input_attribute_descriptions[0].offset = offsetof(vertex, position);
+
+	input_attribute_descriptions[1].binding = 0;
+	input_attribute_descriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+	input_attribute_descriptions[1].location = 1;
+	input_attribute_descriptions[1].offset = offsetof(vertex, normal);
+
+	input_attribute_descriptions[2].binding = 0;
+	input_attribute_descriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
+	input_attribute_descriptions[2].location = 2;
+	input_attribute_descriptions[2].offset = offsetof(vertex, uv);
+
+	result.attributes = input_attribute_descriptions;
+
+	return result;
 }

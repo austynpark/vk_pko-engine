@@ -13,6 +13,4 @@ struct application {
 	//b8 on_resize();
 };
 
-void get_app_framebuffer_size(u32* w, u32* h);
-
 #endif // APPLICATION_H

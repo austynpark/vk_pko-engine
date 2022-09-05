@@ -59,9 +59,3 @@ void application::shutdown()
 	app_state.renderer = 0;
 	app_state.platform.shutdown();
 }
-
-void get_app_framebuffer_size(u32* w, u32* h)
-{
-	*w = app_state.width;
-	*h = app_state.height;
-}

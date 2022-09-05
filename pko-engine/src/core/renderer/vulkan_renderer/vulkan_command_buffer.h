@@ -1,7 +1,7 @@
 #ifndef VULKAN_COMMAND_BUFFER_H
 #define VULKAN_COMMAND_BUFFER_H
 
-#include "defines.h"
+#include "vulkan_types.inl"
 
 struct vulkan_context;
 struct vulkan_command;
@@ -10,5 +10,7 @@ void vulkan_command_pool_create(vulkan_context* context, vulkan_command* command
 void vulkan_command_pool_destroy(vulkan_context* context, vulkan_command* command);
 
 void vulkan_command_buffer_allocate(vulkan_context* context, vulkan_command* command, b8 is_primary);
+void vulkan_command_buffer_begin(vulkan_command* command, VkCommandBufferUsageFlags buffer_usage);
+void vulkan_command_buffer_end(vulkan_command* command);
 
 #endif // !VULKAN_COMMAND_BUFFER_H
