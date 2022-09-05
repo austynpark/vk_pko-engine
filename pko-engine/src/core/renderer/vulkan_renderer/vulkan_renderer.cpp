@@ -204,7 +204,7 @@ b8 vulkan_renderer::init()
     global_ubo.projection = glm::perspective(glm::radians(45.0f), (f32)context.framebuffer_width / context.framebuffer_height, 0.1f, 100.0f);
     // camera pos, pos + front, up
     global_ubo.view = glm::lookAt(glm::vec3(0.0f, 0.0f, -10.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
-
+    // Init global data
     VkPushConstantRange push_constant_range{};
     push_constant_range.offset = 0;
     push_constant_range.size = sizeof(global_ubo);

@@ -8,7 +8,7 @@
 
 //number of images
 
-b8 vulkan_swapchain_create(vulkan_context* context, i32 width, i32 height,vulkan_swapchain* swapchain)
+b8 vulkan_swapchain_create(vulkan_context* context, i32 width, i32 height, vulkan_swapchain* swapchain)
 {
     VkExtent2D extent{ width, height };
 
@@ -180,6 +180,8 @@ b8 vulkan_swapchain_destroy(vulkan_context* context, vulkan_swapchain* swapchain
 
     vkDestroySwapchainKHR(context->device_context.handle, swapchain->handle, context->allocator);
 
+    swapchain->handle = nullptr;
+
 	return true;
 }
 
@@ -190,8 +192,12 @@ b8 vulkan_swapchain_recreate(vulkan_context* context, i32 width, i32 height)
     if (!vulkan_swapchain_create(context, width, height, &out_swapchain))
         return false;
 
+
 	vulkan_swapchain_destroy(context, &context->swapchain);
 
+	if(context->swapchain.handle != nullptr) {
+        vkDestroySwapchainKHR(context->device_context.handle, context->swapchain.handle, context->allocator);
+    }
 
     context->swapchain = out_swapchain;
 
