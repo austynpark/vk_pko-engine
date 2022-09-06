@@ -19,7 +19,6 @@ public:
 	void shutdown();
 private:
 	renderer* renderer_backend;
-	b8 load_meshes();
 };
 
 #endif // !RENDERER_FRONTEND_H

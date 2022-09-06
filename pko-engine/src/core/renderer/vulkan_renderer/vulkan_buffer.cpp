@@ -1,10 +1,13 @@
 #include "vulkan_buffer.h"
 
+#include "vulkan_command_buffer.h"
+
 void vulkan_buffer_create(
 	vulkan_context* context,
 	u64 buffer_size,
-	VkBufferUsageFlagBits buffer_usage_flag,
+	VkBufferUsageFlags buffer_usage_flag,
 	VmaMemoryUsage memory_usage_flag,
+	VmaAllocationCreateFlags alloc_create_flag,
 	vulkan_allocated_buffer* buffer
 	) 
 {
@@ -14,6 +17,7 @@ void vulkan_buffer_create(
 
 	VmaAllocationCreateInfo alloc_create_info{};
 	alloc_create_info.usage = memory_usage_flag;
+	alloc_create_info.flags = alloc_create_flag;
 
 	VK_CHECK(vmaCreateBuffer(
 		context->vma_allocator,
@@ -34,14 +38,28 @@ void vulkan_buffer_copy(vulkan_context* context,
 	u64 dst_offset
 )
 {
+	vulkan_command one_time_submit;
+	vulkan_command_pool_create(context, &one_time_submit, context->device_context.transfer_family.index);
+	vulkan_command_buffer_allocate(context, &one_time_submit, true);
+
 	VkBufferCopy buffer_copy{
 		src_offset,// srcOffset
 		dst_offset,// dstOffset
 		size// size
 	};
 
+	vulkan_command_buffer_begin(&one_time_submit, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+	vkCmdCopyBuffer(one_time_submit.buffer, src_buffer->handle, dst_buffer->handle, 1, &buffer_copy);
+	vulkan_command_buffer_end(&one_time_submit);
+	
+	VkSubmitInfo submit_info = {};
+	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submit_info.commandBufferCount = 1;
+	submit_info.pCommandBuffers = &one_time_submit.buffer;
 
-
+	VK_CHECK(vkQueueSubmit(context->device_context.transfer_queue, 1, &submit_info, VK_NULL_HANDLE));
+	vkQueueWaitIdle(context->device_context.transfer_queue);
+	vulkan_command_pool_destroy(context, &one_time_submit);
 }
 
 

@@ -11,8 +11,9 @@
 void vulkan_buffer_create(
 	vulkan_context* context,
 	u64 buffer_size,
-	VkBufferUsageFlagBits buffer_usage_flag,
+	VkBufferUsageFlags buffer_usage_flag,
 	VmaMemoryUsage memory_usage_flag,
+	VmaAllocationCreateFlags alloc_create_flag,
 	vulkan_allocated_buffer* buffer
 );
 

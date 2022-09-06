@@ -30,8 +30,6 @@ b8 vulkan_scene::init(vulkan_context* api_context)
 
     context = api_context;
 
-    main_shader = std::make_unique<vulkan_shader>(api_context, &main_renderpass);
-
     // create command pool per frame
     graphics_commands.resize(context->swapchain.max_frames_in_flight);
 	for (u32 i = 0; i < context->swapchain.max_frames_in_flight; ++i) {
@@ -41,13 +39,21 @@ b8 vulkan_scene::init(vulkan_context* api_context)
 
     vulkan_renderpass_create(context, &main_renderpass, 0, 0, context->framebuffer_width, context->framebuffer_height);
 
+	main_shader = std::make_unique<vulkan_shader>(api_context, &main_renderpass);
+
     framebuffers.resize(context->swapchain.image_count);
 
     regenerate_framebuffer();
 
     std::cout << "framebuffers created" << std::endl;
 
-    //TODO: pipeline (shader create)
+    object_manager["suzanne"] = std::make_unique<vulkan_render_object>("model/suzanne.obj");
+
+	for (const auto& obj : object_manager) {
+        vulkan_render_object* vk_render_obj = (vulkan_render_object*)(obj.second.get());
+        vk_render_obj->upload_mesh(context);
+    }
+
 
     return true;
 }
@@ -149,6 +155,10 @@ void vulkan_scene::shutdown()
 {
     main_shader->shutdown();
 
+	for (auto& obj : object_manager) {
+        obj.second->vulkan_render_object_destroy(context);
+    }
+
     for (u32 i = 0; i < context->swapchain.image_count; ++i) {
         vulkan_framebuffer_destroy(context, &framebuffers.at(i));
     }
@@ -161,6 +171,9 @@ void vulkan_scene::shutdown()
 
 b8 vulkan_scene::on_resize(u32 w, u32 h)
 {
+    main_renderpass.width = w;
+    main_renderpass.height = h;
+
     regenerate_framebuffer();
 
     return true;
@@ -168,7 +181,6 @@ b8 vulkan_scene::on_resize(u32 w, u32 h)
 
 void vulkan_scene::regenerate_framebuffer()
 {
-
     for (u32 i = 0; i < context->swapchain.image_count; ++i) {
 
         VkImageView image_views[] = {

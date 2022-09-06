@@ -9,15 +9,20 @@ vulkan_render_object::vulkan_render_object(const char* object_name) : object(obj
 
 void vulkan_render_object::upload_mesh(vulkan_context* context)
 {
-	vulkan_buffer_create(context, p_mesh->vertices.size() * sizeof(vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY, &vertex_buffer);
-	
+	vulkan_allocated_buffer staging_buffer;
 
+	vulkan_buffer_create(context, p_mesh->vertices.size() * sizeof(vertex), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT, &staging_buffer);
+	
 	void* data;
-	VK_CHECK(vmaMapMemory(context->vma_allocator , vertex_buffer.allocation, &data));
+	VK_CHECK(vmaMapMemory(context->vma_allocator , staging_buffer.allocation, &data));
 
 	memcpy(data, p_mesh->vertices.data(), p_mesh->vertices.size() * sizeof(vertex));
 
-	vmaUnmapMemory(context->vma_allocator, vertex_buffer.allocation);
+	vmaUnmapMemory(context->vma_allocator, staging_buffer.allocation);
+
+	vulkan_buffer_create(context, p_mesh->vertices.size() * sizeof(vertex), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO, VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT, &vertex_buffer);
+
+	vulkan_buffer_copy(context, &staging_buffer, &vertex_buffer, p_mesh->vertices.size() * sizeof(vertex));
 }
 
 void vulkan_render_object::vulkan_render_object_destroy(vulkan_context* context)

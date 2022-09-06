@@ -11,6 +11,7 @@ constexpr int scene_count = 1;
 struct vulkan_context;
 struct vulkan_swapchain;
 class vulkan_shader;
+class vulkan_render_object;
 
 enum scene_name {
 	E_DEFAULT_SCENE
@@ -49,7 +50,6 @@ public:
 	u32 image_index;
 	// per frame data
 	std::vector<vulkan_command> graphics_commands;
-
 	std::unique_ptr<vulkan_shader> main_shader;
 
 	// pipeline where the global data is bound
@@ -57,6 +57,8 @@ public:
 
 protected:
 	vulkan_context* context;
+
+	std::unordered_map<const char*, std::unique_ptr<vulkan_render_object>> object_manager;
 
 	void regenerate_framebuffer();
 };

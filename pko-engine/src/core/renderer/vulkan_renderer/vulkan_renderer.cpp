@@ -230,12 +230,6 @@ b8 vulkan_renderer::init()
     }
     */
     
-
-    for (const auto& obj : object_manager) {
-        vulkan_render_object* vk_render_obj = (vulkan_render_object*)(obj.second.get());
-        vk_render_obj->upload_mesh(&context);
-    }
-
 	return true;
 }
 
@@ -350,11 +344,6 @@ void vulkan_renderer::shutdown()
         context.render_fences.at(i) = VK_NULL_HANDLE;
     }
 
-    for (const auto& obj : object_manager) {
-        vulkan_render_object* vk_render_obj = (vulkan_render_object*)(obj.second.get());
-        vk_render_obj->vulkan_render_object_destroy(&context);
-    }
-
     vulkan_global_data_destroy(&context);
 
     scene[scene_index]->shutdown();
@@ -390,6 +379,7 @@ b8 vulkan_renderer::on_resize(u32 w, u32 h)
 
 b8 vulkan_renderer::add_shader(const char* name)
 {
+    /*
     if (shader_manager.find(name) != shader_manager.end())
     {
         std::cout << "shader already exists!" << std::endl;
@@ -397,7 +387,7 @@ b8 vulkan_renderer::add_shader(const char* name)
     }
 
     shader_manager[name] = std::make_unique<vulkan_shader>(&context, &scene[scene_index]->main_renderpass);
-
+    */
     return true;
 }
 

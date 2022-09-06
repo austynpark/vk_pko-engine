@@ -14,6 +14,7 @@ struct vertex_input_description {
 class vulkan_render_object : public object
 {
 public:
+	vulkan_render_object() = delete;
 	vulkan_render_object(const char* object_name);
 	void upload_mesh(vulkan_context* context);
 	void vulkan_render_object_destroy(vulkan_context* context);

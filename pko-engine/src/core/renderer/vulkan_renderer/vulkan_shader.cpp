@@ -252,7 +252,7 @@ b8 vulkan_global_data_initialize(vulkan_context* context, u32 buffer_size)
 			break;
 		}
 
-		vulkan_buffer_create(context, buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, &context->global_data.ubo_data[i].buffer);		
+		vulkan_buffer_create(context, buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,&context->global_data.ubo_data[i].buffer);
 
 		VkDescriptorBufferInfo buffer_info{};
 		buffer_info.buffer = context->global_data.ubo_data[i].buffer.handle;

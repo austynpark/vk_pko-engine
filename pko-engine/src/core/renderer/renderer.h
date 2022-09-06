@@ -40,12 +40,13 @@ public:
 	virtual void update_global_data();
 
 	virtual b8 bind_global_data() = 0;
+
+	u32 width;
+	u32 height;
 protected:
 	// platform internal state
 	void* plat_state;
 	u32 frame_number;
 	
-	std::unordered_map<const char*, std::unique_ptr<object>> object_manager;
-	std::unordered_map<const char*, std::unique_ptr<vulkan_shader>> shader_manager;
 	global_uniform_object global_ubo;
 };
