@@ -38,7 +38,7 @@ b8 application::init(const char* app_name ,i32 x, i32 y,u32 w, u32 h)
 	
 	app_state.renderer = new renderer_frontend(app_state.platform.state);
 	
-	if (!app_state.renderer->init())
+	if (!app_state.renderer->init(w, h))
 		return false;
 
 	event_system::bind_event(event_code::EVENT_CODE_ONRESIZED, on_resize);

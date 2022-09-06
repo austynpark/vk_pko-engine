@@ -111,10 +111,14 @@ b8 vulkan_device_destroy(vulkan_context* context, vulkan_device* device_context)
 
 void vulkan_get_device_queue(vulkan_device* device_context)
 {
-	vkGetDeviceQueue(device_context->handle, device_context->graphics_family.index, 0, &device_context->graphics_queue);
-	vkGetDeviceQueue(device_context->handle, device_context->graphics_family.index, 0, &device_context->present_queue);
-	vkGetDeviceQueue(device_context->handle, device_context->graphics_family.index, 0, &device_context->transfer_queue);
-	vkGetDeviceQueue(device_context->handle, device_context->graphics_family.index, 0, &device_context->compute_queue);
+	if (device_context->graphics_family.index != -1)
+		vkGetDeviceQueue(device_context->handle, device_context->graphics_family.index, 0, &device_context->graphics_queue);
+	if (device_context->present_family.index != -1)
+		vkGetDeviceQueue(device_context->handle, device_context->present_family.index, 0, &device_context->present_queue);
+	if (device_context->transfer_family.index != -1)
+		vkGetDeviceQueue(device_context->handle, device_context->transfer_family.index, 0, &device_context->transfer_queue);
+	if (device_context->compute_family.index != -1)
+		vkGetDeviceQueue(device_context->handle, device_context->compute_family.index, 0, &device_context->compute_queue);
 
 	std::cout << "device queue acquired" << std::endl;
 }

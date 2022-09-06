@@ -20,7 +20,7 @@
 constexpr int MAX_FRAME = 3;
 
 struct vulkan_queue_family {
-	u32 index;
+	u32 index = -1;
 	u32 count;
 	//std::vector<VkQueue> queues;
 };

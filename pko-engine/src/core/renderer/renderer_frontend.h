@@ -13,7 +13,7 @@ public:
 	renderer_frontend(void* platform_state);
 	~renderer_frontend();
 
-	b8 init();
+	b8 init(u32 w, u32 h);
 	b8 draw(f32 dt);
 	b8 on_resize(u32 w, u32 h);
 	void shutdown();

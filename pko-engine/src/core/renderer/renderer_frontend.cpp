@@ -24,7 +24,7 @@ renderer_frontend::~renderer_frontend()
 	delete renderer_backend;
 }
 
-b8 renderer_frontend::init()
+b8 renderer_frontend::init(u32 w, u32 h)
 {
 	/*
 	if (!load_meshes()) {
@@ -35,6 +35,8 @@ b8 renderer_frontend::init()
 	SpirvHelper::Init();
 
 	renderer_backend->frame_number = 0;
+	renderer_backend->width = w;
+	renderer_backend->height = h;
 
 	return renderer_backend->init();
 }
