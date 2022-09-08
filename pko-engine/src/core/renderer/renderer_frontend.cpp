@@ -3,7 +3,6 @@
 #include "vulkan_renderer/vulkan_shader.h"
 #include "vulkan_renderer/vulkan_renderer.h"
 
-#include "core/object.h"
 #include "vulkan_renderer/vulkan_mesh.h"
 #include "spirv_helper.h"
 

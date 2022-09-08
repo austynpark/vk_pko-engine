@@ -2,7 +2,6 @@
 
 #include "platform/platform.h"
 #include "renderer/renderer_frontend.h"
-#include "object_manager.h"
 
 #include "input.h"
 

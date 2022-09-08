@@ -47,11 +47,10 @@ b8 vulkan_scene::init(vulkan_context* api_context)
 
     std::cout << "framebuffers created" << std::endl;
 
-    object_manager["suzanne"] = std::make_unique<vulkan_render_object>("model/suzanne.obj");
+    object_manager["suzanne"] = std::make_unique<vulkan_render_object>(context, "model/suzanne.obj");
 
 	for (const auto& obj : object_manager) {
-        vulkan_render_object* vk_render_obj = (vulkan_render_object*)(obj.second.get());
-        vk_render_obj->upload_mesh(context);
+        obj.second->upload_mesh();
     }
 
 
@@ -156,7 +155,7 @@ void vulkan_scene::shutdown()
     main_shader->shutdown();
 
 	for (auto& obj : object_manager) {
-        obj.second->vulkan_render_object_destroy(context);
+        obj.second->vulkan_render_object_destroy();
     }
 
     for (u32 i = 0; i < context->swapchain.image_count; ++i) {

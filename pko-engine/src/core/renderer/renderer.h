@@ -8,7 +8,6 @@
 #include <glm/glm.hpp>
 
 class renderer_frontend;
-class object;
 class vulkan_shader;
 
 struct global_uniform_object {

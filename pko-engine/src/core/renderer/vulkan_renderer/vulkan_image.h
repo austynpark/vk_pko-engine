@@ -25,5 +25,16 @@ void vulkan_image_view_create(
 
 void vulkan_image_destroy(vulkan_context* context, vulkan_image* image);
 
+void vulkan_image_layout_transition(vulkan_image* image, 
+	vulkan_command* command,
+	VkImageLayout old_layout,
+	VkImageLayout new_layout,
+	VkAccessFlags src_access_mask,
+	VkAccessFlags dst_access_mask,
+	VkPipelineStageFlags src_stage_flags,
+	VkPipelineStageFlags dst_stage_flags
+	);
+
+b8 load_image_from_file(vulkan_context* context, const char* file, vulkan_image* out_image);
 
 #endif // !VULKAN_IMAGE_H

@@ -24,7 +24,6 @@
     <ClInclude Include="src\core\file_handle.h" />
     <ClInclude Include="src\core\material.h" />
     <ClInclude Include="src\core\input.h" />
-    <ClInclude Include="src\core\object.h" />
     <ClInclude Include="src\core\renderer\renderer.h" />
     <ClInclude Include="src\core\renderer\renderer_frontend.h" />
     <ClInclude Include="src\core\renderer\SPIRV-Reflect\include\spirv\unified1\spirv.h" />
@@ -48,6 +47,7 @@
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_swapchain.h" />
     <ClInclude Include="src\defines.h" />
     <ClInclude Include="src\platform\platform.h" />
+    <ClInclude Include="vendor\stb_image.h" />
     <ClInclude Include="vendor\tiny_obj_loader.h" />
     <ClInclude Include="vendor\vulkan\vk_platform.h" />
     <ClInclude Include="vendor\vulkan\vulkan.h" />
@@ -58,7 +58,6 @@
     <ClCompile Include="src\core\file_handle.cpp" />
     <ClCompile Include="src\core\material.cpp" />
     <ClCompile Include="src\core\input.cpp" />
-    <ClCompile Include="src\core\object.cpp" />
     <ClCompile Include="src\core\renderer\SPIRV-Reflect\spirv_reflect.c" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_buffer.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_command_buffer.cpp" />
@@ -180,8 +179,8 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>assimp-vc142-mtd.lib;GenericCodeGend.lib;glslangd.lib;glslang-default-resource-limitsd.lib;HLSLd.lib;MachineIndependentd.lib;OGLCompilerd.lib;OSDependentd.lib;SPIRVd.lib;SPIRV-Tools-opt.lib;SPVRemapperd.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(ProjectDir)vendor/spirv/glslang/lib;$(ProjectDir)vendor\assimp\lib\Debug</AdditionalLibraryDirectories>
+      <AdditionalDependencies>assimp-vc142-mtd.lib;assimp-vc142-mtd.dll;GenericCodeGend.lib;glslangd.lib;glslang-default-resource-limitsd.lib;HLSLd.lib;MachineIndependentd.lib;OGLCompilerd.lib;OSDependentd.lib;SPIRVd.lib;SPIRV-Tools-opt.lib;SPVRemapperd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)vendor/spirv/glslang/lib;$(ProjectDir)vendor\assimp\lib\Debug;$(ProjectDir)vendor\assimp\bin\Debug</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -200,8 +199,8 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>assimp-vc142-mtd.lib;GenericCodeGen.lib;glslang.lib;glslang-default-resource-limits.lib;HLSL.lib;MachineIndependent.lib;OGLCompiler.lib;OSDependent.lib;SPIRV.lib;SPIRV-Tools.lib;SPVRemapper.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(ProjectDir)vendor/spirv/glslang/lib;$(ProjectDir)vendor\assimp\lib\Release</AdditionalLibraryDirectories>
+      <AdditionalDependencies>assimp-vc142-mtd.lib;assimp-vc142-mtd.dll;GenericCodeGen.lib;glslang.lib;glslang-default-resource-limits.lib;HLSL.lib;MachineIndependent.lib;OGLCompiler.lib;OSDependent.lib;SPIRV.lib;SPIRV-Tools.lib;SPVRemapper.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)vendor/spirv/glslang/lib;$(ProjectDir)vendor\assimp\lib\Release;$(ProjectDir)vendor\assimp\bin\Release</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">

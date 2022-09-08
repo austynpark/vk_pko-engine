@@ -2,7 +2,19 @@
 #define VULKAN_MESH_H
 
 #include "vulkan_types.inl"
-#include "core/object.h"
+
+#include "vulkan_image.h"
+
+#include <glm/glm.hpp>
+
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
+
+#include <memory>
+#include <vector>
+#include <string>
+
 
 struct vertex_input_description {
 	std::vector<VkVertexInputAttributeDescription> attributes;
@@ -11,18 +23,48 @@ struct vertex_input_description {
 	VkPipelineVertexInputStateCreateFlags flags = 0;
 };
 
-class vulkan_render_object : public object
-{
+struct vertex {
+	glm::vec3 position;
+	glm::vec3 normal;
+	glm::vec2 uv;
+};
+
+struct mesh {
+	std::vector<vertex> vertices;
+	std::vector<u32> indices;
+	std::vector<vulkan_image> textures;
+	glm::mat4 transform_matrix;
+};
+
+class vulkan_render_object {
 public:
-	vulkan_render_object() = delete;
-	vulkan_render_object(const char* object_name);
-	void upload_mesh(vulkan_context* context);
-	void vulkan_render_object_destroy(vulkan_context* context);
-	~vulkan_render_object() override;
+	vulkan_render_object(vulkan_context* context, const char* path);
+	void upload_mesh();
+	void vulkan_render_object_destroy();
+	~vulkan_render_object();
+
+	void load_model(std::string path);
+
+	std::vector<mesh> meshes;
 
 	static vertex_input_description get_vertex_input_description();
 
-	vulkan_allocated_buffer vertex_buffer;
+	std::vector<vulkan_allocated_buffer> vertex_buffers;
+	std::vector<vulkan_allocated_buffer> index_buffers;
+
+	glm::mat4 get_transform_matrix() const;
+	void rotate(float degree, glm::vec3 axis);
+
+	glm::vec3 position;
+	glm::vec3 scale;
+	glm::mat4 rotation_matrix;
+private:
+	void process_node(aiNode* node, const aiScene* scene);
+	mesh process_mesh(aiMesh* mesh, const aiScene* scene);
+	std::vector<vulkan_image> load_material_textures(aiMaterial* mat, aiTextureType type,
+		std::string typeName);
+
+	vulkan_context* context;
 };
 
 
