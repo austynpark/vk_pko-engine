@@ -54,10 +54,13 @@ b8 renderer_frontend::draw(f32 dt)
 {
 	renderer_backend->update_global_data();
 
+	renderer_backend->draw_imgui();
+
 	renderer_backend->begin_frame(dt);
 	renderer_backend->begin_renderpass();
 
 	renderer_backend->bind_global_data();
+
 	renderer_backend->draw();
 
 	renderer_backend->end_renderpass();
@@ -83,11 +86,11 @@ void renderer_frontend::on_keyboard_process(f32 dt)
 {
 	if (input_system::is_key_down(KEY_PLUS))
 	{
-		cam.process_zoom_inout(1.0f);
+		cam.process_zoom_inout(-1.0f);
 	}
 	else if (input_system::is_key_down(KEY_MINUS))
 	{
-		cam.process_zoom_inout(-1.0f);
+		cam.process_zoom_inout(1.0f);
 	}
 	else if (input_system::is_key_down(KEY_DOWN) | input_system::is_key_down(KEY_NUMPAD2))
 	{

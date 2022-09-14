@@ -37,9 +37,7 @@ b8 vulkan_scene::init(vulkan_context* api_context)
 		vulkan_command_buffer_allocate(context, &graphics_commands.at(i), true);
     }
 
-    vulkan_renderpass_create(context, &main_renderpass, 0, 0, context->framebuffer_width, context->framebuffer_height);
-
-	main_shader = std::make_unique<vulkan_shader>(api_context, &main_renderpass);
+	main_shader = std::make_unique<vulkan_shader>(api_context, &context->main_renderpass);
 
     framebuffers.resize(context->swapchain.image_count);
 
@@ -84,11 +82,11 @@ b8 vulkan_scene::begin_renderpass(u32 current_frame)
     };
 
     VkRenderPassBeginInfo renderpass_begin_info{ VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
-    renderpass_begin_info.renderPass = main_renderpass.handle;
+    renderpass_begin_info.renderPass = context->main_renderpass.handle;
     renderpass_begin_info.framebuffer = framebuffers.at(image_index);
-    renderpass_begin_info.renderArea.extent = { main_renderpass.width, main_renderpass.height };
-    renderpass_begin_info.renderArea.offset.x = main_renderpass.x;
-    renderpass_begin_info.renderArea.offset.y = main_renderpass.y;
+    renderpass_begin_info.renderArea.extent = { context->main_renderpass.width, context->main_renderpass.height };
+    renderpass_begin_info.renderArea.offset.x = context->main_renderpass.x;
+    renderpass_begin_info.renderArea.offset.y = context->main_renderpass.y;
     renderpass_begin_info.clearValueCount = 2;
     renderpass_begin_info.pClearValues = clear_values;
 
@@ -151,6 +149,11 @@ b8 vulkan_scene::draw()
     return true;
 }
 
+b8 vulkan_scene::draw_imgui()
+{
+    return true;
+}
+
 void vulkan_scene::shutdown()
 {
     main_shader->shutdown();
@@ -163,16 +166,14 @@ void vulkan_scene::shutdown()
         vulkan_framebuffer_destroy(context, &framebuffers.at(i));
     }
 
-    vulkan_renderpass_destroy(context, &main_renderpass);
-
     for (u32 i = 0; i < context->swapchain.max_frames_in_flight; ++i)
         vulkan_command_pool_destroy(context, &graphics_commands.at(i));
 }
 
 b8 vulkan_scene::on_resize(u32 w, u32 h)
 {
-    main_renderpass.width = w;
-    main_renderpass.height = h;
+    context->main_renderpass.width = w;
+    context->main_renderpass.height = h;
 
     regenerate_framebuffer();
 
@@ -190,7 +191,7 @@ void vulkan_scene::regenerate_framebuffer()
 
         u32 attachment_count = 2;
 
-        vulkan_framebuffer_create(context, &main_renderpass, attachment_count, image_views, &framebuffers.at(i));
+        vulkan_framebuffer_create(context, &context->main_renderpass, attachment_count, image_views, &framebuffers.at(i));
     }
 }
 

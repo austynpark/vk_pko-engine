@@ -19,6 +19,9 @@
 #include "vulkan_scene/vulkan_scene.h"
 #include "vulkan_scene/default_scene.h"
 
+#include "imgui/imgui.h"
+#include "imgui/backends/imgui_impl_win32.h"
+#include "imgui/backends/imgui_impl_vulkan.h"
 #include <iostream>
 
 static vulkan_library vulkan_library_loader;
@@ -132,10 +135,14 @@ b8 vulkan_renderer::init()
     vulkan_renderpass_create(&context, &context.main_renderpass, 0, 0, context.framebuffer_width, context.framebuffer_height);
 */
 
+	vulkan_renderpass_create(&context, &context.main_renderpass, 0, 0, context.framebuffer_width, context.framebuffer_height);
+
     // create command buffer, pool, renderpass, framebuffer 
     for (const auto& s : scene) {
         s->init(&context);
     }
+
+    init_imgui();
 
     /*
 
@@ -325,9 +332,34 @@ b8 vulkan_renderer::end_frame()
 }
 
 b8 vulkan_renderer::draw()
-{       
-    //
-	return scene[scene_index]->draw();
+{
+    vulkan_command command = scene[scene_index]->graphics_commands.at(context.current_frame);
+
+    scene[scene_index]->draw();
+
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), command.buffer);
+
+
+    return true;
+}
+
+b8 vulkan_renderer::draw_imgui()
+{
+    vulkan_command command = scene[scene_index]->graphics_commands.at(context.current_frame);
+
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplWin32_NewFrame();
+    ImGui::NewFrame();
+
+    bool demo = true;
+    ImGui::ShowDemoWindow(&demo);
+    scene[scene_index]->draw_imgui();
+
+    ImGuiIO& io = ImGui::GetIO();
+    ImGui::Render();
+
+
+    return true;
 }
 
 void vulkan_renderer::shutdown()
@@ -347,8 +379,15 @@ void vulkan_renderer::shutdown()
     vulkan_global_data_destroy(&context);
 
     scene[scene_index]->shutdown();
+	vulkan_renderpass_destroy(&context, &context.main_renderpass);
 
     vulkan_swapchain_destroy(&context, &context.swapchain);
+
+    // destroy imgui related objects
+	vkDestroyDescriptorPool(context.device_context.handle, context.imgui_pool, context.allocator);
+	//clear font textures from cpu data
+	ImGui_ImplVulkan_DestroyFontUploadObjects();
+	ImGui_ImplVulkan_Shutdown();
 
     vulkan_memory_allocator_destroy(&context);
     vulkan_device_destroy(&context, &context.device_context);
@@ -509,6 +548,77 @@ b8 vulkan_renderer::create_surface()
     return false;
 }
 
+void vulkan_renderer::init_imgui()
+{
+    //1: create descriptor pool for IMGUI
+    // the size of the pool is very oversize, but it's copied from imgui demo itself.
+    VkDescriptorPoolSize pool_sizes[] =
+    {
+        { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+        { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+    };
+
+    VkDescriptorPoolCreateInfo pool_info = {};
+    pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    pool_info.maxSets = 1000;
+    pool_info.poolSizeCount = std::size(pool_sizes);
+    pool_info.pPoolSizes = pool_sizes;
+
+    VK_CHECK(vkCreateDescriptorPool(context.device_context.handle, &pool_info, nullptr, &context.imgui_pool));
+
+
+    // 2: initialize imgui library
+
+    //this initializes the core structures of imgui
+    ImGui::CreateContext();
+
+    internal_state* state = (internal_state*)plat_state;
+
+    //this initializes imgui for SDL
+    ImGui_ImplVulkan_LoadFunctions([](const char* function_name, void*) { return vkGetInstanceProcAddr(context.instance, function_name); });
+    ImGui_ImplWin32_Init(state->handle);
+
+    //this initializes imgui for Vulkan
+    ImGui_ImplVulkan_InitInfo init_info = {};
+    init_info.Instance = context.instance;
+    init_info.PhysicalDevice = context.device_context.physical_device;
+    init_info.Device = context.device_context.handle;
+    init_info.Queue = context.device_context.graphics_queue;
+    init_info.DescriptorPool = context.imgui_pool;
+    init_info.MinImageCount = 3;
+    init_info.ImageCount = 3;
+    init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+
+    ImGui_ImplVulkan_Init(&init_info, context.main_renderpass.handle);
+
+    //execute a gpu command to upload imgui font textures
+
+
+    vulkan_command command = scene[scene_index]->graphics_commands.at(context.current_frame);
+
+    vulkan_command_buffer_begin(&command, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+	ImGui_ImplVulkan_CreateFontsTexture(command.buffer);
+    vulkan_command_buffer_end(&command);
+
+    VkSubmitInfo submit_info{ VK_STRUCTURE_TYPE_SUBMIT_INFO };
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &command.buffer;
+
+    VK_CHECK(vkQueueSubmit(context.device_context.graphics_queue, 1, &submit_info, VK_NULL_HANDLE)); 
+	vkQueueWaitIdle(context.device_context.graphics_queue);
+
+}
+
 b8 load_exported_entry_points()
 {
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
@@ -516,7 +626,6 @@ b8 load_exported_entry_points()
 #elif defined(VK_USE_PLATFORM_XCB_KHR) || defined(VK_USE_PLATFORM_XLIB_KHR)
 #define LoadProcAddress dlsym
 #endif
-
 #define VK_EXPORTED_FUNCTION( fun )                                                   \
     if( !(fun = (PFN_##fun)LoadProcAddress( vulkan_library_loader, #fun )) ) {                \
       std::cout << "Could not load exported function: " << #fun << "!" << std::endl;  \

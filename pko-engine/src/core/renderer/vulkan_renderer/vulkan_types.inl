@@ -185,6 +185,9 @@ struct vulkan_context {
 	VmaAllocator vma_allocator;
 	VkAllocationCallbacks* allocator;
 	VkInstance	instance;
+	
+	//imgui
+	VkDescriptorPool imgui_pool;
 
 #if defined(_DEBUG)
 	VkDebugUtilsMessengerEXT	debug_messenger;
@@ -199,6 +202,7 @@ struct vulkan_context {
 	vulkan_device device_context;
 	vulkan_swapchain_support_info swapchain_support_info;
 	vulkan_swapchain swapchain;
+	vulkan_renderpass main_renderpass;
 
 	std::vector<VkSemaphore> ready_to_render_semaphores;
 	std::vector<VkSemaphore> image_available_semaphores;

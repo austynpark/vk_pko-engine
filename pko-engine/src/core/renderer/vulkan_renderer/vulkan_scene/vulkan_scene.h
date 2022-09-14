@@ -40,12 +40,12 @@ public:
 
 	// set scissor & viewport
 	virtual b8 draw();
+	virtual b8 draw_imgui();
 	// destroy graphics_pipeline / framebuffer / main_renderpass / command_pool
 	virtual void shutdown();
 
 	virtual b8 on_resize(u32 w, u32 h);
 
-	vulkan_renderpass main_renderpass;
 	std::vector<VkFramebuffer>	framebuffers;
 	u32 image_index;
 	// per frame data

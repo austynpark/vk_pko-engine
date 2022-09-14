@@ -29,6 +29,7 @@ public:
 	virtual b8 end_renderpass() = 0;
 
 	virtual	b8 draw() = 0;
+	virtual b8 draw_imgui() = 0;
 	virtual	void shutdown() = 0;
 
 	virtual b8 on_resize(u32 w, u32 h) = 0;

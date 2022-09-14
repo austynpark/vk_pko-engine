@@ -2,6 +2,8 @@
 
 #include "core/input.h"
 #include "core/event.h"
+#include "imgui.h"
+#include "backends/imgui_impl_win32.h"
 
 #if _WIN32
 
@@ -11,6 +13,7 @@ static f64 clock_frequency;
 static LARGE_INTEGER start_time;
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 b8 platform_state::init(
     const char* application_name,
@@ -167,6 +170,9 @@ void platform_state::sleep(u64 ms) {
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+
+    ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam);
+
     switch (message) {
     case WM_SIZE: {
         // Get the updated size
@@ -204,7 +210,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
         i32 y_position = GET_Y_LPARAM(lParam);
 
         input_system::process_mouse_move(x_position, y_position);
-
     } break;
     case WM_MOUSEWHEEL: {
         i32 z_delta = GET_WHEEL_DELTA_WPARAM(wParam);
