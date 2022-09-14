@@ -24,7 +24,7 @@ enum buttons {
 class input_system {
 
 private:
-	struct keyboard_state {
+    struct keyboard_state {
         b8 keys[256];
     };
 
@@ -35,8 +35,10 @@ private:
     };
 
     struct input_state {
-        keyboard_state keyboard;
-        mouse_state mouse;
+        keyboard_state keyboard_current;
+        mouse_state mouse_current;
+        keyboard_state keyboard_previous;
+        mouse_state mouse_previous;
     };
 
 public:
@@ -45,8 +47,25 @@ public:
 
     static void process_key(keys key_code, b8 is_pressed);
 
-	static std::unique_ptr<input_state> state_ptr;
-    
+    // mouse input
+    static void get_previous_mouse_position(i32* x, i32* y);
+    static void get_mouse_position(i32* x, i32* y);
+    static b8 was_button_up(buttons button);
+
+    static void process_button(buttons button, b8 pressed);
+    static void process_mouse_move(i16 x, i16 y);
+    static void process_mouse_wheel(i8 z_delta);
+
+    static b8 is_key_down(keys key);
+    static b8 is_key_up(keys key);
+    static b8 was_key_down(keys key);
+    static b8 was_key_up(keys key);
+    static b8 is_button_down(buttons button);
+    static b8 is_button_up(buttons button);
+    static b8 was_button_down(buttons button);
+
+    static std::unique_ptr<input_state> state_ptr;
+
 };
 
 enum keys {

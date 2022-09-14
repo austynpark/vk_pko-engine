@@ -2,11 +2,19 @@
 
 void descriptor_builder::begin(VkDevice device)
 {
-    cache = std::make_unique<descriptor_layout_cache>();
-    alloc = std::make_unique<descriptor_allocator>();
+	alloc = new descriptor_allocator();
+    cache = new descriptor_layout_cache();
 
     cache->init(device);
     alloc->init(device);
+}
+
+void descriptor_builder::cleanup()
+{
+	delete cache;
+	cache = nullptr;
+	delete alloc;
+	alloc = nullptr;
 }
 
 descriptor_builder& descriptor_builder::bind_buffer(uint32_t binding, VkDescriptorBufferInfo* buffer_info, VkDescriptorType type, VkShaderStageFlags stage_flags)

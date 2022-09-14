@@ -203,8 +203,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
         i32 x_position = GET_X_LPARAM(lParam);
         i32 y_position = GET_Y_LPARAM(lParam);
 
-        //TODO: input processing
-        //event_system::fire_event(e)
+        input_system::process_mouse_move(x_position, y_position);
 
     } break;
     case WM_MOUSEWHEEL: {
@@ -212,9 +211,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
         if (z_delta != 0) {
             z_delta = (z_delta < 0) ? -1 : 1;
+            input_system::process_mouse_wheel(z_delta);
         }
 
-        //TODO: input processing 
     } break;
 
     case WM_LBUTTONDOWN:
@@ -223,8 +222,27 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
     case WM_LBUTTONUP:
     case WM_MBUTTONUP:
     case WM_RBUTTONUP: {
-        //b8 pressed = message == WM_LBUTTONDOWN || message == WM_RBUTTONDOWN || message == WM_MBUTTONDOWN;
+        b8 pressed = message == WM_LBUTTONDOWN || message == WM_RBUTTONDOWN || message == WM_MBUTTONDOWN;
+        buttons mouse_button = BUTTON_MAX_BUTTONS;
+        switch (message) {
+        case WM_LBUTTONDOWN:
+        case WM_LBUTTONUP:
+            mouse_button = BUTTON_LEFT;
+            break;
+        case WM_MBUTTONDOWN:
+        case WM_MBUTTONUP:
+            mouse_button = BUTTON_MIDDLE;
+            break;
+        case WM_RBUTTONDOWN:
+        case WM_RBUTTONUP:
+            mouse_button = BUTTON_RIGHT;
+            break;
+        }
         //TODO: input processing
+        if (mouse_button != BUTTON_MAX_BUTTONS) {
+            input_system::process_button(mouse_button, pressed);
+        }
+
     } break;
     case WM_CANCELMODE:
         break;

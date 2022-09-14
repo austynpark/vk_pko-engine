@@ -58,6 +58,11 @@ struct vulkan_image {
 	u32 height;
 };
 
+struct vulkan_texture {
+	vulkan_image image;
+	VkSampler sampler;
+};
+
 struct vulkan_swapchain_support_info {
 	VkSurfaceCapabilitiesKHR surface_capabilites;
 	std::vector<VkSurfaceFormatKHR> surface_formats;
@@ -110,6 +115,7 @@ struct vulkan_global_data {
 
 class descriptor_allocator {
 public:
+	descriptor_allocator() = default;
 
 	struct pool_sizes {
 		std::vector<std::pair<VkDescriptorType, float>> sizes =
@@ -137,7 +143,7 @@ public:
 
 	void cleanup();
 
-	VkDevice device;
+	VkDevice device = VK_NULL_HANDLE;
 private:
 	VkDescriptorPool grab_pool();
 
@@ -149,6 +155,7 @@ private:
 
 class descriptor_layout_cache {
 public:
+	descriptor_layout_cache() = default;
 	void init(VkDevice new_device);
 	void cleanup();
 
@@ -171,7 +178,7 @@ private:
 	};
 
 	std::unordered_map<descriptor_layout_info, VkDescriptorSetLayout, descriptor_layout_hash> layout_cache;
-	VkDevice device;
+	VkDevice device = VK_NULL_HANDLE;
 };
 
 struct vulkan_context {
@@ -199,4 +206,7 @@ struct vulkan_context {
 	std::vector<descriptor_allocator> dynamic_descriptor_allocators;
 
 	vulkan_global_data global_data;
+
+	//TODO: maybe put in scene.h? (not sure)
+	VkDescriptorSetLayout object_set_layout;
 };

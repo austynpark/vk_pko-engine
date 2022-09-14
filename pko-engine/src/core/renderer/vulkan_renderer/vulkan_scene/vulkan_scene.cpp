@@ -48,11 +48,12 @@ b8 vulkan_scene::init(vulkan_context* api_context)
     std::cout << "framebuffers created" << std::endl;
 
     object_manager["suzanne"] = std::make_unique<vulkan_render_object>(context, "model/suzanne.obj");
+    object_manager["suzanne"]->position = glm::vec3(0, 0, 5.0f);
+    //object_manager["sponza"] = std::make_unique<vulkan_render_object>(context, "model/sponza.obj");
 
 	for (const auto& obj : object_manager) {
         obj.second->upload_mesh();
     }
-
 
     return true;
 }
@@ -134,7 +135,7 @@ b8 vulkan_scene::draw()
     vkCmdSetScissor(command_buffer, 0, 1, &scissor);
     vkCmdSetViewport(command_buffer, 0, 1, &viewport);
 
-    vulkan_pipeline_bind(&graphics_commands.at(current_frame), VK_PIPELINE_BIND_POINT_GRAPHICS, &graphics_pipeline);
+    //vulkan_pipeline_bind(&graphics_commands.at(current_frame), VK_PIPELINE_BIND_POINT_GRAPHICS, &graphics_pipeline);
 
     //vkCmdPushConstants(command_buffer, context.graphics_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(global_ubo), &global_ubo);
 

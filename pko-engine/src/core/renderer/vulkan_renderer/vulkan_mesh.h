@@ -15,6 +15,11 @@
 #include <vector>
 #include <string>
 
+struct model_constant {
+	glm::mat4 model;
+	glm::mat3 normal_matrix;
+	glm::vec3 padding;
+};
 
 struct vertex_input_description {
 	std::vector<VkVertexInputAttributeDescription> attributes;
@@ -32,7 +37,7 @@ struct vertex {
 struct mesh {
 	std::vector<vertex> vertices;
 	std::vector<u32> indices;
-	std::vector<vulkan_image> textures;
+	std::vector<vulkan_texture> textures;
 	glm::mat4 transform_matrix;
 };
 
@@ -54,14 +59,16 @@ public:
 
 	glm::mat4 get_transform_matrix() const;
 	void rotate(float degree, glm::vec3 axis);
+	void draw(VkCommandBuffer command_buffer);
 
 	glm::vec3 position;
 	glm::vec3 scale;
-	glm::mat4 rotation_matrix;
+	glm::vec3 rotation;
+
 private:
 	void process_node(aiNode* node, const aiScene* scene);
 	mesh process_mesh(aiMesh* mesh, const aiScene* scene);
-	std::vector<vulkan_image> load_material_textures(aiMaterial* mat, aiTextureType type,
+	std::vector<vulkan_texture> load_material_textures(aiMaterial* mat, aiTextureType type,
 		std::string typeName);
 
 	vulkan_context* context;

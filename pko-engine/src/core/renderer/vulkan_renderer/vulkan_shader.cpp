@@ -53,7 +53,10 @@ b8 vulkan_shader::init()
 void vulkan_shader::shutdown()
 {
 	for (auto& layout : set_layouts) {
-		vkDestroyDescriptorSetLayout(context->device_context.handle, layout, context->allocator);
+		if (layout != VK_NULL_HANDLE) {
+			vkDestroyDescriptorSetLayout(context->device_context.handle, layout, context->allocator);
+			layout = VK_NULL_HANDLE;
+		}
 	}
 
     vulkan_pipeline_destroy(context, &pipeline);

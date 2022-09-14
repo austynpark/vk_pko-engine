@@ -24,6 +24,7 @@
     <ClInclude Include="src\core\file_handle.h" />
     <ClInclude Include="src\core\material.h" />
     <ClInclude Include="src\core\input.h" />
+    <ClInclude Include="src\core\renderer\camera.h" />
     <ClInclude Include="src\core\renderer\renderer.h" />
     <ClInclude Include="src\core\renderer\renderer_frontend.h" />
     <ClInclude Include="src\core\renderer\SPIRV-Reflect\include\spirv\unified1\spirv.h" />
@@ -58,6 +59,7 @@
     <ClCompile Include="src\core\file_handle.cpp" />
     <ClCompile Include="src\core\material.cpp" />
     <ClCompile Include="src\core\input.cpp" />
+    <ClCompile Include="src\core\renderer\camera.cpp" />
     <ClCompile Include="src\core\renderer\SPIRV-Reflect\spirv_reflect.c" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_buffer.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_command_buffer.cpp" />

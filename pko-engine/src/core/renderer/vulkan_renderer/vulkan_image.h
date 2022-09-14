@@ -37,4 +37,17 @@ void vulkan_image_layout_transition(vulkan_image* image,
 
 b8 load_image_from_file(vulkan_context* context, const char* file, vulkan_image* out_image);
 
+void vulkan_texture_create(
+	vulkan_context* context,
+	vulkan_texture* out_texture,
+	vulkan_image image,
+	VkFilter filters,
+	VkSamplerAddressMode samplerAdressMode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
+
+void vulkan_texture_destroy(
+	vulkan_context* context,
+	vulkan_texture* texture
+);
+
+
 #endif // !VULKAN_IMAGE_H

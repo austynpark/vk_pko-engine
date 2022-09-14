@@ -7,23 +7,28 @@
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/transform.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 vulkan_render_object::vulkan_render_object(vulkan_context* context_, const char* path) {
 	context = context_;
 	position = glm::vec3(0.0f);
 	scale = glm::vec3(1.0f);
-	rotation_matrix = glm::mat4(1.0f);
+	rotation = glm::vec3(0.0f);
 
 	load_model(path);
 }
 
 void vulkan_render_object::upload_mesh()
 {
-	vulkan_allocated_buffer staging_buffer;
-
 	u32 mesh_count = meshes.size();
 
+	vertex_buffers.resize(mesh_count);
+	index_buffers.resize(mesh_count);
+
 	for (u32 i = 0; i < mesh_count; ++i) {
+
+		vulkan_allocated_buffer staging_buffer;
 
 		vulkan_buffer_create(
 			context,
@@ -49,16 +54,47 @@ void vulkan_render_object::upload_mesh()
 			&vertex_buffers[i]);
 
 		vulkan_buffer_copy(context, &staging_buffer, &vertex_buffers[i], meshes[i].vertices.size() * sizeof(vertex));
-	}
+		vulkan_buffer_destroy(context, &staging_buffer);
 
-	vulkan_buffer_destroy(context, &staging_buffer);
+
+		if (meshes[i].indices.size() > 0) {
+
+			vulkan_allocated_buffer index_staging_buffer;
+
+			vulkan_buffer_create(
+				context,
+				meshes[i].indices.size() * sizeof(u32),
+				VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+				VMA_MEMORY_USAGE_AUTO,
+				VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
+				&index_staging_buffer);
+
+			VK_CHECK(vmaMapMemory(context->vma_allocator, index_staging_buffer.allocation, &data));
+
+			memcpy(data, meshes[i].indices.data(), meshes[i].indices.size() * sizeof(u32));
+
+			vmaUnmapMemory(context->vma_allocator, index_staging_buffer.allocation);
+
+			vulkan_buffer_create(
+				context,
+				meshes[i].indices.size() * sizeof(u32),
+				VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+				VMA_MEMORY_USAGE_AUTO,
+				VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT,
+				&index_buffers[i]
+			);
+
+			vulkan_buffer_copy(context, &index_staging_buffer, &index_buffers[i], meshes[i].indices.size() * sizeof(u32));
+			vulkan_buffer_destroy(context, &index_staging_buffer);
+		}
+	}
 }
 
 void vulkan_render_object::vulkan_render_object_destroy()
 {
 	for (auto& mesh : meshes) {
 		for (auto& texture : mesh.textures)
-			vulkan_image_destroy(context, &texture);
+			vulkan_texture_destroy(context, &texture);
 	}
 
 	for (auto& vertex_buffer : vertex_buffers)
@@ -85,8 +121,6 @@ void vulkan_render_object::load_model(std::string path)
 	//directory = path.substr(0, path.find_last_of('/'));
 
 	process_node(scene->mRootNode, scene);
-	vertex_buffers.resize(meshes.size());
-	index_buffers.resize(meshes.size());
 
 }
 
@@ -109,7 +143,7 @@ mesh vulkan_render_object::process_mesh(aiMesh* mesh_, const aiScene* scene_)
 {
 	std::vector<vertex> vertices;
 	std::vector<u32> indices;
-	std::vector<vulkan_image> textures;
+	std::vector<vulkan_texture> textures;
 
 	for (unsigned int i = 0; i < mesh_->mNumVertices; i++)
 	{
@@ -150,10 +184,10 @@ mesh vulkan_render_object::process_mesh(aiMesh* mesh_, const aiScene* scene_)
 	if (mesh_->mMaterialIndex >= 0)
 	{
 		aiMaterial* material = scene_->mMaterials[mesh_->mMaterialIndex];
-		std::vector<vulkan_image> diffuseMaps = load_material_textures(material,
+		std::vector<vulkan_texture> diffuseMaps = load_material_textures(material,
 			aiTextureType_DIFFUSE, "texture_diffuse");
 		textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
-		std::vector<vulkan_image> specularMaps = load_material_textures(material,
+		std::vector<vulkan_texture> specularMaps = load_material_textures(material,
 			aiTextureType_SPECULAR, "texture_specular");
 		textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
 	}
@@ -161,15 +195,20 @@ mesh vulkan_render_object::process_mesh(aiMesh* mesh_, const aiScene* scene_)
 	return { vertices, indices, textures };
 }
 
-std::vector<vulkan_image> vulkan_render_object::load_material_textures(aiMaterial* mat, aiTextureType type, std::string typeName)
+std::vector<vulkan_texture> vulkan_render_object::load_material_textures(aiMaterial* mat, aiTextureType type, std::string typeName)
 {
-	std::vector<vulkan_image> textures;
+	std::vector<vulkan_texture> textures;
 	for (unsigned int i = 0; i < mat->GetTextureCount(type); i++)
 	{
 		aiString str;
 		mat->GetTexture(type, i, &str);
-		vulkan_image texture_;
-		load_image_from_file(context, str.C_Str(), &texture_);
+		vulkan_image image;
+		std::string directory = "model/";
+		directory.append(str.C_Str());
+		load_image_from_file(context, directory.c_str(), &image);
+
+		vulkan_texture texture_;
+		vulkan_texture_create(context, &texture_, image, VK_FILTER_LINEAR);
 		textures.push_back(texture_);
 	}
 	return textures;
@@ -177,12 +216,44 @@ std::vector<vulkan_image> vulkan_render_object::load_material_textures(aiMateria
 
 glm::mat4 vulkan_render_object::get_transform_matrix() const
 {
-	return glm::translate(position) * rotation_matrix * glm::scale(scale);
+	glm::mat4 model(1.0f);
+	model = glm::translate(model, position);
+	model = glm::scale(model, scale);
+
+	glm::quat rotP = glm::angleAxis(glm::radians(rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
+	glm::quat rotY = glm::angleAxis(glm::radians(rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
+	glm::quat rotR = glm::angleAxis(glm::radians(rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
+
+	return model * glm::mat4_cast(rotR) * glm::mat4_cast(rotY) * glm::mat4_cast(rotP);
 }
 
 void vulkan_render_object::rotate(float degree, glm::vec3 axis)
 {
-	rotation_matrix = glm::rotate(glm::radians(degree), axis);
+	//rotation_matrix = glm::rotate(glm::radians(degree), axis);
+}
+
+void vulkan_render_object::draw(VkCommandBuffer command_buffer)
+{
+	u32 mesh_count = meshes.size();
+
+	for (u32 i = 0; i < mesh_count; ++i) {
+
+		for (u32 j = 0; j < meshes[i].textures.size(); ++j) {
+
+			//meshes[i].textures[j]
+		}
+
+		VkDeviceSize offset = 0 ;
+		vkCmdBindVertexBuffers(command_buffer, 0, 1, &vertex_buffers[i].handle, &offset);
+		
+		if (meshes[i].indices.size() > 0) {
+			vkCmdBindIndexBuffer(command_buffer, index_buffers[i].handle, 0, VK_INDEX_TYPE_UINT32);
+			vkCmdDrawIndexed(command_buffer, meshes[i].indices.size(), 1, 0, 0, 0);
+		}
+		else {
+			vkCmdDraw(command_buffer, meshes[i].vertices.size(), 1, 0, 0);
+		}
+	}
 }
 
 vertex_input_description vulkan_render_object::get_vertex_input_description()

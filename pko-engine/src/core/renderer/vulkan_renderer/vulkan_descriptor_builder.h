@@ -8,6 +8,8 @@
 class descriptor_builder {
 public:
 	void begin(VkDevice device);
+	void cleanup();
+
 
 	descriptor_builder& bind_buffer(uint32_t binding, VkDescriptorBufferInfo* bufferInfo, VkDescriptorType type, VkShaderStageFlags stageFlags);
 	descriptor_builder& bind_image(uint32_t binding, VkDescriptorImageInfo* imageInfo, VkDescriptorType type, VkShaderStageFlags stageFlags);
@@ -19,8 +21,8 @@ private:
 	std::vector<VkWriteDescriptorSet> writes;
 	std::vector<VkDescriptorSetLayoutBinding> bindings;
 
-	std::unique_ptr<descriptor_layout_cache> cache;
-	std::unique_ptr<descriptor_allocator> alloc;
+	descriptor_layout_cache* cache;
+	descriptor_allocator* alloc;
 };
 
 #endif // !VULKAN_DESCRIPTOR_BUILDER

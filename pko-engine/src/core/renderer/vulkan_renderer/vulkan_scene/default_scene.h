@@ -3,6 +3,8 @@
 
 #include "vulkan_scene.h"
 
+#include "../vulkan_descriptor_builder.h"
+
 class default_scene : public vulkan_scene {
 public:
 	b8 init(vulkan_context* api_context) override;
@@ -16,7 +18,7 @@ public:
 
 	b8 on_resize(u32 w, u32 h) override;
 private:
-
+	descriptor_builder* m_descriptor_builder;
 };
 
 

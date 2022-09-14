@@ -138,7 +138,7 @@ b8 load_image_from_file(vulkan_context* context, const char* file, vulkan_image*
 	stbi_image_free(pixels);
 
 	vulkan_image_create(
-		context, VK_IMAGE_TYPE_3D,
+		context, VK_IMAGE_TYPE_2D,
 		tex_width, tex_height,
 		VK_FORMAT_R8G8B8A8_SRGB,
 		VK_IMAGE_TILING_OPTIMAL,
@@ -207,4 +207,25 @@ b8 load_image_from_file(vulkan_context* context, const char* file, vulkan_image*
 	vulkan_buffer_destroy(context, &staging_buffer);
 
 	return true;
+}
+
+void vulkan_texture_create(vulkan_context* context, vulkan_texture* out_texture, vulkan_image image, VkFilter filters, VkSamplerAddressMode samplerAdressMode)
+{
+	out_texture->image = image;
+
+	VkSamplerCreateInfo create_info{ VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+	create_info.pNext = nullptr;
+	create_info.magFilter = filters;
+	create_info.minFilter = filters;
+	create_info.addressModeU = samplerAdressMode;
+	create_info.addressModeV = samplerAdressMode;
+	create_info.addressModeW = samplerAdressMode;
+
+	VK_CHECK(vkCreateSampler(context->device_context.handle, &create_info, context->allocator, &out_texture->sampler));
+}
+
+void vulkan_texture_destroy(vulkan_context* context, vulkan_texture* texture)
+{
+	vulkan_image_destroy(context, &texture->image);
+	vkDestroySampler(context->device_context.handle, texture->sampler, context->allocator);
 }

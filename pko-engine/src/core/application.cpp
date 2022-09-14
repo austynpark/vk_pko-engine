@@ -56,6 +56,7 @@ b8 application::run()
 	app_state.last_time = current_time;
 
 	app_state.renderer->draw(app_state.delta_time);
+	app_state.renderer->on_keyboard_process(app_state.delta_time);
 
 	return true;
 }

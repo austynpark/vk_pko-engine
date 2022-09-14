@@ -318,8 +318,15 @@ void vulkan_pipeline_destroy(vulkan_context* context, vulkan_pipeline* pipeline)
 {
 	//vkQueueWaitIdle(context->device_context.graphics_queue);
 
-	vkDestroyPipelineLayout(context->device_context.handle, pipeline->layout, context->allocator);
-	vkDestroyPipeline(context->device_context.handle, pipeline->handle, context->allocator);
+	if (pipeline->layout != VK_NULL_HANDLE) {
+		vkDestroyPipelineLayout(context->device_context.handle, pipeline->layout, context->allocator);
+		pipeline->layout = VK_NULL_HANDLE;
+	}
+
+	if (pipeline->handle != VK_NULL_HANDLE) {
+		vkDestroyPipeline(context->device_context.handle, pipeline->handle, context->allocator);
+		pipeline->handle = VK_NULL_HANDLE;
+	}
 }
 
 void vulkan_pipeline_bind(vulkan_command* command_buffer,VkPipelineBindPoint bind_point ,vulkan_pipeline* pipeline) {
