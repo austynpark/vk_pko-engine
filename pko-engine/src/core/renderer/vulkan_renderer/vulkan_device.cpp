@@ -19,6 +19,8 @@ struct device_requirements
 	b8 use_compute;
 	b8 use_discrete_gpu;
 
+	b8 use_descriptor_indexing;
+
 	std::vector<const char*> extensions_name;
 };
 
@@ -37,6 +39,7 @@ b8 vulkan_device_create(vulkan_context* context, vulkan_device* device_context)
 		true,	//b8 use_compute;
 		false,	//b8 use_transfer;
 		false,	//b8 use_discrete_gpu;
+		true,	//b8 use_descriptor_indexing
 		{
 			VK_KHR_SWAPCHAIN_EXTENSION_NAME
 		}
@@ -156,6 +159,16 @@ b8 pick_physical_device(vulkan_context* context, device_requirements* requiremen
 			break;
 		}
 	}	
+
+	//TODO: indexing feature (bindless texture)
+	VkPhysicalDeviceDescriptorIndexingFeatures descriptor_indexing_features{};
+	descriptor_indexing_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
+
+	// Enable non-uniform indexing
+	descriptor_indexing_features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
+	descriptor_indexing_features.runtimeDescriptorArray = VK_TRUE;
+	descriptor_indexing_features.descriptorBindingVariableDescriptorCount = VK_TRUE;
+	descriptor_indexing_features.descriptorBindingPartiallyBound = VK_TRUE;
 
 	std::cout << "physical device found" << std::endl;
 

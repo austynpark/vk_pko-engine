@@ -178,7 +178,7 @@ b8 vulkan_graphics_pipeline_create(
 }
 
 b8 vulkan_graphics_pipeline_create(vulkan_context* context, vulkan_renderpass* renderpass, vulkan_pipeline* out_pipeline, VkShaderModule vertex_shader_module,
-	VkShaderModule fragment_shader_module, u32 binding_description_count, VkVertexInputBindingDescription* binding_descriptions, u32 attribute_description_count, VkVertexInputAttributeDescription* attribute_descriptions, VkPipelineLayout pipeline_layout)
+	VkShaderModule fragment_shader_module, u32 binding_description_count, VkVertexInputBindingDescription* binding_descriptions, u32 attribute_description_count, VkVertexInputAttributeDescription* attribute_descriptions, VkPipelineLayout pipeline_layout, VkPrimitiveTopology topology)
 {
 	VkPipelineShaderStageCreateInfo vert_create_info{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
 	vert_create_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -207,7 +207,7 @@ b8 vulkan_graphics_pipeline_create(vulkan_context* context, vulkan_renderpass* r
 
 	VkPipelineInputAssemblyStateCreateInfo input_assembly_info{};
 	input_assembly_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-	input_assembly_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	input_assembly_info.topology = topology;
 	input_assembly_info.primitiveRestartEnable = VK_FALSE;
 
 	VkViewport viewport{};
@@ -235,7 +235,7 @@ b8 vulkan_graphics_pipeline_create(vulkan_context* context, vulkan_renderpass* r
 	rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
 	rasterizer.lineWidth = 1.0f;
 	rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-	rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+	rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	rasterizer.depthBiasEnable = VK_FALSE;
 	rasterizer.depthBiasConstantFactor = 0.0f; // Optional
 	rasterizer.depthBiasClamp = 0.0f; // Optional

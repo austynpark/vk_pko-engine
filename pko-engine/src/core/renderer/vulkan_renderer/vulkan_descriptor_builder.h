@@ -7,7 +7,7 @@
 
 class descriptor_builder {
 public:
-	void begin(VkDevice device);
+	static descriptor_builder begin(descriptor_layout_cache* layoutCache, descriptor_allocator* allocator);
 	void cleanup();
 
 

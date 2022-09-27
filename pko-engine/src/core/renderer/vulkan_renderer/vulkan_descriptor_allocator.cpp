@@ -125,7 +125,7 @@ void descriptor_layout_cache::cleanup()
 VkDescriptorSetLayout descriptor_layout_cache::create_descriptor_layout(VkDescriptorSetLayoutCreateInfo* info)
 {
 	descriptor_layout_info layout_info;
-	layout_info.bindings.reserve(info->bindingCount);
+	layout_info.bindings.resize(info->bindingCount);
 	b8 is_sorted = true;
 	i32 last_binding = -1;
 

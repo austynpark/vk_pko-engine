@@ -1,4 +1,7 @@
 #define GLM_ENABLE_EXPERIMENTAL
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+
 #include <glm/gtx/transform.hpp>
 #include <iostream>
 
@@ -138,7 +141,6 @@ void renderer::update_global_data()
 
 b8 renderer_frontend::on_button_pressed(u16 code, event_context context)
 {
-	
 
 	return true;
 }

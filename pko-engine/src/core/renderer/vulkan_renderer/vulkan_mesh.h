@@ -13,7 +13,10 @@
 
 #include <memory>
 #include <vector>
-#include <string>
+#include <string> 
+
+constexpr u32 MAX_BONES = 64;
+constexpr u32 MAX_BONES_PER_VERTEX = 4;
 
 struct model_constant {
 	glm::mat4 model;
@@ -29,50 +32,64 @@ struct vertex_input_description {
 };
 
 struct vertex {
-	glm::vec3 position;
-	glm::vec3 normal;
-	glm::vec2 uv;
+	glm::vec3 position{};
+	glm::vec3 normal{};
+	glm::vec2 uv{};
+
+#if defined(ANIMATION_ON)
+	f32 bone_weight[MAX_BONES_PER_VERTEX]{};
+	u32 bone_id[MAX_BONES_PER_VERTEX]{};
+#endif
+
 };
 
 struct mesh {
 	std::vector<vertex> vertices;
 	std::vector<u32> indices;
-	std::vector<vulkan_texture> textures;
-	glm::mat4 transform_matrix;
+	std::vector<u32> vertex_offsets;
+	std::vector<u32> index_offsets;
+	std::vector<u32> texture_ids;
+
+	void upload_mesh(vulkan_context* context, vulkan_allocated_buffer* vertex_buffer, vulkan_allocated_buffer* index_buffer);
 };
 
 class vulkan_render_object {
 public:
+	vulkan_render_object() = default;
 	vulkan_render_object(vulkan_context* context, const char* path);
-	void upload_mesh();
-	void vulkan_render_object_destroy();
+	virtual void destroy();
 	~vulkan_render_object();
 
-	void load_model(std::string path);
+	virtual void load_model(std::string path);
 
-	std::vector<mesh> meshes;
 
 	static vertex_input_description get_vertex_input_description();
 
-	std::vector<vulkan_allocated_buffer> vertex_buffers;
-	std::vector<vulkan_allocated_buffer> index_buffers;
+	vulkan_allocated_buffer vertex_buffer;
+	vulkan_allocated_buffer index_buffer;
+
+	vulkan_allocated_buffer debug_vertex_buffer;
+	vulkan_allocated_buffer debug_index_buffer;
 
 	glm::mat4 get_transform_matrix() const;
-	void rotate(float degree, glm::vec3 axis);
+
 	void draw(VkCommandBuffer command_buffer);
 
 	glm::vec3 position;
 	glm::vec3 scale;
 	glm::vec3 rotation;
 
-private:
+protected:
 	void process_node(aiNode* node, const aiScene* scene);
-	mesh process_mesh(aiMesh* mesh, const aiScene* scene);
-	std::vector<vulkan_texture> load_material_textures(aiMaterial* mat, aiTextureType type,
+	std::vector<u32> load_material_textures(aiMaterial* mat, aiTextureType type,
 		std::string typeName);
 
 	vulkan_context* context;
-};
 
+	//TODO: use single mesh for model (only one vertex, index buffer)
+	//TODO: every texture will be stored in the combined image sampler (mesh will have id from texture array)
+	mesh debug_mesh;
+	mesh mesh;
+};
 
 #endif // !VULKAN_MESH_H

@@ -1,12 +1,12 @@
 #include "vulkan_descriptor_builder.h"
 
-void descriptor_builder::begin(VkDevice device)
+descriptor_builder descriptor_builder::begin(descriptor_layout_cache* layout_cache, descriptor_allocator* allocator)
 {
-	alloc = new descriptor_allocator();
-    cache = new descriptor_layout_cache();
+	descriptor_builder builder;
 
-    cache->init(device);
-    alloc->init(device);
+	builder.alloc = allocator;
+	builder.cache = layout_cache;
+	return builder;
 }
 
 void descriptor_builder::cleanup()

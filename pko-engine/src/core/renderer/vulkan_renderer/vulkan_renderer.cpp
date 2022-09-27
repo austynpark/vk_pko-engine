@@ -6,6 +6,8 @@
 #include "core/application.h"
 #include "platform/platform.h"
 
+#include "core/input.h"
+
 #include "vulkan_device.h"
 #include "vulkan_memory_allocate.h"
 #include "vulkan_swapchain.h"
@@ -172,6 +174,8 @@ b8 vulkan_renderer::init()
     for (auto& desc_alloc : context.dynamic_descriptor_allocators) {
         desc_alloc.init(context.device_context.handle);
     }
+
+    context.layout_cache.init(context.device_context.handle);
 
     /*
     * global descriptor initialize
@@ -351,8 +355,6 @@ b8 vulkan_renderer::draw_imgui()
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
-    bool demo = true;
-    ImGui::ShowDemoWindow(&demo);
     scene[scene_index]->draw_imgui();
 
     ImGuiIO& io = ImGui::GetIO();
@@ -382,6 +384,12 @@ void vulkan_renderer::shutdown()
 	vulkan_renderpass_destroy(&context, &context.main_renderpass);
 
     vulkan_swapchain_destroy(&context, &context.swapchain);
+
+    for (u32 i = 0; i < MAX_FRAME; ++i)
+        context.dynamic_descriptor_allocators[i].cleanup();
+
+    context.layout_cache.cleanup();
+    
 
     // destroy imgui related objects
 	vkDestroyDescriptorPool(context.device_context.handle, context.imgui_pool, context.allocator);
@@ -671,4 +679,3 @@ b8 load_device_level_function() {
 #include "list_of_functions.inl"
     return true;
 }
-

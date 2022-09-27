@@ -12,6 +12,7 @@ struct vulkan_context;
 struct vulkan_swapchain;
 class vulkan_shader;
 class vulkan_render_object;
+class skinned_mesh;
 
 enum scene_name {
 	E_DEFAULT_SCENE
@@ -58,7 +59,9 @@ public:
 protected:
 	vulkan_context* context;
 
-	std::unordered_map<const char*, std::unique_ptr<vulkan_render_object>> object_manager;
+	std::unordered_map<const char*, std::unique_ptr<skinned_mesh>> object_manager;
+	
+	//TODO: might need texture manager
 
 	void regenerate_framebuffer();
 };

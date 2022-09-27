@@ -160,6 +160,14 @@ b8 platform_state::platform_message() {
 }
 
 f64 platform_state::get_absolute_time() {
+
+    if (clock_frequency) {
+        LARGE_INTEGER frequency;
+        QueryPerformanceFrequency(&frequency);
+        clock_frequency = 1.0 / (f64)frequency.QuadPart;
+        QueryPerformanceCounter(&start_time);
+    }
+
     LARGE_INTEGER current_time;
     QueryPerformanceCounter(&current_time);
     return (f64)current_time.QuadPart * clock_frequency;

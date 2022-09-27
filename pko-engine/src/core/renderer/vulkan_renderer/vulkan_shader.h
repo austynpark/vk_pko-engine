@@ -36,7 +36,7 @@ public:
 
 	vulkan_shader& add_stage(const char* shader_name, VkShaderStageFlagBits stage_flag);
 
-	b8 init();
+	b8 init(VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 	void shutdown();
 
 	std::unordered_map<std::string, reflected_binding> bindings;

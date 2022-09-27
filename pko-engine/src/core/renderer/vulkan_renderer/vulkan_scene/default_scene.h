@@ -14,11 +14,16 @@ public:
 	b8 end_renderpass(u32 current_frame) override;
 
 	b8 draw() override;
+	b8 draw_imgui() override;
 	void shutdown() override;
 
 	b8 on_resize(u32 w, u32 h) override;
+
+	std::unique_ptr<vulkan_shader> line_shader;
 private:
-	descriptor_builder* m_descriptor_builder;
+	VkDescriptorSet bone_transform_set;
+	f32 running_time = 0.0f;
+	f32 delta_time = 0.0f;
 };
 
 

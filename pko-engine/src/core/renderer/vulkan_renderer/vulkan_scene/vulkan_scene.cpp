@@ -8,6 +8,7 @@
 #include "../vulkan_framebuffer.h"
 #include "../vulkan_pipeline.h"
 #include "../vulkan_mesh.h"
+#include "../vulkan_skinned_mesh.h"
 #include "../vulkan_buffer.h"
 #include "../vulkan_shader.h"
 #include "../vulkan_scene/vulkan_scene.h"
@@ -45,13 +46,14 @@ b8 vulkan_scene::init(vulkan_context* api_context)
 
     std::cout << "framebuffers created" << std::endl;
 
-    object_manager["suzanne"] = std::make_unique<vulkan_render_object>(context, "model/suzanne.obj");
-    object_manager["suzanne"]->position = glm::vec3(0, 0, 5.0f);
-    //object_manager["sponza"] = std::make_unique<vulkan_render_object>(context, "model/sponza.obj");
+    //object_manager["boblampclean"] = std::make_unique<skinned_mesh>(context, "model/boblampclean.md5mesh");
+    object_manager["boxguy"] = std::make_unique<skinned_mesh>(context, "model/FBX 2013/Tad.fbx");
+    //object_manager["giant"] = std::make_unique<skinned_mesh>(context, "model/giant.fbx");
 
-	for (const auto& obj : object_manager) {
-        obj.second->upload_mesh();
-    }
+    object_manager["boxguy"]->position = glm::vec3(0, -5.0f, -10.0f);
+    object_manager["boxguy"]->scale = glm::vec3(0.1f);
+    object_manager["boxguy"]->rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+    //object_manager["sponza"] = std::make_unique<vulkan_render_object>(context, "model/sponza.obj");
 
     return true;
 }
@@ -76,7 +78,7 @@ b8 vulkan_scene::begin_renderpass(u32 current_frame)
 
     VkClearValue clear_values[] = {
         // color
-        { {0.3f, 0.2f, 0.1f, 1.0f} },
+        { {1.0f, 1.0f, 1.0f, 1.0f} },
         // depth, stencil
         {{1.0f, 0.0f}}
     };
@@ -157,9 +159,10 @@ b8 vulkan_scene::draw_imgui()
 void vulkan_scene::shutdown()
 {
     main_shader->shutdown();
+    
 
 	for (auto& obj : object_manager) {
-        obj.second->vulkan_render_object_destroy();
+        obj.second->destroy();
     }
 
     for (u32 i = 0; i < context->swapchain.image_count; ++i) {

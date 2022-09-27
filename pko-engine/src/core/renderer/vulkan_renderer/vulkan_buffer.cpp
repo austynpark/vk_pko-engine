@@ -19,6 +19,8 @@ void vulkan_buffer_create(
 	alloc_create_info.usage = memory_usage_flag;
 	alloc_create_info.flags = alloc_create_flag;
 
+	buffer->size = buffer_size;
+
 	VK_CHECK(vmaCreateBuffer(
 		context->vma_allocator,
 		&buffer_create_info,
@@ -27,7 +29,6 @@ void vulkan_buffer_create(
 		&buffer->allocation,
 		nullptr
 	));
-
 }
 
 void vulkan_buffer_copy(vulkan_context* context,
@@ -74,4 +75,14 @@ void vulkan_buffer_upload(vulkan_context* context, vulkan_allocated_buffer* buff
 	vmaMapMemory(context->vma_allocator, buffer->allocation, &copied_data);
 	memcpy(copied_data, data, data_size);
 	vmaUnmapMemory(context->vma_allocator, buffer->allocation);
+}
+
+u32 vulkan_uniform_buffer_pad_size(u32 min_ubo_alignment, u32 data_size)
+{
+	// Calculate required alignment based on minimum device offset alignment
+	size_t alignedSize = data_size;
+	if (min_ubo_alignment > 0) {
+		alignedSize = (alignedSize + min_ubo_alignment - 1) & ~(min_ubo_alignment - 1);
+	}
+	return alignedSize;
 }

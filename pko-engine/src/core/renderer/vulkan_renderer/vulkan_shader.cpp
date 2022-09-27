@@ -8,6 +8,7 @@
 
 #include "core/file_handle.h"
 #include "core/renderer/vulkan_renderer/vulkan_mesh.h"
+#include "core/renderer/vulkan_renderer/vulkan_skinned_mesh.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -32,20 +33,26 @@ vulkan_shader& vulkan_shader::add_stage(const char* shader_name, VkShaderStageFl
 }
 
 
-b8 vulkan_shader::init()
+b8 vulkan_shader::init(VkPrimitiveTopology topology)
 {
 	if (reflect_layout(context->device_context.handle) != true)
 		return false;
-	
-	vertex_input_description input_description = vulkan_render_object::get_vertex_input_description();
+	vertex_input_description input_description;
+
+#if defined(ANIMATION_ON)
+	input_description = skinned_mesh::get_vertex_input_description();
+#else
+	input_description = vulkan_render_object::get_vertex_input_description();
+#endif
 
 	if (vulkan_graphics_pipeline_create(context, renderpass, &pipeline,
 		stage_infos[0].shader_module, stage_infos[1].shader_module,
 		input_description.bindings.size(), input_description.bindings.data(),
-		input_description.attributes.size(), input_description.attributes.data(), pipeline.layout
+		input_description.attributes.size(), input_description.attributes.data(), pipeline.layout, topology
 	) != true) {
 		return false;
 	}
+
 
 	return true;
 }

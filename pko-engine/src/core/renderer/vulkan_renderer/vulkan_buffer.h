@@ -23,4 +23,6 @@ void vulkan_buffer_destroy(vulkan_context* context, vulkan_allocated_buffer* buf
 
 void vulkan_buffer_upload(vulkan_context* context, vulkan_allocated_buffer* buffer, void* data, u32 data_size);
 
+u32 vulkan_uniform_buffer_pad_size(u32 min_ubo_alignment, u32 data_size);
+
 #endif // !VULKAN_BUFFER_H

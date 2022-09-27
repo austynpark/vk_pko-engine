@@ -17,6 +17,7 @@
 		assert(result_ == VK_SUCCESS); \
 	} while(0)
 
+#define ANIMATION_ON 1
 constexpr int MAX_FRAME = 3;
 
 struct vulkan_queue_family {
@@ -94,6 +95,14 @@ struct vulkan_renderpass {
 struct vulkan_allocated_buffer {
 	VkBuffer handle;
 	VmaAllocation allocation;
+	VkDeviceSize size{ 0 };
+	VkDescriptorBufferInfo get_info(VkDeviceSize offset = 0) {
+		VkDescriptorBufferInfo info;
+		info.buffer = handle;
+		info.offset = offset;
+		info.range = size;
+		return info;
+	};
 };
 
 struct vulkan_pipeline {
@@ -208,6 +217,7 @@ struct vulkan_context {
 	std::vector<VkSemaphore> image_available_semaphores;
 	std::vector<VkFence> render_fences;
 	std::vector<descriptor_allocator> dynamic_descriptor_allocators;
+	descriptor_layout_cache layout_cache;
 
 	vulkan_global_data global_data;
 
