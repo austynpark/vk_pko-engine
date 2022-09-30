@@ -45,7 +45,9 @@ public:
 	std::vector<vertex_bone_data> vertex_bone;
 
 	std::vector<glm::mat4> bone_transforms;
+	std::vector<glm::mat4> debug_bone_transforms;
 	vulkan_allocated_buffer transform_buffer;
+	vulkan_allocated_buffer debug_transform_buffer;
 
 	static vertex_input_description get_vertex_input_description();
 	

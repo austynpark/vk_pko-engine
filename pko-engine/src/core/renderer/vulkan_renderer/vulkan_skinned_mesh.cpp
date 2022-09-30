@@ -52,6 +52,7 @@ void skinned_mesh::load_model(std::string path)
 	}
 
 	bone_transforms.resize(m_bone_info.size(), glm::mat4(1.0f));
+	debug_bone_transforms.resize(m_bone_info.size(), glm::mat4(1.0f));
 	
 	vertex_offset = 0;
 	for (u32 i = 0; i < scene->mNumMeshes; ++i) {
@@ -116,7 +117,48 @@ void skinned_mesh::load_model(std::string path)
 		&transform_buffer);
 
 	vulkan_buffer_upload(context, &transform_buffer, bone_transforms.data(), ubo_size);
+
+	vulkan_buffer_create(
+		context,
+		ubo_size,
+		VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+		/*VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE |*/ VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
+		VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+		&debug_transform_buffer);
+
+	vulkan_buffer_upload(context, &debug_transform_buffer, debug_bone_transforms.data(), ubo_size);
 }
+
+void skinned_mesh::load_bones(aiMesh* mesh, u32 vertex_offset)
+{
+
+	for (u32 i = 0; i < mesh->mNumBones; ++i) {
+		u32 index = 0;
+		std::string name(mesh->mBones[i]->mName.data);
+
+		// bone already exists in map
+		if (bone_mapping.find(name) != bone_mapping.end()) {
+			index = bone_mapping[name];
+		}
+		else { // add new bone to map
+			index = m_bone_info.size();
+
+			bone_info bone;
+			bone.offset = mesh->mBones[i]->mOffsetMatrix;
+			m_bone_info.push_back(bone);
+
+			bone_mapping[name] = index;
+		}
+
+		for (u32 j = 0; j < mesh->mBones[i]->mNumWeights; ++j) {
+			// since we are using a single vertex buffer
+			// vertex_offset + bones::weights::vertex_id would be actuall vertex index in the 'bones'
+			u32 vertex_id = vertex_offset + mesh->mBones[i]->mWeights[j].mVertexId;
+			vertex_bone[vertex_id].add(index, mesh->mBones[i]->mWeights[j].mWeight);
+		}
+	}
+}
+
 
 void skinned_mesh::process_bone_vertex(const aiNode* node) {
 
@@ -124,32 +166,24 @@ void skinned_mesh::process_bone_vertex(const aiNode* node) {
 	vert.bone_weight[0] = 1.0f;
 	vert.position = glm::vec3(0.0f);
 
+	if (node->mParent != nullptr) {
+
+		const auto &parent_bone_itr = bone_mapping.find(node->mParent->mName.C_Str());
+		const auto& child_bone_itr = bone_mapping.find(node->mName.C_Str());
+
+		if(parent_bone_itr != bone_mapping.end() && child_bone_itr != bone_mapping.end()) {
+			vert.bone_id[0] = parent_bone_itr->second;
+			debug_mesh.vertices.push_back(vert);
+			vert.bone_id[0] = child_bone_itr->second;
+			debug_mesh.vertices.push_back(vert);
+		}
+	}
+
 	if (node->mNumChildren == 0) {
 		return;
 	}
-	
+
 	for (u32 i = 0; i < node->mNumChildren; ++i) {
-
-		if (bone_mapping.find(node->mName.C_Str()) != bone_mapping.end()) {
-			u32 parent_bone_id = bone_mapping[node->mName.C_Str()];
-			vert.bone_id[0] = parent_bone_id;
-			debug_mesh.vertices.push_back(vert);
-
-			std::cout << debug_mesh.vertices.size() << " : " << node->mName.C_Str() << std::endl;
-
-			if (bone_mapping.find(node->mChildren[i]->mName.C_Str()) != bone_mapping.end()) {
-				u32 child_bone_id = bone_mapping[node->mChildren[i]->mName.C_Str()];
-				vert.bone_id[0] = child_bone_id;
-				debug_mesh.vertices.push_back(vert);
-
-				std::cout << debug_mesh.vertices.size() << " : " << node->mChildren[i]->mName.C_Str() << std::endl;
-			}
-			else {
-				debug_mesh.vertices.pop_back();
-				std::cout << "cant find child" << std::endl;
-			}
-
-		}
 		process_bone_vertex(node->mChildren[i]);
 	}
 }
@@ -194,18 +228,86 @@ void skinned_mesh::update(f32 dt)
 	for (uint32_t i = 0; i < bone_transforms.size(); i++)
 	{
 		bone_transforms[i] = glm::transpose(glm::make_mat4(&m_bone_info[i].final_transformation.a1));
+		//debug_bone_transforms[i] = glm::transpose(debug_bone_transforms[i]);
 	}
 
 	vulkan_buffer_upload(context, &transform_buffer, bone_transforms.data(), transform_buffer.size);
+	vulkan_buffer_upload(context, &debug_transform_buffer, debug_bone_transforms.data(), debug_transform_buffer.size);
 }
+
+void skinned_mesh::read_node_hierarchy(float animation_time, const aiNode* node, const aiMatrix4x4& parent_transform)
+{
+ 	std::string node_name(node->mName.data);
+	aiMatrix4x4 node_transformation(node->mTransformation);
+	const aiNodeAnim* node_anim = find_node_anim(animation, node_name);
+
+	if (node_anim)
+	{
+		// Get interpolated matrices between current and next frame
+		aiMatrix4x4 mat_scale = interpolate_scale(animation_time, node_anim);
+		aiMatrix4x4 mat_rotation = interpolate_rotation(animation_time, node_anim);
+		aiMatrix4x4 mat_translation = interpolate_translation(animation_time, node_anim);
+
+		node_transformation = mat_translation * mat_rotation * mat_scale;
+	}
+
+	aiMatrix4x4 global_transformation = parent_transform * node_transformation;
+
+	if (bone_mapping.find(node_name) != bone_mapping.end())
+	{
+		uint32_t bone_index = bone_mapping[node_name];
+		m_bone_info[bone_index].final_transformation = global_inverse_transform * global_transformation * m_bone_info[bone_index].offset;
+
+
+		aiVector3D debug_bone_scale;
+		aiVector3D debug_bone_rotation;
+		aiVector3D debug_bone_translation;
+		m_bone_info[bone_index].offset.Decompose(debug_bone_scale, debug_bone_rotation, debug_bone_translation);
+		
+		debug_bone_scale.x = 1 / debug_bone_scale.x;
+		debug_bone_scale.y = 1 / debug_bone_scale.y;
+		debug_bone_scale.z = 1 / debug_bone_scale.z;
+
+		//aiVector3D debug_bone_translation(-m_bone_info[bone_index].offset[0][3], -m_bone_info[bone_index].offset[1][3], -m_bone_info[bone_index].offset[2][3]);
+		aiMatrix4x4 debug_bone_transform = aiMatrix4x4();
+		debug_bone_transform.Translation(-debug_bone_translation, debug_bone_transform);
+		debug_bone_transform.Scaling(debug_bone_scale, debug_bone_transform);
+		debug_bone_transform.FromEulerAnglesXYZ(-debug_bone_rotation);
+
+		debug_bone_transform = global_inverse_transform * global_transformation * debug_bone_transform;
+		debug_bone_transforms[bone_index] = glm::transpose(glm::make_mat4(&debug_bone_transform.a1));
+	}
+
+	for (uint32_t i = 0; i < node->mNumChildren; i++)
+	{
+		read_node_hierarchy(animation_time, node->mChildren[i], global_transformation);
+	}
+}
+
+const aiNodeAnim* skinned_mesh::find_node_anim(const aiAnimation* animation, const std::string node_name)
+{
+	for (uint32_t i = 0; i < animation->mNumChannels; i++)
+	{
+		const aiNodeAnim* nodeAnim = animation->mChannels[i];
+		if (std::string(nodeAnim->mNodeName.data) == node_name)
+		{
+			return nodeAnim;
+		}
+	}
+	return nullptr;
+}
+
 
 void skinned_mesh::destroy()
 {
 	vulkan_buffer_destroy(context, &transform_buffer);
 	vulkan_buffer_destroy(context, &vertex_buffer);
 	vulkan_buffer_destroy(context, &index_buffer);
+
+	//debuging buffers
 	vulkan_buffer_destroy(context, &debug_vertex_buffer);
 	vulkan_buffer_destroy(context, &debug_index_buffer);
+	vulkan_buffer_destroy(context, &debug_transform_buffer);
 }
 
 vertex_input_description skinned_mesh::get_vertex_input_description()
@@ -263,77 +365,3 @@ void skinned_mesh::set_animation()
 	animation = scene->mAnimations[selected_anim_index];
 }
 
-void skinned_mesh::load_bones(aiMesh* mesh, u32 vertex_offset)
-{
-	for (u32 i = 0; i < mesh->mNumBones; ++i) {
-		u32 index = 0;
-
-		std::string name(mesh->mBones[i]->mName.data);
-
-		// bone already exists in map
-		if (bone_mapping.find(name) != bone_mapping.end()) {
-			index = bone_mapping[name];
-		}
-		else { // add new bone to map
-			index = m_bone_info.size();
-
-			bone_info bone;
-			bone.offset = mesh->mBones[i]->mOffsetMatrix;
-			m_bone_info.push_back(bone);
-
-			bone_mapping[name] = index;
-		}
-
-		for (u32 j = 0; j < mesh->mBones[i]->mNumWeights; ++j) {
-			// since we are using a single vertex buffer
-			// vertex_offset + bones::weights::vertex_id would be actuall vertex index in the 'bones'
-			u32 vertex_id = vertex_offset + mesh->mBones[i]->mWeights[j].mVertexId;
-			vertex_bone[vertex_id].add(index, mesh->mBones[i]->mWeights[j].mWeight);
-		}
-	}
-}
-
-const aiNodeAnim* skinned_mesh::find_node_anim(const aiAnimation* animation, const std::string node_name)
-{
-	for (uint32_t i = 0; i < animation->mNumChannels; i++)
-	{
-		const aiNodeAnim* nodeAnim = animation->mChannels[i];
-		if (std::string(nodeAnim->mNodeName.data) == node_name)
-		{
-			return nodeAnim;
-		}
-	}
-	return nullptr;
-}
-
-void skinned_mesh::read_node_hierarchy(float animation_time, const aiNode* node, const aiMatrix4x4& parent_transform)
-{
-	std::string node_name(node->mName.data);
-
-	aiMatrix4x4 node_transformation(node->mTransformation);
-
-	const aiNodeAnim* node_anim = find_node_anim(animation, node_name);
-
-	if (node_anim)
-	{
-		// Get interpolated matrices between current and next frame
-		aiMatrix4x4 mat_scale = interpolate_scale(animation_time, node_anim);
-		aiMatrix4x4 mat_rotation = interpolate_rotation(animation_time, node_anim);
-		aiMatrix4x4 mat_translation = interpolate_translation(animation_time, node_anim);
-
-		node_transformation = mat_translation * mat_rotation * mat_scale;
-	}
-
-	aiMatrix4x4 global_transformation = parent_transform * node_transformation;
-
-	if (bone_mapping.find(node_name) != bone_mapping.end())
-	{
-		uint32_t bone_index = bone_mapping[node_name];
-		m_bone_info[bone_index].final_transformation = global_inverse_transform * global_transformation * m_bone_info[bone_index].offset;
-	}
-
-	for (uint32_t i = 0; i < node->mNumChildren; i++)
-	{
-		read_node_hierarchy(animation_time, node->mChildren[i], global_transformation);
-	}
-}

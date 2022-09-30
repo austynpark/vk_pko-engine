@@ -99,6 +99,17 @@ b8 default_scene::draw()
         obj.second->draw(command_buffer);
 
         if (obj.second->enable_debug_draw) {
+
+            VkDescriptorSet debug_bone_transform_set;
+            buffer_info = obj.second->debug_transform_buffer.get_info();
+            descriptor_builder::begin(&context->layout_cache, &context->dynamic_descriptor_allocators[context->current_frame])
+                .bind_buffer(0, &buffer_info, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT).build(debug_bone_transform_set);
+            vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, line_shader->pipeline.layout, 1, 1, &debug_bone_transform_set, 0, NULL);
+
+            model_constant.model = model;
+            model_constant.normal_matrix = normal_matrix;
+            vkCmdPushConstants(command_buffer, line_shader->pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(model_constant), &model_constant);
+
             vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, line_shader->pipeline.handle);
             obj.second->draw_debug(command_buffer);
         }

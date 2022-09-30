@@ -111,6 +111,8 @@
     <ClCompile Include="vendor\imgui\imgui_widgets.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="shader\debug.frag" />
+    <None Include="shader\debug.vert" />
     <None Include="shader\test.frag" />
     <None Include="shader\test.vert" />
     <None Include="src\core\renderer\vulkan_renderer\list_of_functions.inl" />

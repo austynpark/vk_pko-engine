@@ -46,8 +46,8 @@ b8 vulkan_scene::init(vulkan_context* api_context)
 
     std::cout << "framebuffers created" << std::endl;
 
-    //object_manager["boblampclean"] = std::make_unique<skinned_mesh>(context, "model/boblampclean.md5mesh");
-    object_manager["boxguy"] = std::make_unique<skinned_mesh>(context, "model/FBX 2013/Tad.fbx");
+    object_manager["boxguy"] = std::make_unique<skinned_mesh>(context, "model/boblampclean.md5mesh");
+    //object_manager["boxguy"] = std::make_unique<skinned_mesh>(context, "model/boxguy.fbx");
     //object_manager["giant"] = std::make_unique<skinned_mesh>(context, "model/giant.fbx");
 
     object_manager["boxguy"]->position = glm::vec3(0, -5.0f, -10.0f);
