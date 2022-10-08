@@ -22,8 +22,10 @@ public:
 	std::unique_ptr<vulkan_shader> line_shader;
 private:
 	VkDescriptorSet bone_transform_set;
-	f32 running_time = 0.0f;
 	f32 delta_time = 0.0f;
+
+	b8 single_model_draw_mode = true;
+	const char* single_model_name;
 };
 
 

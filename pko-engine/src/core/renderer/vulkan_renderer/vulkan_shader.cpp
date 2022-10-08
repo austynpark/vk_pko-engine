@@ -33,7 +33,7 @@ vulkan_shader& vulkan_shader::add_stage(const char* shader_name, VkShaderStageFl
 }
 
 
-b8 vulkan_shader::init(VkPrimitiveTopology topology)
+b8 vulkan_shader::init(VkPrimitiveTopology topology, b8 depth_enable)
 {
 	if (reflect_layout(context->device_context.handle) != true)
 		return false;
@@ -48,7 +48,10 @@ b8 vulkan_shader::init(VkPrimitiveTopology topology)
 	if (vulkan_graphics_pipeline_create(context, renderpass, &pipeline,
 		stage_infos[0].shader_module, stage_infos[1].shader_module,
 		input_description.bindings.size(), input_description.bindings.data(),
-		input_description.attributes.size(), input_description.attributes.data(), pipeline.layout, topology
+		input_description.attributes.size(), input_description.attributes.data(),
+		pipeline.layout,
+		topology,
+		depth_enable
 	) != true) {
 		return false;
 	}

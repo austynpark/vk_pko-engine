@@ -24,6 +24,9 @@
     <ClInclude Include="src\core\file_handle.h" />
     <ClInclude Include="src\core\material.h" />
     <ClInclude Include="src\core\input.h" />
+    <ClInclude Include="src\core\renderer\animation\skeleton_node.h" />
+    <ClInclude Include="src\core\renderer\animation\vqs.h" />
+    <ClInclude Include="src\math\math_types.h" />
     <ClInclude Include="src\core\renderer\camera.h" />
     <ClInclude Include="src\core\renderer\renderer.h" />
     <ClInclude Include="src\core\renderer\renderer_frontend.h" />
@@ -49,7 +52,9 @@
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_swapchain.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_texture_manager.h" />
     <ClInclude Include="src\defines.h" />
+    <ClInclude Include="src\math\pko_math.h" />
     <ClInclude Include="src\platform\platform.h" />
+    <ClInclude Include="vendor\glm\gtx\quaternion.hpp" />
     <ClInclude Include="vendor\imgui\backends\imgui_impl_vulkan.h" />
     <ClInclude Include="vendor\imgui\backends\imgui_impl_win32.h" />
     <ClInclude Include="vendor\imgui\imconfig.h" />
@@ -69,6 +74,8 @@
     <ClCompile Include="src\core\file_handle.cpp" />
     <ClCompile Include="src\core\material.cpp" />
     <ClCompile Include="src\core\input.cpp" />
+    <ClCompile Include="src\core\renderer\animation\skeleton_node.cpp" />
+    <ClCompile Include="src\core\renderer\animation\vqs.cpp" />
     <ClCompile Include="src\core\renderer\camera.cpp" />
     <ClCompile Include="src\core\renderer\SPIRV-Reflect\spirv_reflect.c" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_buffer.cpp" />
@@ -117,6 +124,7 @@
     <None Include="shader\test.vert" />
     <None Include="src\core\renderer\vulkan_renderer\list_of_functions.inl" />
     <None Include="src\core\renderer\vulkan_renderer\vulkan_types.inl" />
+    <None Include="vendor\glm\gtx\quaternion.inl" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

@@ -28,6 +28,7 @@ struct reflected_binding {
 };
 
 
+
 class vulkan_shader
 {
 public:
@@ -36,7 +37,7 @@ public:
 
 	vulkan_shader& add_stage(const char* shader_name, VkShaderStageFlagBits stage_flag);
 
-	b8 init(VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	b8 init(VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, b8 depth_enable = true);
 	void shutdown();
 
 	std::unordered_map<std::string, reflected_binding> bindings;

@@ -178,7 +178,7 @@ b8 vulkan_graphics_pipeline_create(
 }
 
 b8 vulkan_graphics_pipeline_create(vulkan_context* context, vulkan_renderpass* renderpass, vulkan_pipeline* out_pipeline, VkShaderModule vertex_shader_module,
-	VkShaderModule fragment_shader_module, u32 binding_description_count, VkVertexInputBindingDescription* binding_descriptions, u32 attribute_description_count, VkVertexInputAttributeDescription* attribute_descriptions, VkPipelineLayout pipeline_layout, VkPrimitiveTopology topology)
+	VkShaderModule fragment_shader_module, u32 binding_description_count, VkVertexInputBindingDescription* binding_descriptions, u32 attribute_description_count, VkVertexInputAttributeDescription* attribute_descriptions, VkPipelineLayout pipeline_layout, VkPrimitiveTopology topology, b8 depth_enable)
 {
 	VkPipelineShaderStageCreateInfo vert_create_info{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
 	vert_create_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -232,7 +232,7 @@ b8 vulkan_graphics_pipeline_create(vulkan_context* context, vulkan_renderpass* r
 	VkPipelineRasterizationStateCreateInfo rasterizer{ VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
 	rasterizer.depthClampEnable = VK_FALSE;
 	rasterizer.rasterizerDiscardEnable = VK_FALSE;
-	rasterizer.polygonMode = VK_POLYGON_MODE_LINE;
+	rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
 	rasterizer.lineWidth = 1.0f;
 	rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
 	rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
@@ -251,7 +251,7 @@ b8 vulkan_graphics_pipeline_create(vulkan_context* context, vulkan_renderpass* r
 
 	// TODO: depth attachment
 	VkPipelineDepthStencilStateCreateInfo depth_stencil_info{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
-	depth_stencil_info.depthTestEnable = VK_TRUE;
+	depth_stencil_info.depthTestEnable = depth_enable;
 	depth_stencil_info.depthWriteEnable = VK_TRUE;
 	depth_stencil_info.depthCompareOp = VK_COMPARE_OP_LESS;
 	depth_stencil_info.depthBoundsTestEnable = VK_FALSE;

@@ -18,7 +18,7 @@ b8 default_scene::init(vulkan_context* api_context)
 
     line_shader->add_stage("debug.vert", VK_SHADER_STAGE_VERTEX_BIT)
         .add_stage("debug.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
-    if (line_shader->init(VK_PRIMITIVE_TOPOLOGY_LINE_LIST) != true) {
+    if (line_shader->init(VK_PRIMITIVE_TOPOLOGY_LINE_LIST, false) != true) {
         std::cout << "line_shader init fail" << std::endl;
         return false;
     }
@@ -32,6 +32,7 @@ b8 default_scene::init(vulkan_context* api_context)
     }
 
     graphics_pipeline = main_shader->pipeline;
+    single_model_name = "";
 
     return true;
 }
@@ -69,49 +70,90 @@ b8 default_scene::draw()
     // set viewport, scissor
     vulkan_scene::draw();
 
-    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, main_shader->pipeline.handle);
-
 	model_constant model_constant{};
 
     //context->dynamic_descriptor_allocators[context->current_frame].
 
-    for (const auto& obj : object_manager) {
+    if (!single_model_draw_mode) {
+        for (const auto& obj : object_manager) {
+            obj.second->update(delta_time);
 
-        running_time += obj.second->animation_speed * delta_time;
+            VkDescriptorSet bone_transform_set;
+            VkDescriptorBufferInfo buffer_info = obj.second->transform_buffer.get_info();
 
-        obj.second->update(running_time);
-
-        VkDescriptorSet bone_transform_set;
-        VkDescriptorBufferInfo buffer_info = obj.second->transform_buffer.get_info();
-
-        descriptor_builder::begin(&context->layout_cache, &context->dynamic_descriptor_allocators[context->current_frame])
-            .bind_buffer(0, &buffer_info, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT).build(bone_transform_set);
-
-        vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, main_shader->pipeline.layout, 1, 1, &bone_transform_set, 0, NULL);
-
-		glm::mat4 model = obj.second->get_transform_matrix();
-		glm::mat3 normal_matrix = glm::transpose(glm::inverse(model));
-        
-        model_constant.model = model;
-        model_constant.normal_matrix = normal_matrix;
-	    vkCmdPushConstants(command_buffer, main_shader->pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(model_constant), &model_constant);
-
-        obj.second->draw(command_buffer);
-
-        if (obj.second->enable_debug_draw) {
-
-            VkDescriptorSet debug_bone_transform_set;
-            buffer_info = obj.second->debug_transform_buffer.get_info();
             descriptor_builder::begin(&context->layout_cache, &context->dynamic_descriptor_allocators[context->current_frame])
-                .bind_buffer(0, &buffer_info, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT).build(debug_bone_transform_set);
-            vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, line_shader->pipeline.layout, 1, 1, &debug_bone_transform_set, 0, NULL);
+                .bind_buffer(0, &buffer_info, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT).build(bone_transform_set);
+
+			vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, main_shader->pipeline.handle);
+            vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, main_shader->pipeline.layout, 1, 1, &bone_transform_set, 0, NULL);
+
+            glm::mat4 model = obj.second->get_transform_matrix();
+            glm::mat3 normal_matrix = glm::transpose(glm::inverse(model));
 
             model_constant.model = model;
             model_constant.normal_matrix = normal_matrix;
-            vkCmdPushConstants(command_buffer, line_shader->pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(model_constant), &model_constant);
+            vkCmdPushConstants(command_buffer, main_shader->pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(model_constant), &model_constant);
 
-            vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, line_shader->pipeline.handle);
-            obj.second->draw_debug(command_buffer);
+            obj.second->draw(command_buffer);
+
+            if (obj.second->enable_debug_draw) {
+
+                VkDescriptorSet debug_bone_transform_set;
+                buffer_info = obj.second->debug_transform_buffer.get_info();
+                descriptor_builder::begin(&context->layout_cache, &context->dynamic_descriptor_allocators[context->current_frame])
+                    .bind_buffer(0, &buffer_info, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT).build(debug_bone_transform_set);
+                vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, line_shader->pipeline.layout, 1, 1, &debug_bone_transform_set, 0, NULL);
+
+                model_constant.model = model;
+                model_constant.normal_matrix = normal_matrix;
+                vkCmdPushConstants(command_buffer, line_shader->pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(model_constant), &model_constant);
+
+                vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, line_shader->pipeline.handle);
+                //vkCmdSetDepthTestEnableEXT(command_buffer, false);
+                obj.second->draw_debug(command_buffer);
+            }
+        }
+    }
+    else {
+        if (object_manager.find(single_model_name) != object_manager.end()) {
+            const auto& obj = *object_manager.find(single_model_name);
+
+            obj.second->update(delta_time);
+
+            VkDescriptorSet bone_transform_set;
+            VkDescriptorBufferInfo buffer_info = obj.second->transform_buffer.get_info();
+
+            descriptor_builder::begin(&context->layout_cache, &context->dynamic_descriptor_allocators[context->current_frame])
+                .bind_buffer(0, &buffer_info, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT).build(bone_transform_set);
+
+            vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, main_shader->pipeline.handle);
+            vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, main_shader->pipeline.layout, 1, 1, &bone_transform_set, 0, NULL);
+
+            glm::mat4 model = obj.second->get_transform_matrix();
+            glm::mat3 normal_matrix = glm::transpose(glm::inverse(model));
+
+            model_constant.model = model;
+            model_constant.normal_matrix = normal_matrix;
+            vkCmdPushConstants(command_buffer, main_shader->pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(model_constant), &model_constant);
+
+            obj.second->draw(command_buffer);
+
+            if (obj.second->enable_debug_draw) {
+
+                VkDescriptorSet debug_bone_transform_set;
+                buffer_info = obj.second->debug_transform_buffer.get_info();
+                descriptor_builder::begin(&context->layout_cache, &context->dynamic_descriptor_allocators[context->current_frame])
+                    .bind_buffer(0, &buffer_info, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT).build(debug_bone_transform_set);
+                vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, line_shader->pipeline.layout, 1, 1, &debug_bone_transform_set, 0, NULL);
+
+                model_constant.model = model;
+                model_constant.normal_matrix = normal_matrix;
+                vkCmdPushConstants(command_buffer, line_shader->pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(model_constant), &model_constant);
+
+                vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, line_shader->pipeline.handle);
+                //vkCmdSetDepthTestEnableEXT(command_buffer, false);
+                obj.second->draw_debug(command_buffer);
+            }
         }
     }
 
@@ -120,13 +162,13 @@ b8 default_scene::draw()
 
 b8 default_scene::draw_imgui()
 {
+    i32 frame_count = ImGui::GetFrameCount();
     ImGui::Begin("CS460 Skeletal Animation");
-    static const char* current_item = nullptr;
+    static const char* current_item = "";
     if (ImGui::BeginTabBar("Tab Bar"))
     {
         if (ImGui::BeginTabItem("General"))
         {
-
             if (ImGui::BeginCombo("object", current_item))
             {
                 for (const auto& obj : object_manager)
@@ -143,10 +185,12 @@ b8 default_scene::draw_imgui()
                 // object combo
                 ImGui::EndCombo();
             }
+			ImGui::Checkbox("Draw a single model", &single_model_draw_mode);
+            single_model_name = current_item;
 
             ImGui::Spacing();
             ImGui::Separator();
-            if (current_item != nullptr) {
+            if (current_item != nullptr && current_item != "") {
 
                 auto& obj = object_manager[current_item];
                 ImGui::SliderFloat3("translation", glm::value_ptr(obj->position), -100.0f, 100.0f);
@@ -161,9 +205,12 @@ b8 default_scene::draw_imgui()
                     {
                         u32 min = 0;
                         u32 max = obj->animation_count - 1;
-                        b8 is_changed = ImGui::SliderScalar(obj->animation->mName.C_Str(), ImGuiDataType_::ImGuiDataType_U32, &obj->selected_anim_index, &min, &max);
-                        if (is_changed) {
-                            obj->set_animation();
+
+                        if (max != min) {
+                            b8 is_changed = ImGui::SliderScalar(obj->animation->mName.C_Str(), ImGuiDataType_::ImGuiDataType_U32, &obj->selected_anim_index, &min, &max);
+                            if (is_changed) {
+                                obj->set_animation();
+                            }
                         }
 
                         ImGui::SliderFloat("Anim speed", &obj->animation_speed, 0.0f, 2.0f);

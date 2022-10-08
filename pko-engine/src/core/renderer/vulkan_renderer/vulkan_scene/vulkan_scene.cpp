@@ -46,13 +46,19 @@ b8 vulkan_scene::init(vulkan_context* api_context)
 
     std::cout << "framebuffers created" << std::endl;
 
-    object_manager["boxguy"] = std::make_unique<skinned_mesh>(context, "model/boblampclean.md5mesh");
-    //object_manager["boxguy"] = std::make_unique<skinned_mesh>(context, "model/boxguy.fbx");
-    //object_manager["giant"] = std::make_unique<skinned_mesh>(context, "model/giant.fbx");
+    object_manager["boblampclean"] = std::make_unique<skinned_mesh>(context, "model/boblampclean.md5mesh");
+    object_manager["boblampclean"]->position = glm::vec3(0.0f, -1.5f, 0.0f);
+    object_manager["boblampclean"]->scale = glm::vec3(0.1f);
+    object_manager["boblampclean"]->rotation = glm::vec3(-90.0f, 0.0f, 0.0f);
 
+    object_manager["boxguy"] = std::make_unique<skinned_mesh>(context, "model/boxguy.fbx");
     object_manager["boxguy"]->position = glm::vec3(0, -5.0f, -10.0f);
     object_manager["boxguy"]->scale = glm::vec3(0.1f);
     object_manager["boxguy"]->rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+
+    object_manager["tad"] = std::make_unique<skinned_mesh>(context, "model/FBX 2013/Tad.fbx");
+
+    //object_manager["giant"] = std::make_unique<skinned_mesh>(context, "model/giant.fbx");
     //object_manager["sponza"] = std::make_unique<vulkan_render_object>(context, "model/sponza.obj");
 
     return true;
@@ -134,19 +140,6 @@ b8 vulkan_scene::draw()
 
     vkCmdSetScissor(command_buffer, 0, 1, &scissor);
     vkCmdSetViewport(command_buffer, 0, 1, &viewport);
-
-    //vulkan_pipeline_bind(&graphics_commands.at(current_frame), VK_PIPELINE_BIND_POINT_GRAPHICS, &graphics_pipeline);
-
-    //vkCmdPushConstants(command_buffer, context.graphics_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(global_ubo), &global_ubo);
-
-    /*
-    for (const auto& obj : object_manager) {
-        VkDeviceSize offset = 0;
-        vulkan_render_object* vk_render_obj = (vulkan_render_object*)(obj.second.get());
-        vkCmdBindVertexBuffers(command_buffer, 0, 1, &vk_render_obj->vertex_buffer.handle, &offset);
-        vkCmdDraw(command_buffer, vk_render_obj->p_mesh->vertices.size(), 1, 0, 0);
-    }
-    */
 
     return true;
 }

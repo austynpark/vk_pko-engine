@@ -38,7 +38,7 @@ b8 renderer_frontend::init(u32 w, u32 h)
 	*/
 	SpirvHelper::Init();
 
-	cam.init();
+	cam.init(glm::vec3(0, 0, 10.0f));
 	event_system::bind_event(event_code::EVENT_CODE_KEY_PRESSED, renderer_frontend::on_key_pressed);
 	event_system::bind_event(event_code::EVENT_CODE_KEY_RELEASED, renderer_frontend::on_key_pressed);
 	event_system::bind_event(event_code::EVENT_CODE_BUTTON_PRESSED, renderer_frontend::on_button_pressed);

@@ -39,7 +39,8 @@ b8 vulkan_graphics_pipeline_create(
 	u32 attribute_description_count,
 	VkVertexInputAttributeDescription* attribute_descriptions,
 	VkPipelineLayout pipeline_layout,
-	VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
+	VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+	b8 depth_enable = true
 );
 
 void vulkan_pipeline_destroy(

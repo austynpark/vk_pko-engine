@@ -76,7 +76,7 @@ b8 application::run()
 		u64 remaining_ms = (remaining_seconds * 1000);
 
 		// If there is time left, give it back to the OS.
-		b8 limit_frames = false;
+		b8 limit_frames = true;
 		if (remaining_ms > 0 && limit_frames) {
 			app_state.platform.sleep(remaining_ms - 1);
 		}
