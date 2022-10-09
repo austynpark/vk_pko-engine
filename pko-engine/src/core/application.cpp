@@ -16,6 +16,7 @@ struct application_state
 	f32 delta_time;
 	f64 last_time;
 	f64 start_time;
+	f64 target_frame_seconds;
 
 	u32 width;
 	u32 height;
@@ -30,6 +31,7 @@ b8 application::init(const char* app_name ,i32 x, i32 y,u32 w, u32 h)
 	app_state.delta_time = 0.0f;
 	app_state.last_time = 0.0f;
 	app_state.start_time = 0.0f;
+	app_state.target_frame_seconds = 1.0f / 60.0f;
 
 	app_state.input = new input_system();
 
@@ -57,7 +59,6 @@ b8 application::run()
 
 	f64 current_time = app_state.platform.get_absolute_time() - app_state.start_time;
 	app_state.delta_time = current_time - app_state.last_time;
-	f64 target_frame_seconds = 1.0f / 60;
 
 	//std::cout << "delta_time: " << app_state.delta_time << std::endl;
 
@@ -70,7 +71,7 @@ b8 application::run()
 	f64 frame_end_time = app_state.platform.get_absolute_time();
 	f64 frame_elapsed_time = frame_end_time - frame_start_time;
 	// running_time += frame_elapsed_time;
-	f64 remaining_seconds = target_frame_seconds - frame_elapsed_time;
+	f64 remaining_seconds = app_state.target_frame_seconds - frame_elapsed_time;
 
 	if (remaining_seconds > 0) {
 		u64 remaining_ms = (remaining_seconds * 1000);

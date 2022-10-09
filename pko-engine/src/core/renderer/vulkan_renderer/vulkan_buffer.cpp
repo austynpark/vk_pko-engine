@@ -73,7 +73,7 @@ void vulkan_buffer_upload(vulkan_context* context, vulkan_allocated_buffer* buff
 {
 	void* copied_data;
 	vmaMapMemory(context->vma_allocator, buffer->allocation, &copied_data);
-	memcpy(copied_data, data, data_size);
+	memcpy_s(copied_data, data_size, data, data_size);
 	vmaUnmapMemory(context->vma_allocator, buffer->allocation);
 }
 

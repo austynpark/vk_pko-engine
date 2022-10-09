@@ -36,6 +36,11 @@ namespace pko_math {
 			memcpy_s(this, sizeof(vec3_u), &v, sizeof(glm::vec3));
 		}
 
+		inline vec3_u operator-() const {
+			vec3 result(-x, -y, -z);
+			return result;
+		}
+
 		inline f32& operator[](u32 index) {
 			assert(index < 3);
 			return elements[index];
@@ -132,7 +137,11 @@ namespace pko_math {
 		}
 
 		inline f32 length() const {
-			return _mm_cvtss_f32(_mm_sqrt_ps(data));
+			__m128 xmm = _mm_mul_ps(data, data);
+			xmm = _mm_hadd_ps(xmm, xmm);
+			xmm = _mm_hadd_ps(xmm, xmm);
+
+			return sqrt(_mm_cvtss_f32(xmm));
 		}
 
 		inline vec4_u normalize() {
@@ -179,9 +188,98 @@ namespace pko_math {
 		};
 	} vec4;
 
-	typedef vec4 quat;
+
+	typedef struct quat_u {
+		inline quat_u() {
+			data = _mm_setr_ps(1.0f, 0, 0, 0);
+		}
+
+		inline quat_u(f32 v) {
+			data = _mm_set_ps1(v);
+		}
+
+		inline quat_u(f32 w, f32 x, f32 y, f32 z) {
+			data = _mm_setr_ps(w, x, y, z);
+		}
+
+		inline quat_u(const glm::vec3 v, f32 w) {
+			elements[0] = w;
+			elements[1] = v.x;
+			elements[2] = v.y;
+			elements[3] = v.z;
+		}
+
+		inline quat_u(vec3 v, f32 w) {
+			elements[0] = w;
+			elements[1] = v.x;
+			elements[2] = v.y;
+			elements[3] = v.z;
+		}
+
+		inline f32& operator[](u32 index) {
+			assert(index < 4);
+
+			return elements[index];
+		}
+
+		inline quat_u operator-() const {
+			quat result;
+			result.data = _mm_sub_ps(_mm_setzero_ps(), data);
+			return result;
+		}
+
+		inline f32 length() const {
+			__m128 xmm = _mm_mul_ps(data, data);
+			xmm = _mm_hadd_ps(xmm, xmm);
+			xmm = _mm_hadd_ps(xmm, xmm);
+
+			return sqrt(_mm_cvtss_f32(xmm));
+		}
+
+		inline quat_u normalize() {
+			f32 len = length();
+
+			if (abs(len - 1.0f) > 0.001f) {
+				f32 len_inv = 1 / len;
+
+				__m128 simd_s = _mm_broadcast_ss((const f32*)&len_inv);
+				data = _mm_mul_ps(data, simd_s);
+			}
+
+			return (*this);
+		}
+
+		union {
+			f32 elements[4];
+			__m128 data;
+			struct {
+				union {
+					f32 w,
+						a,
+						q;
+				};
+
+				union {
+					f32 x,
+						r,
+						s;
+				};
+
+				union {
+					f32 y,
+						g,
+						t;
+				};
+
+				union {
+					f32 z,
+						b,
+						p;
+				};
+			};
+		};
+	} quat;
+
 }
-
-
 
 #endif // !MATH_TYPES_H

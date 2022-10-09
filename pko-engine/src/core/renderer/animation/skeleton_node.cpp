@@ -4,7 +4,9 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
-skeleton_node::skeleton_node(skeleton_node* parent, u32 bone_index) : parent(parent), bone_idx(bone_index)
+#include <iostream>
+
+skeleton_node::skeleton_node(u32 bone_index) : index(bone_index)
 {
 
 }
@@ -37,3 +39,22 @@ void skeleton_node::add_animation(std::string animation_name, const aiNodeAnim* 
 		vqs_frame[i].vqs = VQS(pos_value, rot_value, scale_value.x);
 	}
 }
+
+/*
+void skeleton_node::set_parent_node(skeleton_node* const parent)
+{
+	if (parent != nullptr) {
+		skeleton_node* node = parent;
+		while (node) {
+			if (node == this) {
+				std::cout << "failed to set parent node" << std::endl;
+				return;
+			}
+			node = node->parent;
+		}
+
+		this->parent = parent;
+	}
+
+}
+*/

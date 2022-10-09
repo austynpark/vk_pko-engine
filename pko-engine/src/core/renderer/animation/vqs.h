@@ -5,6 +5,8 @@
 #include "math/math_types.h"
 
 #include <glm/glm.hpp>
+#include <assimp/matrix4x4.h>
+#include <assimp/quaternion.h>
 
 class VQS {
 public:
@@ -23,8 +25,10 @@ public:
 	pko_math::quat q;
 	f32 s;
 private:
-
 };
+
+VQS to_vqs(const aiMatrix4x4& mat);
+VQS to_vqs(const glm::mat4& mat);
 
 /*
 * For translation, use Lerp

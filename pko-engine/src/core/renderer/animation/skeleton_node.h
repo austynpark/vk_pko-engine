@@ -7,8 +7,6 @@
 #include <vector>
 #include <unordered_map>
 
-
-
 struct keyframe_pos {
 	pko_math::vec3 position;
 	f32 time;
@@ -44,11 +42,13 @@ struct skeleton_node {
 	// I can precompute all of the frames and store it but, that would be waste of memory space so instead, I would just
 	// compute on-fly and just store the step value here
 
-	skeleton_node(skeleton_node* parent, u32 bone_index);
+	skeleton_node(u32 bone_index);
 	void add_animation(std::string animation_name, const aiNodeAnim* node_anim);
+	//void set_parent_node(skeleton_node* const parent);
 
-	glm::mat4 offset;
-	glm::mat4 final_transformation;
+	aiMatrix4x4 offset_mat;
+	VQS offset;
+	VQS final_transformation;
 
 	//TODO: support multiple animation
 	std::vector<keyframe_vqs> vqs_frame;
@@ -57,10 +57,8 @@ struct skeleton_node {
 	std::vector<keyframe_rot> rot_frame;
 	std::vector<keyframe_scale> scale_frame;
 
-	std::vector<skeleton_node*> childern;
-	skeleton_node* parent = nullptr;
-
-	u32 bone_idx;
+	//bone_index
+	u32 index;
 };
 
 #endif // !SKELETON_NODE_H

@@ -89,27 +89,31 @@ void renderer_frontend::on_keyboard_process(f32 dt)
 {
 	if (input_system::is_key_down(KEY_PLUS))
 	{
-		cam.process_zoom_inout(-1.0f);
+		cam.process_zoom_inout(-10.0f * dt);
 	}
 	else if (input_system::is_key_down(KEY_MINUS))
 	{
-		cam.process_zoom_inout(1.0f);
+		cam.process_zoom_inout(10.0f * dt);
 	}
 	else if (input_system::is_key_down(KEY_DOWN) | input_system::is_key_down(KEY_NUMPAD2))
 	{
-		cam.process_keyboard_rotate(0.0f, -1.0f);
+		cam.process_keyboard_rotate(0.0f, -10.0f * dt);
 	}
 	else if (input_system::is_key_down(KEY_UP) | input_system::is_key_down(KEY_NUMPAD8))
 	{
-		cam.process_keyboard_rotate(0.0f, 1.0f);
+		cam.process_keyboard_rotate(0.0f, 10.0f * dt);
 	}
 	else if (input_system::is_key_down(KEY_LEFT) | input_system::is_key_down(KEY_NUMPAD4))
 	{
-		cam.process_keyboard_rotate(-1.0f, 0.0f);
+		cam.process_keyboard_rotate(-10.0f * dt, 0.0f);
 	}
 	else if (input_system::is_key_down(KEY_RIGHT) | input_system::is_key_down(KEY_NUMPAD6))
 	{
-		cam.process_keyboard_rotate(1.0f, 0.0f);
+		cam.process_keyboard_rotate(10.0f * dt, 0.0f);
+	}
+	else if (input_system::is_key_down(KEY_R))
+	{
+		cam.init(glm::vec3(0, 0, 10.0f));
 	}
 }
 

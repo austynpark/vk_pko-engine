@@ -72,8 +72,6 @@ b8 default_scene::draw()
 
 	model_constant model_constant{};
 
-    //context->dynamic_descriptor_allocators[context->current_frame].
-
     if (!single_model_draw_mode) {
         for (const auto& obj : object_manager) {
             obj.second->update(delta_time);
@@ -117,7 +115,6 @@ b8 default_scene::draw()
     else {
         if (object_manager.find(single_model_name) != object_manager.end()) {
             const auto& obj = *object_manager.find(single_model_name);
-
             obj.second->update(delta_time);
 
             VkDescriptorSet bone_transform_set;
@@ -163,12 +160,17 @@ b8 default_scene::draw()
 b8 default_scene::draw_imgui()
 {
     i32 frame_count = ImGui::GetFrameCount();
+
     ImGui::Begin("CS460 Skeletal Animation");
     static const char* current_item = "";
     if (ImGui::BeginTabBar("Tab Bar"))
     {
         if (ImGui::BeginTabItem("General"))
         {
+			ImGui::Text("FPS = %f", 1/delta_time);
+            ImGui::Spacing();
+            ImGui::Separator();
+
             if (ImGui::BeginCombo("object", current_item))
             {
                 for (const auto& obj : object_manager)

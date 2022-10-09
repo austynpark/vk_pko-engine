@@ -1,11 +1,14 @@
 #include "vulkan_skinned_mesh.h"
 
 #include "vulkan_buffer.h"
+#include "../animation/vqs.h"
+#include "math/pko_math.h"
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/transform.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 #include <iostream>
@@ -30,8 +33,8 @@ void skinned_mesh::load_model(std::string path)
 	scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);
 
 	// set pAnimation
-	animation_count = scene->mNumAnimations;
 	set_animation();
+	animation_count = scene->mNumAnimations;
 	// use single vertex buffer that including sub-meshes
 	u32 vertex_count = 0;
 	for (u32 i = 0; i < scene->mNumMeshes; ++i) {
@@ -39,8 +42,9 @@ void skinned_mesh::load_model(std::string path)
 	}
 
 	vertex_bone.resize(vertex_count);
-	global_inverse_transform = scene->mRootNode->mTransformation;
-	global_inverse_transform.Inverse();
+	aiMatrix4x4 root_mat_inv = scene->mRootNode->mTransformation;
+	root_mat_inv.Inverse();
+	global_inverse_transform = to_vqs(root_mat_inv);
 
 	u32 vertex_offset = 0;
 	for (u32 i = 0; i < scene->mNumMeshes; ++i) {
@@ -102,7 +106,8 @@ void skinned_mesh::load_model(std::string path)
 	}
 
 	aiNode* node = scene->mRootNode;
-	process_bone_vertex(node);
+	assimp_node_root = new assimp_node();
+	process_bone_vertex(node, assimp_node_root);
 
 	debug_mesh.upload_mesh(context, &debug_vertex_buffer, &debug_index_buffer);
 	mesh.upload_mesh(context, &vertex_buffer, &index_buffer);
@@ -143,10 +148,12 @@ void skinned_mesh::load_bones(aiMesh* mesh, u32 vertex_offset)
 		else { // add new bone to map
 			index = m_bone_info.size();
 
-			bone_info bone;
-			bone.offset = mesh->mBones[i]->mOffsetMatrix;
+			//bone_info bone;
+			//bone.offset = mesh->mBones[i]->mOffsetMatrix;
+			skeleton_node* bone = new skeleton_node(index);
+			bone->offset = to_vqs(mesh->mBones[i]->mOffsetMatrix);
+			bone->offset_mat = mesh->mBones[i]->mOffsetMatrix;
 			m_bone_info.push_back(bone);
-
 			bone_mapping[name] = index;
 		}
 
@@ -160,12 +167,24 @@ void skinned_mesh::load_bones(aiMesh* mesh, u32 vertex_offset)
 }
 
 
-void skinned_mesh::process_bone_vertex(const aiNode* node) {
+void skinned_mesh::process_bone_vertex(const aiNode* node, assimp_node* custom_node) {
 
 	vertex vert{};
 	vert.bone_weight[0] = 1.0f;
 	vert.position = glm::vec3(0.0f);
+	
+	if (custom_node != nullptr) {
+		custom_node->childern_num = node->mNumChildren;
+		custom_node->children.resize(node->mNumChildren);
+		custom_node->name = node->mName.C_Str();
+		custom_node->transformation = to_vqs(node->mTransformation);
 
+		if (bone_mapping.find(node->mName.C_Str()) != bone_mapping.end()) {
+			u32 index = bone_mapping[node->mName.C_Str()];
+			custom_node->bone = m_bone_info[index];
+		}
+	}
+	
 	if (node->mParent != nullptr) {
 
 		const auto &parent_bone_itr = bone_mapping.find(node->mParent->mName.C_Str());
@@ -184,7 +203,12 @@ void skinned_mesh::process_bone_vertex(const aiNode* node) {
 	}
 
 	for (u32 i = 0; i < node->mNumChildren; ++i) {
-		process_bone_vertex(node->mChildren[i]);
+
+		if (custom_node->children[i] == nullptr) {
+			custom_node->children[i] = new assimp_node();
+		}
+		custom_node->children[i]->parent = custom_node;
+		process_bone_vertex(node->mChildren[i], custom_node->children[i]);
 	}
 }
 
@@ -218,16 +242,18 @@ void skinned_mesh::draw_debug(VkCommandBuffer command_buffer)
 
 void skinned_mesh::update(f32 dt)
 {
+	running_time += animation_speed * dt;
+
 	float ticks_per_second = (f32)(animation->mTicksPerSecond != 0 ? animation->mTicksPerSecond : 25.0f);
-	float time_in_ticks = dt * ticks_per_second;
+	float time_in_ticks = running_time * ticks_per_second;
 	float animation_time = fmod(time_in_ticks, (f32)animation->mDuration);
 
-	aiMatrix4x4 identity = aiMatrix4x4();
-	read_node_hierarchy(animation_time, scene->mRootNode, identity);
+	VQS vqs;
+	read_node_hierarchy(animation_time, assimp_node_root, vqs);
 
 	for (uint32_t i = 0; i < bone_transforms.size(); i++)
 	{
-		bone_transforms[i] = glm::transpose(glm::make_mat4(&m_bone_info[i].final_transformation.a1));
+		bone_transforms[i] = m_bone_info[i]->final_transformation.to_matrix();
 		//debug_bone_transforms[i] = glm::transpose(debug_bone_transforms[i]);
 	}
 
@@ -235,6 +261,110 @@ void skinned_mesh::update(f32 dt)
 	vulkan_buffer_upload(context, &debug_transform_buffer, debug_bone_transforms.data(), debug_transform_buffer.size);
 }
 
+const aiNodeAnim* skinned_mesh::find_node_anim(const aiAnimation* animation, const std::string node_name)
+{
+	for (uint32_t i = 0; i < animation->mNumChannels; i++)
+	{
+		const aiNodeAnim* nodeAnim = animation->mChannels[i];
+		if (std::string(nodeAnim->mNodeName.data) == node_name)
+		{
+			return nodeAnim;
+		}
+	}
+	return nullptr;
+}
+
+VQS skinned_mesh::interpolate(f32 time, const aiNodeAnim* node_anim)
+{
+	// use interpolate
+	aiQuaternion rotation;
+	aiVector3D translation;
+	aiVector3D scale;
+
+	VQS vqs0;
+	VQS vqs1;
+
+	f32 delta = 0.0f;
+
+	if (node_anim->mNumRotationKeys == 1)
+	{
+		rotation = node_anim->mRotationKeys[0].mValue;
+	}
+	else
+	{
+		uint32_t frameIndex = 0;
+		for (uint32_t i = 0; i < node_anim->mNumRotationKeys - 1; i++)
+		{
+			if (time < (float)node_anim->mRotationKeys[i + 1].mTime)
+			{
+				frameIndex = i;
+				break;
+			}
+		}
+
+		aiQuatKey currentFrame = node_anim->mRotationKeys[frameIndex];
+		aiQuatKey nextFrame = node_anim->mRotationKeys[(frameIndex + 1) % node_anim->mNumRotationKeys];
+
+		delta = (time - (float)currentFrame.mTime) / (float)(nextFrame.mTime - currentFrame.mTime);
+
+		vqs0.q = pko_math::quat(currentFrame.mValue.w, currentFrame.mValue.x, currentFrame.mValue.y, currentFrame.mValue.z);
+		vqs1.q = pko_math::quat(nextFrame.mValue.w, nextFrame.mValue.x, nextFrame.mValue.y, nextFrame.mValue.z);
+	}
+
+	if (node_anim->mNumScalingKeys == 1)
+	{
+		scale = node_anim->mScalingKeys[0].mValue;
+	}
+	else
+	{
+		uint32_t frameIndex = 0;
+		for (uint32_t i = 0; i < node_anim->mNumScalingKeys - 1; i++)
+		{
+			if (time < (float)node_anim->mScalingKeys[i + 1].mTime)
+			{
+				frameIndex = i;
+				break;
+			}
+		}
+
+		aiVectorKey currentFrame = node_anim->mScalingKeys[frameIndex];
+		aiVectorKey nextFrame = node_anim->mScalingKeys[(frameIndex + 1) % node_anim->mNumScalingKeys];
+
+		delta = (time - (float)currentFrame.mTime) / (float)(nextFrame.mTime - currentFrame.mTime);
+
+		vqs0.s = currentFrame.mValue.x;
+		vqs1.s = nextFrame.mValue.x;
+	}
+
+	if (node_anim->mNumPositionKeys == 1)
+	{
+		translation = node_anim->mPositionKeys[0].mValue;
+	}
+	else
+	{
+		uint32_t frameIndex = 0;
+		for (uint32_t i = 0; i < node_anim->mNumPositionKeys - 1; i++)
+		{
+			if (time < (float)node_anim->mPositionKeys[i + 1].mTime)
+			{
+				frameIndex = i;
+				break;
+			}
+		}
+
+		aiVectorKey currentFrame = node_anim->mPositionKeys[frameIndex];
+		aiVectorKey nextFrame = node_anim->mPositionKeys[(frameIndex + 1) % node_anim->mNumPositionKeys];
+
+		delta = (time - (float)currentFrame.mTime) / (float)(nextFrame.mTime - currentFrame.mTime);
+
+		vqs0.v = pko_math::vec3(currentFrame.mValue.x, currentFrame.mValue.y, currentFrame.mValue.z);
+		vqs1.v = pko_math::vec3(nextFrame.mValue.x, nextFrame.mValue.y, nextFrame.mValue.z);
+	}
+
+	return interpolate_vqs(vqs0, vqs1, delta);
+}
+
+/*
 void skinned_mesh::read_node_hierarchy(float animation_time, const aiNode* node, const aiMatrix4x4& parent_transform)
 {
  	std::string node_name(node->mName.data);
@@ -283,18 +413,52 @@ void skinned_mesh::read_node_hierarchy(float animation_time, const aiNode* node,
 		read_node_hierarchy(animation_time, node->mChildren[i], global_transformation);
 	}
 }
+*/
 
-const aiNodeAnim* skinned_mesh::find_node_anim(const aiAnimation* animation, const std::string node_name)
+void skinned_mesh::read_node_hierarchy(float animation_time, const assimp_node* node, const VQS& parent_transform)
 {
-	for (uint32_t i = 0; i < animation->mNumChannels; i++)
+	//glm::mat4 node_transformation = glm::transpose(glm::make_mat4(&node->mTransformation.a1));
+	VQS node_transformation = node->transformation;
+	glm::mat4 mat = node->transformation.to_matrix();
+	const aiNodeAnim* node_anim = find_node_anim(animation, node->name);
+	//std::cout << "node_name: " << node->name << std::endl;
+
+	if (node_anim)
 	{
-		const aiNodeAnim* nodeAnim = animation->mChannels[i];
-		if (std::string(nodeAnim->mNodeName.data) == node_name)
-		{
-			return nodeAnim;
-		}
+		node_transformation = interpolate(animation_time, node_anim);
 	}
-	return nullptr;
+
+	//glm::mat4 global_transformation = parent_transform * node_transformation;
+	VQS global_transformation = parent_transform * node_transformation;
+
+	if (node->bone != nullptr)
+	{
+		node->bone->final_transformation = global_inverse_transform * global_transformation * node->bone->offset;
+
+		aiVector3D debug_bone_rotation;
+		aiVector3D debug_bone_translation;
+		aiVector3D debug_bone_scale;
+		node->bone->offset_mat.Decompose(debug_bone_scale, debug_bone_rotation, debug_bone_translation);
+
+		debug_bone_scale.x = 1 / debug_bone_scale.x;
+		debug_bone_scale.y = 1 / debug_bone_scale.y;
+		debug_bone_scale.z = 1 / debug_bone_scale.z;
+
+		aiMatrix4x4 debug_bone_transform_mat= aiMatrix4x4();
+		debug_bone_transform_mat.Translation(-debug_bone_translation, debug_bone_transform_mat);
+		debug_bone_transform_mat.Scaling(debug_bone_scale, debug_bone_transform_mat);
+		debug_bone_transform_mat.FromEulerAnglesXYZ(-debug_bone_rotation);
+
+		VQS debug_bone_transform = to_vqs(debug_bone_transform_mat);
+
+		debug_bone_transform = global_inverse_transform * global_transformation * to_vqs(debug_bone_transform_mat);
+		debug_bone_transforms[node->bone->index] = debug_bone_transform.to_matrix();
+	}
+
+	for (uint32_t i = 0; i < node->childern_num; i++)
+	{
+		read_node_hierarchy(animation_time, node->children[i], global_transformation);
+	}
 }
 
 
