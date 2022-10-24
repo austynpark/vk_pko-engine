@@ -81,9 +81,6 @@ struct camera {
 
     void process_keyboard_rotate(f32 xoffset, f32 yoffset)
     {
-        std::cout << "yaw :" << yaw << std::endl;
-        std::cout << "pitch :" << pitch << std::endl;
-
         yaw += xoffset;
         pitch += yoffset;
 
@@ -108,8 +105,6 @@ struct camera {
     // 0 < |zoom_speed| < 45
     void process_zoom_inout(float zoom_speed)
     {
-        std::cout << "zoom :" << zoom << std::endl;
-
         zoom += zoom_speed;
         if (zoom > 45.0f)
             zoom = 45.0f;

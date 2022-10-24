@@ -33,17 +33,27 @@ vulkan_shader& vulkan_shader::add_stage(const char* shader_name, VkShaderStageFl
 }
 
 
-b8 vulkan_shader::init(VkPrimitiveTopology topology, b8 depth_enable)
+b8 vulkan_shader::init(
+	VkPrimitiveTopology topology,
+	b8 depth_enable,
+	vertex_input_description* pinput_description
+)
 {
 	if (reflect_layout(context->device_context.handle) != true)
 		return false;
+	
 	vertex_input_description input_description;
 
+	if (pinput_description == nullptr) {
 #if defined(ANIMATION_ON)
-	input_description = skinned_mesh::get_vertex_input_description();
+		input_description = skinned_mesh::get_vertex_input_description();
 #else
-	input_description = vulkan_render_object::get_vertex_input_description();
+		input_description = &vulkan_render_object::get_vertex_input_description();
 #endif
+	}
+	else {
+		input_description = *pinput_description;
+	}
 
 	if (vulkan_graphics_pipeline_create(context, renderpass, &pipeline,
 		stage_infos[0].shader_module, stage_infos[1].shader_module,

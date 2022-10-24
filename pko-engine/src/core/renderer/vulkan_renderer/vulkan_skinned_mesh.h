@@ -48,7 +48,6 @@ public:
 
 	void load_model(std::string path) override;
 	void draw(VkCommandBuffer command_buffer);
-	void draw_debug(VkCommandBuffer command_buffer);
 	void update(f32 dt);
 	void destroy() override;
 
@@ -72,7 +71,6 @@ public:
 	f32 animation_speed = 0.75f;
 	uint32_t animation_count;
 	uint32_t selected_anim_index = 0;
-	b8 enable_debug_draw = true;
 
 	assimp_node* assimp_node_root;
 private:

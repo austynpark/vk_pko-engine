@@ -55,27 +55,33 @@ b8 renderer_frontend::init(u32 w, u32 h)
 
 b8 renderer_frontend::draw(f32 dt)
 {
+	b8 result = false;
+
 	renderer_backend->update_global_data();
 
 	renderer_backend->draw_imgui();
 
-	renderer_backend->begin_frame(dt);
-	renderer_backend->begin_renderpass();
+	if (renderer_backend->begin_frame(dt)) {
+		renderer_backend->begin_renderpass();
 
-	renderer_backend->bind_global_data();
+		renderer_backend->bind_global_data();
 
-	renderer_backend->draw();
+		renderer_backend->draw();
 
-	renderer_backend->end_renderpass();
-	b8 result = renderer_backend->end_frame();
-
-	++renderer_backend->frame_number;
+		renderer_backend->end_renderpass();
+		result = renderer_backend->end_frame();
+		++renderer_backend->frame_number;
+	}
 
 	return result;
 }
 
 b8 renderer_frontend::on_resize(u32 w, u32 h)
 {
+	if (w == 0 || h == 0) {
+		return false;
+	}
+
 	renderer_backend->width = w;
 	renderer_backend->height = h;
 
@@ -87,33 +93,35 @@ b8 renderer_frontend::on_resize(u32 w, u32 h)
 
 void renderer_frontend::on_keyboard_process(f32 dt)
 {
+	const f32 move_speed = 100.0f;
+
 	if (input_system::is_key_down(KEY_PLUS))
 	{
-		cam.process_zoom_inout(-10.0f * dt);
+		cam.process_zoom_inout(-move_speed * dt);
 	}
 	else if (input_system::is_key_down(KEY_MINUS))
 	{
-		cam.process_zoom_inout(10.0f * dt);
+		cam.process_zoom_inout(move_speed * dt);
 	}
 	else if (input_system::is_key_down(KEY_DOWN) | input_system::is_key_down(KEY_NUMPAD2))
 	{
-		cam.process_keyboard_rotate(0.0f, -10.0f * dt);
+		cam.process_keyboard_rotate(0.0f, -move_speed * dt);
 	}
 	else if (input_system::is_key_down(KEY_UP) | input_system::is_key_down(KEY_NUMPAD8))
 	{
-		cam.process_keyboard_rotate(0.0f, 10.0f * dt);
+		cam.process_keyboard_rotate(0.0f, move_speed * dt);
 	}
 	else if (input_system::is_key_down(KEY_LEFT) | input_system::is_key_down(KEY_NUMPAD4))
 	{
-		cam.process_keyboard_rotate(-10.0f * dt, 0.0f);
+		cam.process_keyboard_rotate(-move_speed * dt, 0.0f);
 	}
 	else if (input_system::is_key_down(KEY_RIGHT) | input_system::is_key_down(KEY_NUMPAD6))
 	{
-		cam.process_keyboard_rotate(10.0f * dt, 0.0f);
+		cam.process_keyboard_rotate(move_speed * dt, 0.0f);
 	}
 	else if (input_system::is_key_down(KEY_R))
 	{
-		cam.init(glm::vec3(0, 0, 10.0f));
+		cam.init(glm::vec3(0, 0, 10));
 	}
 }
 
@@ -145,6 +153,14 @@ void renderer::update_global_data()
 
 b8 renderer_frontend::on_button_pressed(u16 code, event_context context)
 {
+	i32 x, y = 0;
+
+	input_system::get_mouse_position(&x, &y);
+	
+	// convert x, y to u, v
+	// inv_projection matrix
+	//
+
 
 	return true;
 }

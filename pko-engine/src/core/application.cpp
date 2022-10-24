@@ -10,6 +10,10 @@
 struct application_state
 {
 	platform_state platform;
+	b8 is_running;
+	b8 is_pending;
+
+
 	renderer_frontend* renderer;
 	input_system* input;
 
@@ -46,6 +50,7 @@ b8 application::init(const char* app_name ,i32 x, i32 y,u32 w, u32 h)
 
 	event_system::bind_event(event_code::EVENT_CODE_ONRESIZED, on_resize);
 
+	app_state.is_running = true;
 	app_state.start_time = app_state.platform.get_absolute_time();
 
 	return true;
@@ -53,38 +58,43 @@ b8 application::init(const char* app_name ,i32 x, i32 y,u32 w, u32 h)
 
 b8 application::run()
 {
-	if (!app_state.platform.platform_message()) {
-		return false;
-	}
-
-	f64 current_time = app_state.platform.get_absolute_time() - app_state.start_time;
-	app_state.delta_time = current_time - app_state.last_time;
-
-	//std::cout << "delta_time: " << app_state.delta_time << std::endl;
-
-	f64 frame_start_time = app_state.platform.get_absolute_time();
-
-	app_state.renderer->draw(app_state.delta_time);
-	app_state.renderer->on_keyboard_process(app_state.delta_time);
-
-	// Figure out how long the frame took and, if below
-	f64 frame_end_time = app_state.platform.get_absolute_time();
-	f64 frame_elapsed_time = frame_end_time - frame_start_time;
-	// running_time += frame_elapsed_time;
-	f64 remaining_seconds = app_state.target_frame_seconds - frame_elapsed_time;
-
-	if (remaining_seconds > 0) {
-		u64 remaining_ms = (remaining_seconds * 1000);
-
-		// If there is time left, give it back to the OS.
-		b8 limit_frames = true;
-		if (remaining_ms > 0 && limit_frames) {
-			app_state.platform.sleep(remaining_ms - 1);
+	while (app_state.is_running) {
+		if (!app_state.platform.platform_message()) {
+			return false;
 		}
 
-	}
+		f64 current_time = app_state.platform.get_absolute_time() - app_state.start_time;
+		app_state.delta_time = current_time - app_state.last_time;
 
-	app_state.last_time = current_time;
+		//std::cout << "delta_time: " << app_state.delta_time << std::endl;
+
+		f64 frame_start_time = app_state.platform.get_absolute_time();
+
+		if (!app_state.is_pending) {
+			app_state.renderer->draw(app_state.delta_time);
+		}
+
+		app_state.renderer->on_keyboard_process(app_state.delta_time);
+
+		// Figure out how long the frame took and, if below
+		f64 frame_end_time = app_state.platform.get_absolute_time();
+		f64 frame_elapsed_time = frame_end_time - frame_start_time;
+		// running_time += frame_elapsed_time;
+		f64 remaining_seconds = app_state.target_frame_seconds - frame_elapsed_time;
+
+		if (remaining_seconds > 0) {
+			u64 remaining_ms = (remaining_seconds * 1000);
+
+			// If there is time left, give it back to the OS.
+			b8 limit_frames = true;
+			if (remaining_ms > 0 && limit_frames) {
+				app_state.platform.sleep(remaining_ms - 1);
+			}
+
+		}
+
+		app_state.last_time = current_time;
+	}
 
 	return true;
 }
@@ -101,6 +111,14 @@ b8 application::on_resize(u16 code, event_context context)
 {
 	u16 width = context.data.u32[0];
 	u16 height = context.data.u32[1];
+
+	if (width == 0 || height == 0) {
+		app_state.is_pending = true;
+		return false;
+	}
+	else if(app_state.is_pending) {
+		app_state.is_pending = false;
+	}
 
 	b8 result =	app_state.renderer->on_resize(width, height);
 

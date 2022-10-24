@@ -109,8 +109,8 @@ void skinned_mesh::load_model(std::string path)
 	assimp_node_root = new assimp_node();
 	process_bone_vertex(node, assimp_node_root);
 
-	debug_mesh.upload_mesh(context, &debug_vertex_buffer, &debug_index_buffer);
-	mesh.upload_mesh(context, &vertex_buffer, &index_buffer);
+	upload_mesh(context, &bone_debug_mesh,&debug_vertex_buffer, &debug_index_buffer);
+	upload_mesh(context, &mesh, &vertex_buffer, &index_buffer);
 	u32 ubo_size = vulkan_uniform_buffer_pad_size(context->device_context.properties.limits.minUniformBufferOffsetAlignment, MAX_BONES * sizeof(glm::mat4));
 
 	vulkan_buffer_create(
@@ -192,9 +192,9 @@ void skinned_mesh::process_bone_vertex(const aiNode* node, assimp_node* custom_n
 
 		if(parent_bone_itr != bone_mapping.end() && child_bone_itr != bone_mapping.end()) {
 			vert.bone_id[0] = parent_bone_itr->second;
-			debug_mesh.vertices.push_back(vert);
+			bone_debug_mesh.vertices.push_back(vert);
 			vert.bone_id[0] = child_bone_itr->second;
-			debug_mesh.vertices.push_back(vert);
+			bone_debug_mesh.vertices.push_back(vert);
 		}
 	}
 
@@ -223,20 +223,6 @@ void skinned_mesh::draw(VkCommandBuffer command_buffer)
 	}
 	else {
 		vkCmdDraw(command_buffer, mesh.vertices.size(), 1, 0, 0);
-	}
-}
-
-void skinned_mesh::draw_debug(VkCommandBuffer command_buffer)
-{
-	VkDeviceSize offset = 0;
-	vkCmdBindVertexBuffers(command_buffer, 0, 1, &debug_vertex_buffer.handle, &offset);
-
-	if (debug_mesh.indices.size() > 0) {
-		vkCmdBindIndexBuffer(command_buffer, debug_index_buffer.handle, 0, VK_INDEX_TYPE_UINT32);
-		vkCmdDrawIndexed(command_buffer, debug_mesh.indices.size(), 1, 0, 0, 0);
-	}
-	else {
-		vkCmdDraw(command_buffer, debug_mesh.vertices.size(), 1, 0, 0);
 	}
 }
 

@@ -8,6 +8,8 @@
 #include <array>
 #include <unordered_map>
 
+struct vertex_input_description; // vulkan_mesh.h
+
 //b8 vulkan_shader_module_create(vulkan_context* context, VkShaderModule* out_shader_module, const char* path);
 
 // initialize vulkan global descriptor set
@@ -27,8 +29,6 @@ struct reflected_binding {
 	VkDescriptorType type;
 };
 
-
-
 class vulkan_shader
 {
 public:
@@ -37,7 +37,11 @@ public:
 
 	vulkan_shader& add_stage(const char* shader_name, VkShaderStageFlagBits stage_flag);
 
-	b8 init(VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, b8 depth_enable = true);
+	b8 init(
+		VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+		b8 depth_enable = true,
+		vertex_input_description* input_description = nullptr
+	);
 	void shutdown();
 
 	std::unordered_map<std::string, reflected_binding> bindings;

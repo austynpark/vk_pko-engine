@@ -21,6 +21,12 @@ vulkan_render_object::vulkan_render_object(vulkan_context* context_, const char*
 	load_model(path);
 }
 
+vulkan_render_object::vulkan_render_object(vulkan_context* context_, debug_draw_mesh* debug_mesh)
+{
+	context = context_;
+	load_debug_mesh(debug_mesh);
+}
+
 void vulkan_render_object::destroy()
 {
 	vulkan_buffer_destroy(context, &vertex_buffer);
@@ -44,7 +50,13 @@ void vulkan_render_object::load_model(std::string path)
 	//directory = path.substr(0, path.find_last_of('/'));
 
 	process_node(scene->mRootNode, scene);
-	mesh.upload_mesh(context, &vertex_buffer, &index_buffer);
+	upload_mesh(context, &mesh, &vertex_buffer, &index_buffer);
+}
+
+void vulkan_render_object::load_debug_mesh(debug_draw_mesh* object)
+{
+	line_mesh = *object;
+	upload_mesh(context, object, &debug_vertex_buffer, &debug_index_buffer);
 }
 
 void vulkan_render_object::process_node(aiNode* node_, const aiScene* scene_)
@@ -171,6 +183,24 @@ void vulkan_render_object::draw(VkCommandBuffer command_buffer)
 	}
 }
 
+void vulkan_render_object::draw_debug(VkCommandBuffer command_buffer)
+{
+	VkDeviceSize offset = 0;
+	vkCmdBindVertexBuffers(command_buffer, 0, 1, &debug_vertex_buffer.handle, &offset);
+
+	if (bone_debug_mesh.indices.size() > 0) {
+		vkCmdBindIndexBuffer(command_buffer, debug_index_buffer.handle, 0, VK_INDEX_TYPE_UINT32);
+		vkCmdDrawIndexed(command_buffer, bone_debug_mesh.indices.size(), 1, 0, 0, 0);
+	}
+	else {
+		if (bone_debug_mesh.vertices.size() > 0)
+			vkCmdDraw(command_buffer, bone_debug_mesh.vertices.size(), 1, 0, 0);
+
+		if (line_mesh.points.size() > 0)
+			vkCmdDraw(command_buffer, line_mesh.points.size(), 1, 0, 0);
+	}
+}
+
 vertex_input_description vulkan_render_object::get_vertex_input_description()
 {
 	vertex_input_description result;
@@ -204,55 +234,82 @@ vertex_input_description vulkan_render_object::get_vertex_input_description()
 	return result;
 }
 
-void mesh::upload_mesh(vulkan_context* context, vulkan_allocated_buffer* vertex_buffer, vulkan_allocated_buffer* index_buffer)
+void upload_mesh(vulkan_context* context, mesh* m, vulkan_allocated_buffer* vertex_buffer, vulkan_allocated_buffer* index_buffer)
 {
 	vulkan_allocated_buffer staging_buffer;
 
 	vulkan_buffer_create(
 		context,
-		vertices.size() * sizeof(vertex),
+		m->vertices.size() * sizeof(vertex),
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 		VMA_MEMORY_USAGE_AUTO,
 		VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
 		&staging_buffer);
 
-	vulkan_buffer_upload(context, &staging_buffer, vertices.data(), vertices.size() * sizeof(vertex));
+	vulkan_buffer_upload(context, &staging_buffer, m->vertices.data(), m->vertices.size() * sizeof(vertex));
 
 	vulkan_buffer_create(
 		context,
-		vertices.size() * sizeof(vertex),
+		m->vertices.size() * sizeof(vertex),
 		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
 		VMA_MEMORY_USAGE_AUTO,
 		VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT,
 		vertex_buffer);
 
-	vulkan_buffer_copy(context, &staging_buffer, vertex_buffer, vertices.size() * sizeof(vertex));
+	vulkan_buffer_copy(context, &staging_buffer, vertex_buffer, m->vertices.size() * sizeof(vertex));
 	vulkan_buffer_destroy(context, &staging_buffer);
 
-	if (indices.size() > 0) {
+	if (m->indices.size() > 0) {
 
 		vulkan_allocated_buffer index_staging_buffer;
 
 		vulkan_buffer_create(
 			context,
-			indices.size() * sizeof(u32),
+			m->indices.size() * sizeof(u32),
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 			VMA_MEMORY_USAGE_AUTO,
 			VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
 			&index_staging_buffer);
 
-		vulkan_buffer_upload(context, &index_staging_buffer, indices.data(), indices.size() * sizeof(u32));
+		vulkan_buffer_upload(context, &index_staging_buffer, m->indices.data(), m->indices.size() * sizeof(u32));
 
 		vulkan_buffer_create(
 			context,
-			indices.size() * sizeof(u32),
+			m->indices.size() * sizeof(u32),
 			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
 			VMA_MEMORY_USAGE_AUTO,
 			VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT,
 			index_buffer
 		);
 
-		vulkan_buffer_copy(context, &index_staging_buffer, index_buffer, indices.size() * sizeof(u32));
+		vulkan_buffer_copy(context, &index_staging_buffer, index_buffer, m->indices.size() * sizeof(u32));
 		vulkan_buffer_destroy(context, &index_staging_buffer);
 	}
+
+}
+
+void upload_mesh(vulkan_context* context, debug_draw_mesh* m, vulkan_allocated_buffer* vertex_buffer, vulkan_allocated_buffer* index_buffer)
+{
+	vulkan_allocated_buffer staging_buffer;
+
+	vulkan_buffer_create(
+		context,
+		m->points.size() * sizeof(glm::vec3),
+		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		VMA_MEMORY_USAGE_AUTO,
+		VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
+		&staging_buffer);
+
+	vulkan_buffer_upload(context, &staging_buffer, m->points.data(), m->points.size() * sizeof(glm::vec3));
+
+	vulkan_buffer_create(
+		context,
+		m->points.size() * sizeof(glm::vec3),
+		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+		VMA_MEMORY_USAGE_AUTO,
+		VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT,
+		vertex_buffer);
+
+	vulkan_buffer_copy(context, &staging_buffer, vertex_buffer, m->points.size() * sizeof(glm::vec3));
+	vulkan_buffer_destroy(context, &staging_buffer);
 }

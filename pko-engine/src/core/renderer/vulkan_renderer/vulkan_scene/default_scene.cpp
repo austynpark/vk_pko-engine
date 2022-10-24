@@ -14,14 +14,49 @@ b8 default_scene::init(vulkan_context* api_context)
 {
     vulkan_scene::init(api_context);
 
+    debug_bone_shader = std::make_unique<vulkan_shader>(api_context, &context->main_renderpass);
     line_shader = std::make_unique<vulkan_shader>(api_context, &context->main_renderpass);
 
-    line_shader->add_stage("debug.vert", VK_SHADER_STAGE_VERTEX_BIT)
+    debug_bone_shader->add_stage("debug.vert", VK_SHADER_STAGE_VERTEX_BIT)
         .add_stage("debug.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
-    if (line_shader->init(VK_PRIMITIVE_TOPOLOGY_LINE_LIST, false) != true) {
+    if (debug_bone_shader->init(VK_PRIMITIVE_TOPOLOGY_LINE_LIST, false) != true) {
+        std::cout << "debug_bone_shader init fail" << std::endl;
+        return false;
+    }
+
+    line_shader->add_stage("debug_line.vert", VK_SHADER_STAGE_VERTEX_BIT)
+        .add_stage("debug_line.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
+
+    
+    vertex_input_description line_input;
+    line_input.bindings.push_back(
+        { 
+            0,
+            sizeof(glm::vec3),
+            VK_VERTEX_INPUT_RATE_VERTEX 
+        }
+    );
+
+    line_input.attributes.push_back(
+        {
+            0,
+            0,
+            VK_FORMAT_R32G32B32_SFLOAT,
+            0 
+        }
+    );
+
+    if (line_shader->init(VK_PRIMITIVE_TOPOLOGY_LINE_LIST, false, &line_input) != true) {
         std::cout << "line_shader init fail" << std::endl;
         return false;
     }
+
+    debug_mesh_add_line(glm::vec3(1.0f, 1.0f, 0.0f), glm::vec3(-1.0f, 1.0f, 0.0f), &path);
+    debug_mesh_add_line(glm::vec3(-1.0f, -1.0f, 0.0f), &path);
+    debug_mesh_add_line(glm::vec3(1.0f, -1.0f, 0.0f), &path);
+    debug_mesh_link_begin_end(&path);
+
+    line_debug_object = std::make_unique<vulkan_render_object>(context, &path);
 
     main_shader->add_stage("test.vert", VK_SHADER_STAGE_VERTEX_BIT)
         .add_stage("test.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -94,19 +129,19 @@ b8 default_scene::draw()
 
             obj.second->draw(command_buffer);
 
-            if (obj.second->enable_debug_draw) {
+            if (enable_debug_draw) {
 
                 VkDescriptorSet debug_bone_transform_set;
                 buffer_info = obj.second->debug_transform_buffer.get_info();
                 descriptor_builder::begin(&context->layout_cache, &context->dynamic_descriptor_allocators[context->current_frame])
                     .bind_buffer(0, &buffer_info, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT).build(debug_bone_transform_set);
-                vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, line_shader->pipeline.layout, 1, 1, &debug_bone_transform_set, 0, NULL);
+                vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, debug_bone_shader->pipeline.layout, 1, 1, &debug_bone_transform_set, 0, NULL);
 
                 model_constant.model = model;
                 model_constant.normal_matrix = normal_matrix;
-                vkCmdPushConstants(command_buffer, line_shader->pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(model_constant), &model_constant);
+                vkCmdPushConstants(command_buffer, debug_bone_shader->pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(model_constant), &model_constant);
 
-                vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, line_shader->pipeline.handle);
+                vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, debug_bone_shader->pipeline.handle);
                 //vkCmdSetDepthTestEnableEXT(command_buffer, false);
                 obj.second->draw_debug(command_buffer);
             }
@@ -135,23 +170,31 @@ b8 default_scene::draw()
 
             obj.second->draw(command_buffer);
 
-            if (obj.second->enable_debug_draw) {
+            if (enable_debug_draw) {
 
                 VkDescriptorSet debug_bone_transform_set;
                 buffer_info = obj.second->debug_transform_buffer.get_info();
                 descriptor_builder::begin(&context->layout_cache, &context->dynamic_descriptor_allocators[context->current_frame])
                     .bind_buffer(0, &buffer_info, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT).build(debug_bone_transform_set);
-                vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, line_shader->pipeline.layout, 1, 1, &debug_bone_transform_set, 0, NULL);
+                vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, debug_bone_shader->pipeline.layout, 1, 1, &debug_bone_transform_set, 0, NULL);
 
                 model_constant.model = model;
                 model_constant.normal_matrix = normal_matrix;
-                vkCmdPushConstants(command_buffer, line_shader->pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(model_constant), &model_constant);
+                vkCmdPushConstants(command_buffer, debug_bone_shader->pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(model_constant), &model_constant);
 
-                vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, line_shader->pipeline.handle);
+                vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, debug_bone_shader->pipeline.handle);
                 //vkCmdSetDepthTestEnableEXT(command_buffer, false);
                 obj.second->draw_debug(command_buffer);
             }
         }
+    }
+
+    if (enable_debug_draw) {
+        vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, line_shader->pipeline.handle);
+		vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, line_shader->pipeline.layout,
+        0, 1, &context->global_data.ubo_data[context->current_frame].descriptor_set, 0, nullptr);
+
+        line_debug_object->draw_debug(command_buffer);
     }
 
     return true;
@@ -216,7 +259,7 @@ b8 default_scene::draw_imgui()
                         }
 
                         ImGui::SliderFloat("Anim speed", &obj->animation_speed, 0.0f, 2.0f);
-                        ImGui::Checkbox("Bone Draw", &obj->enable_debug_draw);
+                        ImGui::Checkbox("Bone Draw", &enable_debug_draw);
                     }
                 }
             }
@@ -237,6 +280,7 @@ b8 default_scene::draw_imgui()
 
 void default_scene::shutdown()
 {
+    debug_bone_shader->shutdown();
     line_shader->shutdown();
 
     vulkan_scene::shutdown();

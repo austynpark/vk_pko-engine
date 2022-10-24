@@ -156,7 +156,6 @@ void vulkan_scene::shutdown()
 {
     main_shader->shutdown();
     
-
 	for (auto& obj : object_manager) {
         obj.second->destroy();
     }

@@ -159,6 +159,15 @@
     <ClInclude Include="src\core\renderer\animation\skeleton_node.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\core\renderer\animation\path_builder.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shader\debug_line.frag">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\core\mesh.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -274,6 +283,12 @@
     <ClCompile Include="src\core\renderer\animation\skeleton_node.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\core\mesh.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\renderer\animation\path_builder.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="src\core\renderer\vulkan_renderer\vulkan_types.inl">
@@ -289,5 +304,6 @@
     <None Include="vendor\glm\gtx\quaternion.inl">
       <Filter>Header Files</Filter>
     </None>
+    <None Include="shader\debug_line.vert" />
   </ItemGroup>
 </Project>

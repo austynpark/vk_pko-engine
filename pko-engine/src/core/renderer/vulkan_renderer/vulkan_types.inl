@@ -17,7 +17,6 @@
 		assert(result_ == VK_SUCCESS); \
 	} while(0)
 
-#define ANIMATION_ON 1
 constexpr int MAX_FRAME = 3;
 
 struct vulkan_queue_family {

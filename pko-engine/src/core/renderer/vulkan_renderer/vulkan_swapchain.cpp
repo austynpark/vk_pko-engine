@@ -77,6 +77,11 @@ b8 vulkan_swapchain_create(vulkan_context* context, i32 width, i32 height, vulka
 
     width = extent.width;
     height = extent.height;
+
+    if (width == 0 || height == 0) { // pending
+        return false;
+    }
+
     context->framebuffer_width = width;
     context->framebuffer_height = height;
 
