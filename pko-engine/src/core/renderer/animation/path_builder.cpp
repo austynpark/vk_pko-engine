@@ -112,6 +112,8 @@ void path_builder_add_control_points(const glm::vec3& knot0, const glm::vec3& kn
 	++out_path_builder->curve_count;
 }
 
+// make vertices for path rendering & insert extra control points between existing control points-
+// to prevent sharp edge and make smooth curve while linking end control point and start
 void path_build(path_builder* out_path_builder)
 {
 	u32 curve_count = out_path_builder->curve_count;
@@ -192,7 +194,7 @@ void path_build(path_builder* out_path_builder)
 
 	
 	//out_points.push_back(out_control_points[0]);
-	//TODO: Compare this function with bezier_curve_get_point
+	// insert points to mesh to draw the path
 	for (u32 i = 0; i < out_path_builder->curve_count; ++i) {
 		u32 control_index = (curve_interval * i);
 		
@@ -441,6 +443,7 @@ void path_builder_build_time_table(f32 delta_time, path_builder* path_builder)
 }
 */
 
+// get arc length with u [0:1]
 f32 get_path_distance(f32 u, path_builder* path)
 {
 	if (path_key_table.find(path) != path_key_table.end()) {
@@ -494,6 +497,7 @@ f32 path_builder_get_veloctiy_at_time(f32 time, path_builder* path_builder)
 }
 
 // time_idx = end_time_idx
+// this function is for multiple keys not only for 3 keys (more than 3 velocity-time stamps)
 f32 path_builder_get_distance_at_time(f32 vel0, f32 vel1, f32 unit_dt, path_builder* path_builder)
 {
 	f32 area = 0;
@@ -523,6 +527,7 @@ f32 path_builder_get_distance_at_time(f32 vel0, f32 vel1, f32 unit_dt, path_buil
 	return area;
 }
 
+// only three velocity-time stamps with constant velocity between two stamps
 f32 path_builder_get_sin_velocity_at_time(f32 vel0, f32 t1, f32 t2, f32 time, path_builder* path_builder)
 {
 	f32 velocity = 0.0f;
@@ -540,6 +545,7 @@ f32 path_builder_get_sin_velocity_at_time(f32 vel0, f32 t1, f32 t2, f32 time, pa
 	return velocity;
 }
 
+// only three velocity-time stamps with constant velocity between two stamps
 f32 path_builder_get_sin_distance_at_time(f32 vel0, f32 t1, f32 t2, f32 time, path_builder* path_builder)
 {
 	f32 distance = 0.0f;
