@@ -18,5 +18,5 @@ void camera::init(glm::vec3 position, glm::vec3 up)
 
 glm::mat4 camera::get_view_matrix()
 {
-	return glm::lookAt(pos, pos + front, up);
+    return glm::lookAt(pos, pos + front, up);
 }

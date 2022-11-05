@@ -3,6 +3,7 @@
 #include "../vulkan_shader.h"
 #include "../vulkan_mesh.h"
 #include "../vulkan_skinned_mesh.h"
+#include "../vulkan_pipeline.h"
 
 #include "imgui/imgui.h"
 #include "imgui/backends/imgui_impl_win32.h"
@@ -16,6 +17,7 @@ b8 default_scene::init(vulkan_context* api_context)
 
     debug_bone_shader = std::make_unique<vulkan_shader>(api_context, &context->main_renderpass);
     line_shader = std::make_unique<vulkan_shader>(api_context, &context->main_renderpass);
+    non_animation_shader = std::make_unique<vulkan_shader>(api_context, &context->main_renderpass);
 
     debug_bone_shader->add_stage("debug.vert", VK_SHADER_STAGE_VERTEX_BIT)
         .add_stage("debug.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -46,23 +48,75 @@ b8 default_scene::init(vulkan_context* api_context)
         }
     );
 
-    if (line_shader->init(VK_PRIMITIVE_TOPOLOGY_LINE_LIST, false, &line_input) != true) {
+    if (line_shader->init(VK_PRIMITIVE_TOPOLOGY_LINE_STRIP, false, &line_input) != true) {
         std::cout << "line_shader init fail" << std::endl;
         return false;
     }
 
-    debug_mesh_add_line(glm::vec3(1.0f, 1.0f, 0.0f), glm::vec3(-1.0f, 1.0f, 0.0f), &path);
-    debug_mesh_add_line(glm::vec3(-1.0f, -1.0f, 0.0f), &path);
-    debug_mesh_add_line(glm::vec3(1.0f, -1.0f, 0.0f), &path);
-    debug_mesh_link_begin_end(&path);
+    //debug_mesh_add_line(glm::vec3(1.0f, 1.0f, 0.0f), glm::vec3(-1.0f, 1.0f, 0.0f), &path);
+    //debug_mesh_add_line(glm::vec3(-1.0f, -1.0f, 0.0f), &path);
+    //debug_mesh_add_line(glm::vec3(1.0f, -1.0f, 0.0f), &path);
+    //debug_mesh_link_begin_end(&path);
 
-    line_debug_object = std::make_unique<vulkan_render_object>(context, &path);
+    {
+        path_builder_initialize_bezier_curve(
+            glm::vec3(-1, 0, -1),
+            glm::vec3(0, 0, -1),
+            glm::vec3(1, 0, 0),
+            glm::vec3(2, 0, 0),
+            &path_ease_inout
+        );
 
-    main_shader->add_stage("test.vert", VK_SHADER_STAGE_VERTEX_BIT)
-        .add_stage("test.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
+        path_builder_add_control_points(
+            glm::vec3(3, 0, -1),
+            glm::vec3(2, 0, -2),
+            glm::vec3(1, 0, -5),
+            &path_ease_inout
+        );
+
+		path_builder_add_control_points(
+            glm::vec3(0, 0, -4),
+            glm::vec3(-0.5f, 0, -3),
+            glm::vec3(-2, 0, -1),
+            &path_ease_inout
+        );
+
+        path_builder_add_time_velocity_stamp(
+            0.3f,
+            1.0f,
+            &path_ease_inout
+        );
+
+        path_builder_add_time_velocity_stamp(
+            0.8f,
+            1.0f,
+            &path_ease_inout
+        );
+
+        path_builder_add_time_velocity_stamp(
+            1.0f,
+            0.0f,
+            &path_ease_inout
+        );
+
+        path_build(&path_ease_inout);
+    }
+
+    line_debug_object = std::make_unique<vulkan_render_object>(context, &path_ease_inout.line_mesh);
+
+    main_shader->add_stage("animation.vert", VK_SHADER_STAGE_VERTEX_BIT)
+        .add_stage("animation.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
     if (main_shader->init() != true)
     {
         std::cout << "main_shader init fail" << std::endl;
+        return false;
+    }
+
+	non_animation_shader->add_stage("test.vert", VK_SHADER_STAGE_VERTEX_BIT)
+        .add_stage("test.frag", VK_SHADER_STAGE_FRAGMENT_BIT);
+    if (non_animation_shader->init() != true)
+    {
+        std::cout << "non_animation_shader init fail" << std::endl;
         return false;
     }
 
@@ -82,7 +136,6 @@ b8 default_scene::begin_frame(f32 dt)
 
 b8 default_scene::end_frame()
 {
-
     return vulkan_scene::end_frame();
 }
 
@@ -104,6 +157,9 @@ b8 default_scene::draw()
 
     // set viewport, scissor
     vulkan_scene::draw();
+
+    if (animate_along_path) // update u
+        path_update(delta_time, &path_ease_inout);
 
 	model_constant model_constant{};
 
@@ -151,7 +207,7 @@ b8 default_scene::draw()
         if (object_manager.find(single_model_name) != object_manager.end()) {
             const auto& obj = *object_manager.find(single_model_name);
             obj.second->update(delta_time);
-
+            
             VkDescriptorSet bone_transform_set;
             VkDescriptorBufferInfo buffer_info = obj.second->transform_buffer.get_info();
 
@@ -161,14 +217,28 @@ b8 default_scene::draw()
             vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, main_shader->pipeline.handle);
             vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, main_shader->pipeline.layout, 1, 1, &bone_transform_set, 0, NULL);
 
-            glm::mat4 model = obj.second->get_transform_matrix();
+            glm::mat4 model;
             glm::mat3 normal_matrix = glm::transpose(glm::inverse(model));
+
+			if (animate_along_path) {
+                if (use_ease_inout_path) {
+                    model = path_get_along(delta_time, &path_ease_inout, obj.second.get());
+                }
+             }
+            else {
+                model = obj.second->get_transform_matrix();
+            }
 
             model_constant.model = model;
             model_constant.normal_matrix = normal_matrix;
             vkCmdPushConstants(command_buffer, main_shader->pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(model_constant), &model_constant);
-
             obj.second->draw(command_buffer);
+
+            //NOTE: non-animation-object rendering test code
+            //vulkan_pipeline_bind(&graphics_commands.at(context->current_frame), VK_PIPELINE_BIND_POINT_GRAPHICS, &non_animation_shader->pipeline);
+            //model_constant.model = test_object->get_transform_matrix();
+            //vkCmdPushConstants(command_buffer, non_animation_shader->pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(model_constant), &model_constant);
+            //test_object->draw(command_buffer);
 
             if (enable_debug_draw) {
 
@@ -204,7 +274,7 @@ b8 default_scene::draw_imgui()
 {
     i32 frame_count = ImGui::GetFrameCount();
 
-    ImGui::Begin("CS460 Skeletal Animation");
+    ImGui::Begin("CS460 Skeletal Animation", NULL, ImGuiWindowFlags_::ImGuiWindowFlags_AlwaysAutoResize);
     static const char* current_item = "";
     if (ImGui::BeginTabBar("Tab Bar"))
     {
@@ -214,56 +284,68 @@ b8 default_scene::draw_imgui()
             ImGui::Spacing();
             ImGui::Separator();
 
-            if (ImGui::BeginCombo("object", current_item))
-            {
-                for (const auto& obj : object_manager)
+			if (ImGui::CollapsingHeader("Path"))
+			{
+				ImGui::Checkbox("Animate along path", &animate_along_path);
+				//ImGui::Checkbox("Use Three velocity-time path", &use_ease_inout_path);
+			}
+
+            if (!animate_along_path) {
+                if (ImGui::BeginCombo("object", current_item))
                 {
-                    bool is_selected =
-                        (current_item ==
-                            obj.first); // You can store your selection however you want, outside or inside your objects
-                    if (ImGui::Selectable(obj.first, is_selected))
-                        current_item = obj.first;
-                    if (is_selected)
-                        ImGui::SetItemDefaultFocus();   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+                    for (const auto& obj : object_manager)
+                    {
+                        bool is_selected =
+                            (current_item ==
+                                obj.first); // You can store your selection however you want, outside or inside your objects
+                        if (ImGui::Selectable(obj.first, is_selected))
+                            current_item = obj.first;
+                        if (is_selected)
+                            ImGui::SetItemDefaultFocus();   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+                    }
+
+                    // object combo
+                    ImGui::EndCombo();
                 }
-
-                // object combo
-                ImGui::EndCombo();
-            }
-			ImGui::Checkbox("Draw a single model", &single_model_draw_mode);
-            single_model_name = current_item;
-
-            ImGui::Spacing();
-            ImGui::Separator();
-            if (current_item != nullptr && current_item != "") {
-
-                auto& obj = object_manager[current_item];
-                ImGui::SliderFloat3("translation", glm::value_ptr(obj->position), -100.0f, 100.0f);
-                ImGui::SliderFloat3("rotation", glm::value_ptr(obj->rotation), -360.0f, 360.0f);
-                ImGui::SliderFloat3("scale", glm::value_ptr(obj->scale), 0.0f, 1.0f);
+                ImGui::Checkbox("Draw a single model", &single_model_draw_mode);
+                single_model_name = current_item;
 
                 ImGui::Spacing();
                 ImGui::Separator();
+                if (current_item != nullptr && current_item != "") {
 
-                if (obj->animation_count > 0) {
-                    if (ImGui::CollapsingHeader("Animation"))
-                    {
-                        u32 min = 0;
-                        u32 max = obj->animation_count - 1;
+                    auto& obj = object_manager[current_item];
+                    ImGui::SliderFloat3("translation", glm::value_ptr(obj->position), -100.0f, 100.0f);
+                    ImGui::SliderFloat3("rotation", glm::value_ptr(obj->rotation), -360.0f, 360.0f);
+                    ImGui::SliderFloat3("scale", glm::value_ptr(obj->scale), 0.0f, 1.0f);
 
-                        if (max != min) {
-                            b8 is_changed = ImGui::SliderScalar(obj->animation->mName.C_Str(), ImGuiDataType_::ImGuiDataType_U32, &obj->selected_anim_index, &min, &max);
-                            if (is_changed) {
-                                obj->set_animation();
+                    ImGui::Spacing();
+                    ImGui::Separator();
+
+                    if (obj->animation_count > 0) {
+                        if (ImGui::CollapsingHeader("Animation"))
+                        {
+                            u32 min = 0;
+                            u32 max = obj->animation_count - 1;
+
+                            if (max != min) {
+                                b8 is_changed = ImGui::SliderScalar(obj->animation->mName.C_Str(), ImGuiDataType_::ImGuiDataType_U32, &obj->selected_anim_index, &min, &max);
+                                if (is_changed) {
+                                    obj->set_animation();
+                                }
                             }
-                        }
 
-                        ImGui::SliderFloat("Anim speed", &obj->animation_speed, 0.0f, 2.0f);
-                        ImGui::Checkbox("Bone Draw", &enable_debug_draw);
+                            ImGui::SliderFloat("Anim speed", &obj->animation_speed, 0.0f, 2.0f);
+                            ImGui::Checkbox("Bone Draw", &enable_debug_draw);
+                        }
                     }
                 }
             }
-
+            else {
+                single_model_name = "boxguy";
+                object_manager["boxguy"]->selected_anim_index = 12;
+                object_manager["boxguy"]->set_animation();
+            }
 
             // General
             ImGui::EndTabItem();
@@ -282,6 +364,11 @@ void default_scene::shutdown()
 {
     debug_bone_shader->shutdown();
     line_shader->shutdown();
+    line_debug_object->destroy();
+
+    //TODO: erase test_object & shader
+    test_object->destroy();
+    non_animation_shader->shutdown();
 
     vulkan_scene::shutdown();
 

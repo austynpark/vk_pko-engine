@@ -3,6 +3,7 @@
 
 #include "vulkan_scene.h"
 #include "core/mesh.h"
+#include "core/renderer/animation/path_builder.h"
 
 #include "../vulkan_descriptor_builder.h"
 
@@ -23,8 +24,13 @@ public:
 	std::unique_ptr<vulkan_shader> debug_bone_shader;
 	std::unique_ptr<vulkan_shader> line_shader;
 
-	debug_draw_mesh path;
+	std::unique_ptr<vulkan_shader> non_animation_shader;
+
+	//debug_draw_mesh path;
 	std::unique_ptr<vulkan_render_object> line_debug_object;
+
+	// 3 key point
+	path_builder path_ease_inout;
 private:
 	VkDescriptorSet bone_transform_set;
 	f32 delta_time = 0.0f;
@@ -32,6 +38,8 @@ private:
 	b8 single_model_draw_mode = true;
 	const char* single_model_name;
 	b8 enable_debug_draw = true;
+	b8 use_ease_inout_path = true;
+	b8 animate_along_path = true;
 };
 
 

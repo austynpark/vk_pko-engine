@@ -31,6 +31,8 @@ void vulkan_render_object::destroy()
 {
 	vulkan_buffer_destroy(context, &vertex_buffer);
 	vulkan_buffer_destroy(context, &index_buffer);
+	vulkan_buffer_destroy(context, &debug_vertex_buffer);
+	vulkan_buffer_destroy(context, &debug_index_buffer);
 }
 
 vulkan_render_object::~vulkan_render_object()
@@ -153,8 +155,8 @@ std::vector<u32> vulkan_render_object::load_material_textures(aiMaterial* mat, a
 glm::mat4 vulkan_render_object::get_transform_matrix() const
 {
 	glm::mat4 model(1.0f);
-	model *= glm::translate(model, position);
-	model *= glm::scale(model, scale);
+	model = glm::translate(model, position);
+	model = glm::scale(model, scale);
 
 	glm::quat rotP = glm::angleAxis(glm::radians(rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
 	glm::quat rotY = glm::angleAxis(glm::radians(rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -196,8 +198,16 @@ void vulkan_render_object::draw_debug(VkCommandBuffer command_buffer)
 		if (bone_debug_mesh.vertices.size() > 0)
 			vkCmdDraw(command_buffer, bone_debug_mesh.vertices.size(), 1, 0, 0);
 
-		if (line_mesh.points.size() > 0)
-			vkCmdDraw(command_buffer, line_mesh.points.size(), 1, 0, 0);
+		if (line_mesh.points.size() > 0) {
+
+			if (line_mesh.indices.empty()) {
+				vkCmdDraw(command_buffer, line_mesh.points.size(), 1, 0, 0);
+			}
+			else {
+				vkCmdBindIndexBuffer(command_buffer, debug_index_buffer.handle, 0, VK_INDEX_TYPE_UINT32);
+				vkCmdDrawIndexed(command_buffer, line_mesh.indices.size(), 1, 0, 0, 0);
+			}
+		}
 	}
 }
 
@@ -312,4 +322,32 @@ void upload_mesh(vulkan_context* context, debug_draw_mesh* m, vulkan_allocated_b
 
 	vulkan_buffer_copy(context, &staging_buffer, vertex_buffer, m->points.size() * sizeof(glm::vec3));
 	vulkan_buffer_destroy(context, &staging_buffer);
+
+	if (m->indices.size() > 0) {
+
+		vulkan_allocated_buffer index_staging_buffer;
+
+		vulkan_buffer_create(
+			context,
+			m->indices.size() * sizeof(u32),
+			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+			VMA_MEMORY_USAGE_AUTO,
+			VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
+			&index_staging_buffer);
+
+		vulkan_buffer_upload(context, &index_staging_buffer, m->indices.data(), m->indices.size() * sizeof(u32));
+
+		vulkan_buffer_create(
+			context,
+			m->indices.size() * sizeof(u32),
+			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+			VMA_MEMORY_USAGE_AUTO,
+			VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT,
+			index_buffer
+		);
+
+		vulkan_buffer_copy(context, &index_staging_buffer, index_buffer, m->indices.size() * sizeof(u32));
+		vulkan_buffer_destroy(context, &index_staging_buffer);
+	}
+
 }

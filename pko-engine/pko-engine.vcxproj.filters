@@ -297,8 +297,8 @@
     <None Include="src\core\renderer\vulkan_renderer\list_of_functions.inl">
       <Filter>Header Files</Filter>
     </None>
-    <None Include="shader\test.vert" />
-    <None Include="shader\test.frag" />
+    <None Include="shader\animation.vert" />
+    <None Include="shader\animation.frag" />
     <None Include="shader\debug.vert" />
     <None Include="shader\debug.frag" />
     <None Include="vendor\glm\gtx\quaternion.inl">

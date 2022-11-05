@@ -32,6 +32,7 @@ struct mesh {
 
 struct debug_draw_mesh {
 	std::vector<glm::vec3> points;
+	std::vector<u32> indices;
 };
 
 void debug_mesh_add_line(const glm::vec3& point0, const glm::vec3& point1, debug_draw_mesh* mesh);

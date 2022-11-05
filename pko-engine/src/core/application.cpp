@@ -71,6 +71,7 @@ b8 application::run()
 		f64 frame_start_time = app_state.platform.get_absolute_time();
 
 		if (!app_state.is_pending) {
+			//TODO: pass render_packet (delta_time, resources)
 			app_state.renderer->draw(app_state.delta_time);
 		}
 
@@ -86,7 +87,7 @@ b8 application::run()
 			u64 remaining_ms = (remaining_seconds * 1000);
 
 			// If there is time left, give it back to the OS.
-			b8 limit_frames = true;
+			b8 limit_frames = false;
 			if (remaining_ms > 0 && limit_frames) {
 				app_state.platform.sleep(remaining_ms - 1);
 			}

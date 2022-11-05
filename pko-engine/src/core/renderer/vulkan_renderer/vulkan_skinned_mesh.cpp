@@ -109,7 +109,8 @@ void skinned_mesh::load_model(std::string path)
 	assimp_node_root = new assimp_node();
 	process_bone_vertex(node, assimp_node_root);
 
-	upload_mesh(context, &bone_debug_mesh,&debug_vertex_buffer, &debug_index_buffer);
+	if (bone_debug_mesh.vertices.size() > 0)
+		upload_mesh(context, &bone_debug_mesh, &debug_vertex_buffer, &debug_index_buffer);
 	upload_mesh(context, &mesh, &vertex_buffer, &index_buffer);
 	u32 ubo_size = vulkan_uniform_buffer_pad_size(context->device_context.properties.limits.minUniformBufferOffsetAlignment, MAX_BONES * sizeof(glm::mat4));
 
@@ -511,6 +512,9 @@ void skinned_mesh::set_animation()
 		else
 			animation = nullptr;
 	}
+
+	if (scene->mAnimations == nullptr)
+		return;
 
 	animation = scene->mAnimations[selected_anim_index];
 }

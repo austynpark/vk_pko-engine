@@ -38,7 +38,8 @@ b8 renderer_frontend::init(u32 w, u32 h)
 	*/
 	SpirvHelper::Init();
 
-	cam.init(glm::vec3(0, 0, 10.0f));
+	cam.init(glm::vec3(-1.0f, 0, 10.0f));
+
 	event_system::bind_event(event_code::EVENT_CODE_KEY_PRESSED, renderer_frontend::on_key_pressed);
 	event_system::bind_event(event_code::EVENT_CODE_KEY_RELEASED, renderer_frontend::on_key_pressed);
 	event_system::bind_event(event_code::EVENT_CODE_BUTTON_PRESSED, renderer_frontend::on_button_pressed);
@@ -123,6 +124,22 @@ void renderer_frontend::on_keyboard_process(f32 dt)
 	{
 		cam.init(glm::vec3(0, 0, 10));
 	}
+	else if (input_system::is_key_down(KEY_W))
+	{
+		cam.process_keyboard(camera_movement::FORWARD, dt);
+	}
+	else if (input_system::is_key_down(KEY_S))
+	{
+		cam.process_keyboard(camera_movement::BACKWARD, dt);
+	}
+	else if (input_system::is_key_down(KEY_A))
+	{
+		cam.process_keyboard(camera_movement::LEFT, dt);
+	}
+	else if (input_system::is_key_down(KEY_D))
+	{
+		cam.process_keyboard(camera_movement::RIGHT, dt);
+	}
 }
 
 void renderer_frontend::shutdown()
@@ -143,12 +160,12 @@ b8 renderer_frontend::load_meshes()
 
 void renderer::update_global_data()
 {
-
+	//std::cout << cam.pos.x << std::endl;
 	global_ubo.projection = glm::perspective(glm::radians(cam.zoom), (f32)width / height, 0.1f, 100.0f);
 	global_ubo.projection[1][1] *= -1.0f;
     // camera pos, pos + front, up
 	global_ubo.view = cam.get_view_matrix();
-	//glm::lookAt(glm::vec3(0.0f, 0.0f, -10.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+	//glm::lookAt(cam.pos, glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
 }
 
 b8 renderer_frontend::on_button_pressed(u16 code, event_context context)
