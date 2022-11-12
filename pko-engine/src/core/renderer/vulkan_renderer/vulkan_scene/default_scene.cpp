@@ -163,6 +163,12 @@ b8 default_scene::draw()
 
 	model_constant model_constant{};
 
+	//NOTE: non-animation-object rendering test code
+	vulkan_pipeline_bind(&graphics_commands.at(context->current_frame), VK_PIPELINE_BIND_POINT_GRAPHICS, &non_animation_shader->pipeline);
+	model_constant.model = test_object->get_transform_matrix();
+	vkCmdPushConstants(command_buffer, non_animation_shader->pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(model_constant), &model_constant);
+	test_object->draw(command_buffer);
+
     if (!single_model_draw_mode) {
         for (const auto& obj : object_manager) {
             obj.second->update(delta_time);
@@ -234,12 +240,6 @@ b8 default_scene::draw()
             vkCmdPushConstants(command_buffer, main_shader->pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(model_constant), &model_constant);
             obj.second->draw(command_buffer);
 
-            //NOTE: non-animation-object rendering test code
-            //vulkan_pipeline_bind(&graphics_commands.at(context->current_frame), VK_PIPELINE_BIND_POINT_GRAPHICS, &non_animation_shader->pipeline);
-            //model_constant.model = test_object->get_transform_matrix();
-            //vkCmdPushConstants(command_buffer, non_animation_shader->pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(model_constant), &model_constant);
-            //test_object->draw(command_buffer);
-
             if (enable_debug_draw) {
 
                 VkDescriptorSet debug_bone_transform_set;
@@ -276,6 +276,7 @@ b8 default_scene::draw_imgui()
 
     ImGui::Begin("CS460 Skeletal Animation", NULL, ImGuiWindowFlags_::ImGuiWindowFlags_AlwaysAutoResize);
     static const char* current_item = "";
+    static const char* current_end_effector = "";
     if (ImGui::BeginTabBar("Tab Bar"))
     {
         if (ImGui::BeginTabItem("General"))
@@ -287,11 +288,12 @@ b8 default_scene::draw_imgui()
 			if (ImGui::CollapsingHeader("Path"))
 			{
 				ImGui::Checkbox("Animate along path", &animate_along_path);
+                ImGui::Checkbox("Inverse Kinematic", &use_inverse_kinematic);
 				//ImGui::Checkbox("Use Three velocity-time path", &use_ease_inout_path);
 			}
 
             if (!animate_along_path) {
-                if (ImGui::BeginCombo("object", current_item))
+                if (ImGui::BeginCombo("Object", current_item))
                 {
                     for (const auto& obj : object_manager)
                     {
@@ -341,10 +343,33 @@ b8 default_scene::draw_imgui()
                     }
                 }
             }
-            else {
+            else { // animate along the path
                 single_model_name = "boxguy";
                 object_manager["boxguy"]->selected_anim_index = 12;
                 object_manager["boxguy"]->set_animation();
+
+				if (ImGui::BeginCombo("End effector", current_end_effector))
+                {
+                    u32 i = 0;
+                    for (const auto& ee : object_manager["boxguy"]->end_effectors)
+                    {
+                        bool is_selected =
+                            !strcmp(current_end_effector,
+                                ee->name.c_str()); // You can store your selection however you want, outside or inside your objects
+                        if (ImGui::Selectable(ee->name.c_str(), is_selected))
+                            current_end_effector = ee->name.c_str();
+                        if (is_selected) {
+                            ImGui::SetItemDefaultFocus();   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+                            object_manager["boxguy"]->selected_ee_idx = i;
+                        }
+
+                        ++i;
+                    }
+
+                    // object combo
+                    ImGui::EndCombo();
+                }
+
             }
 
             // General

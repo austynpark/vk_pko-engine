@@ -40,6 +40,7 @@ private:
 	b8 enable_debug_draw = true;
 	b8 use_ease_inout_path = true;
 	b8 animate_along_path = true;
+	b8 use_inverse_kinematic = false;
 };
 
 

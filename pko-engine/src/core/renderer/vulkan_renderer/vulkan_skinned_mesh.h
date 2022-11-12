@@ -28,19 +28,6 @@ struct bone_info {
 	}
 };
 
-// convert aiNode to custom struct (convert data to VQS)
-struct assimp_node {
-
-	std::string name;
-	VQS transformation;
-
-	std::vector<assimp_node*> children;
-	u32 childern_num = 0;
-	assimp_node* parent = nullptr;
-
-	skeleton_node* bone = nullptr;
-};
-
 class skinned_mesh : public vulkan_render_object {
 public:
 	skinned_mesh(vulkan_context* context, const char* file_name);
@@ -52,6 +39,9 @@ public:
 	void destroy() override;
 
 	std::vector<skeleton_node*> m_bone_info;
+	std::vector<assimp_node*> end_effectors;
+	u32 selected_ee_idx = -1;
+
 	//store bone id
 	std::unordered_map<std::string, u32> bone_mapping;
 	//per-vertex bone info

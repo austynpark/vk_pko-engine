@@ -12,6 +12,6 @@ layout (location = 0) in VS_IN {
 void main()
 {
 	//vec3 color = texture(diffuse_texture,vs_in.uv).xyz;
-	vec3 color = vec3(1.0f, 0.0f, 0.0f);
+	vec3 color = vec3(0.0f, 0.0f, 0.0f);
 	frag_color = vec4(color, 1.0f);
 }
