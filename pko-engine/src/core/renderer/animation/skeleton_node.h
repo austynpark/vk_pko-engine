@@ -59,13 +59,18 @@ struct skeleton_node {
 
 	//bone_index
 	u32 index;
+
+	// bone length (local length)
+	u32 length = 0; // length to parent joint
 };
 
 // convert aiNode to custom struct (convert data to VQS)
 struct assimp_node { // actual joint
 
 	std::string name;
-	VQS transformation;
+	VQS transformation; // local_node transformation
+	VQS global_transformation; // parent_transform * node_transform
+	VQS ik_transformation;
 
 	std::vector<assimp_node*> children;
 	u32 childern_num = 0;

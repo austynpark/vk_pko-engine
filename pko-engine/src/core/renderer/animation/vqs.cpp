@@ -39,6 +39,20 @@ glm::mat4 VQS::to_matrix() const
 	return glm::translate(glm::mat4(1.0f), glm::vec3(v.x, v.y, v.z)) * quat_to_matrix(q) * glm::scale(glm::mat4(1.0f), glm::vec3(s));
 }
 
+VQS VQS::inverse() const
+{
+	pko_math::quat inv_q = quat_inverse(q);
+	f32 inv_s = 1 / s;
+
+	VQS result(
+		quat_mul_vec3(inv_q, quat_mul_vec3(q, (inv_s * -v))),
+		inv_q,
+		inv_s
+	);
+
+	return result;
+}
+
 VQS to_vqs(const aiMatrix4x4& mat)
 {
 	aiVector3D translation;

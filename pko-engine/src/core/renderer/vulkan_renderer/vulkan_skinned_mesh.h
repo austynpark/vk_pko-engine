@@ -35,12 +35,12 @@ public:
 
 	void load_model(std::string path) override;
 	void draw(VkCommandBuffer command_buffer);
-	void update(f32 dt);
+	void update(f32 dt, b8 ik_update);
 	void destroy() override;
 
 	std::vector<skeleton_node*> m_bone_info;
 	std::vector<assimp_node*> end_effectors;
-	u32 selected_ee_idx = -1;
+	u32 selected_ee_idx = 0;
 
 	//store bone id
 	std::unordered_map<std::string, u32> bone_mapping;
@@ -53,8 +53,10 @@ public:
 	vulkan_allocated_buffer debug_transform_buffer;
 
 	static vertex_input_description get_vertex_input_description();
-	
+
 	void set_animation();
+	const assimp_node* get_end_effector() const;
+	void set_inverse_kinematic_transformation(const i32 ik_depth);
 
 	const aiScene* scene;
 	aiAnimation* animation;
@@ -76,10 +78,10 @@ private:
 	VQS interpolate(f32 time, const aiNodeAnim* node_anim);
 
 	// Get node hierarchy for current animation time
-	void read_node_hierarchy(float animation_time, const assimp_node* node, const VQS& parent_transform);
+	void read_node_hierarchy(float animation_time, assimp_node* node, const VQS& parent_transform, b8 ik_update);
 
 	// iterate through the bones and set vertex for the bone drawing
-	void process_bone_vertex(const aiNode* ai_node, assimp_node* node);	
+	void process_bone_vertex(const aiNode* ai_node, assimp_node* node);
 
 };
 

@@ -4,6 +4,7 @@
 #include "../vulkan_mesh.h"
 #include "../vulkan_skinned_mesh.h"
 #include "../vulkan_pipeline.h"
+#include "../../animation/Inverse_kinematic.h"
 
 #include "imgui/imgui.h"
 #include "imgui/backends/imgui_impl_win32.h"
@@ -102,6 +103,8 @@ b8 default_scene::init(vulkan_context* api_context)
         path_build(&path_ease_inout);
     }
 
+    destination_point = glm::vec3(0.0f);
+
     line_debug_object = std::make_unique<vulkan_render_object>(context, &path_ease_inout.line_mesh);
 
     main_shader->add_stage("animation.vert", VK_SHADER_STAGE_VERTEX_BIT)
@@ -161,17 +164,17 @@ b8 default_scene::draw()
     if (animate_along_path) // update u
         path_update(delta_time, &path_ease_inout);
 
-	model_constant model_constant{};
+    model_constant model_constant{};
 
-	//NOTE: non-animation-object rendering test code
-	vulkan_pipeline_bind(&graphics_commands.at(context->current_frame), VK_PIPELINE_BIND_POINT_GRAPHICS, &non_animation_shader->pipeline);
-	model_constant.model = test_object->get_transform_matrix();
-	vkCmdPushConstants(command_buffer, non_animation_shader->pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(model_constant), &model_constant);
-	test_object->draw(command_buffer);
+    //NOTE: non-animation-object rendering test code
+    vulkan_pipeline_bind(&graphics_commands.at(context->current_frame), VK_PIPELINE_BIND_POINT_GRAPHICS, &non_animation_shader->pipeline);
+    model_constant.model = test_object->get_transform_matrix();
+    vkCmdPushConstants(command_buffer, non_animation_shader->pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(model_constant), &model_constant);
+    test_object->draw(command_buffer);
 
     if (!single_model_draw_mode) {
         for (const auto& obj : object_manager) {
-            obj.second->update(delta_time);
+            obj.second->update(delta_time, false);
 
             VkDescriptorSet bone_transform_set;
             VkDescriptorBufferInfo buffer_info = obj.second->transform_buffer.get_info();
@@ -179,7 +182,7 @@ b8 default_scene::draw()
             descriptor_builder::begin(&context->layout_cache, &context->dynamic_descriptor_allocators[context->current_frame])
                 .bind_buffer(0, &buffer_info, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT).build(bone_transform_set);
 
-			vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, main_shader->pipeline.handle);
+            vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, main_shader->pipeline.handle);
             vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, main_shader->pipeline.layout, 1, 1, &bone_transform_set, 0, NULL);
 
             glm::mat4 model = obj.second->get_transform_matrix();
@@ -209,11 +212,45 @@ b8 default_scene::draw()
             }
         }
     }
-    else {
+    else { // Draw a selected object
         if (object_manager.find(single_model_name) != object_manager.end()) {
             const auto& obj = *object_manager.find(single_model_name);
-            obj.second->update(delta_time);
-            
+
+            glm::mat4 model;
+            glm::mat3 normal_matrix = glm::transpose(glm::inverse(model));
+
+            if (animate_along_path) {
+                if (use_ease_inout_path) {
+                    model = path_get_along(delta_time, &path_ease_inout, obj.second.get());
+                }
+            }
+            else {
+                model = obj.second->get_transform_matrix();
+            }
+
+            model_constant.model = model;
+            model_constant.normal_matrix = normal_matrix;
+
+            if (use_inverse_kinematic)
+            {
+                if (ik_destination_reachable)
+                {
+                    b8 result = ik_ccd_get_angles(obj.second->get_end_effector(), destination_point, model, ik_depth);
+                    obj.second->update(delta_time, true);
+                    if (!result)
+                    {
+                        std::cout << "";
+                    }
+                }
+                else
+                {
+
+                }
+            }
+            else {
+                obj.second->update(delta_time, false);
+            }
+
             VkDescriptorSet bone_transform_set;
             VkDescriptorBufferInfo buffer_info = obj.second->transform_buffer.get_info();
 
@@ -222,26 +259,10 @@ b8 default_scene::draw()
 
             vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, main_shader->pipeline.handle);
             vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, main_shader->pipeline.layout, 1, 1, &bone_transform_set, 0, NULL);
-
-            glm::mat4 model;
-            glm::mat3 normal_matrix = glm::transpose(glm::inverse(model));
-
-			if (animate_along_path) {
-                if (use_ease_inout_path) {
-                    model = path_get_along(delta_time, &path_ease_inout, obj.second.get());
-                }
-             }
-            else {
-                model = obj.second->get_transform_matrix();
-            }
-
-            model_constant.model = model;
-            model_constant.normal_matrix = normal_matrix;
             vkCmdPushConstants(command_buffer, main_shader->pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(model_constant), &model_constant);
             obj.second->draw(command_buffer);
 
             if (enable_debug_draw) {
-
                 VkDescriptorSet debug_bone_transform_set;
                 buffer_info = obj.second->debug_transform_buffer.get_info();
                 descriptor_builder::begin(&context->layout_cache, &context->dynamic_descriptor_allocators[context->current_frame])
@@ -261,8 +282,8 @@ b8 default_scene::draw()
 
     if (enable_debug_draw) {
         vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, line_shader->pipeline.handle);
-		vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, line_shader->pipeline.layout,
-        0, 1, &context->global_data.ubo_data[context->current_frame].descriptor_set, 0, nullptr);
+        vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, line_shader->pipeline.layout,
+            0, 1, &context->global_data.ubo_data[context->current_frame].descriptor_set, 0, nullptr);
 
         line_debug_object->draw_debug(command_buffer);
     }
@@ -281,16 +302,44 @@ b8 default_scene::draw_imgui()
     {
         if (ImGui::BeginTabItem("General"))
         {
-			ImGui::Text("FPS = %f", 1/delta_time);
+            ImGui::Text("FPS = %f", 1 / delta_time);
             ImGui::Spacing();
             ImGui::Separator();
 
-			if (ImGui::CollapsingHeader("Path"))
-			{
-				ImGui::Checkbox("Animate along path", &animate_along_path);
+            if (ImGui::CollapsingHeader("Path"))
+            {
+                ImGui::Checkbox("Animate along path", &animate_along_path);
                 ImGui::Checkbox("Inverse Kinematic", &use_inverse_kinematic);
-				//ImGui::Checkbox("Use Three velocity-time path", &use_ease_inout_path);
-			}
+
+                ImGui::SliderInt("IK depth", &ik_depth, 0, 5);
+                ImGui::SliderFloat3("IK destination point", glm::value_ptr(destination_point), -5.0f, 5.0f);
+
+                if (ImGui::BeginCombo("End effector", current_end_effector))
+                {
+                    u32 i = 0;
+                    for (const auto& ee : object_manager["boxguy"]->end_effectors)
+                    {
+                        bool is_selected =
+                            !strcmp(current_end_effector,
+                                ee->name.c_str()); // You can store your selection however you want, outside or inside your objects
+                        if (ImGui::Selectable(ee->name.c_str(), is_selected)) {
+                            current_end_effector = ee->name.c_str();
+                            object_manager["boxguy"]->selected_ee_idx = i;
+                        }
+                        if (is_selected) {
+                            ImGui::SetItemDefaultFocus();   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+                        }
+
+                        ++i;
+                    }
+
+                    // object combo
+                    ImGui::EndCombo();
+                }
+
+
+                //ImGui::Checkbox("Use Three velocity-time path", &use_ease_inout_path);
+            }
 
             if (!animate_along_path) {
                 if (ImGui::BeginCombo("Object", current_item))
@@ -348,28 +397,6 @@ b8 default_scene::draw_imgui()
                 object_manager["boxguy"]->selected_anim_index = 12;
                 object_manager["boxguy"]->set_animation();
 
-				if (ImGui::BeginCombo("End effector", current_end_effector))
-                {
-                    u32 i = 0;
-                    for (const auto& ee : object_manager["boxguy"]->end_effectors)
-                    {
-                        bool is_selected =
-                            !strcmp(current_end_effector,
-                                ee->name.c_str()); // You can store your selection however you want, outside or inside your objects
-                        if (ImGui::Selectable(ee->name.c_str(), is_selected))
-                            current_end_effector = ee->name.c_str();
-                        if (is_selected) {
-                            ImGui::SetItemDefaultFocus();   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
-                            object_manager["boxguy"]->selected_ee_idx = i;
-                        }
-
-                        ++i;
-                    }
-
-                    // object combo
-                    ImGui::EndCombo();
-                }
-
             }
 
             // General
@@ -378,7 +405,6 @@ b8 default_scene::draw_imgui()
         //Tab Bar
         ImGui::EndTabBar();
     }
-
 
     ImGui::End();
 
@@ -396,7 +422,6 @@ void default_scene::shutdown()
     non_animation_shader->shutdown();
 
     vulkan_scene::shutdown();
-
 }
 
 b8 default_scene::on_resize(u32 w, u32 h)

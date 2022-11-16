@@ -31,10 +31,9 @@ skinned_mesh::~skinned_mesh()
 void skinned_mesh::load_model(std::string path)
 {
 	scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);
-
+	animation_count = scene->mNumAnimations;
 	// set pAnimation
 	set_animation();
-	animation_count = scene->mNumAnimations;
 	// use single vertex buffer that including sub-meshes
 	u32 vertex_count = 0;
 	for (u32 i = 0; i < scene->mNumMeshes; ++i) {
@@ -57,20 +56,20 @@ void skinned_mesh::load_model(std::string path)
 
 	bone_transforms.resize(m_bone_info.size(), glm::mat4(1.0f));
 	debug_bone_transforms.resize(m_bone_info.size(), glm::mat4(1.0f));
-	
+
 	vertex_offset = 0;
 	for (u32 i = 0; i < scene->mNumMeshes; ++i) {
 		for (u32 v = 0; v < scene->mMeshes[i]->mNumVertices; ++v) {
 			vertex vertex;
 			//vertex.position
 			vertex.position = glm::make_vec3(&scene->mMeshes[i]->mVertices[v].x);
-			
+
 			if (scene->mMeshes[i]->HasNormals())
 				vertex.normal = glm::make_vec3(&scene->mMeshes[i]->mNormals[v].x);
-			
+
 			if (scene->mMeshes[i]->HasTextureCoords(v))
 				vertex.uv = glm::vec2(scene->mMeshes[i]->mTextureCoords[v]->x, scene->mMeshes[i]->mTextureCoords[v]->y);
-	
+
 			//assert(vertex_bone[vertex_offset + v].weights.size() <= MAX_BONES_PER_VERTEX);
 			u32 bone_count = vertex_bone[vertex_offset + v].weights.size() <= MAX_BONES_PER_VERTEX ? vertex_bone[vertex_offset + v].weights.size() : MAX_BONES_PER_VERTEX;
 			for (u32 j = 0; j < bone_count; ++j) {
@@ -95,7 +94,7 @@ void skinned_mesh::load_model(std::string path)
 		}
 		vertex_offset += scene->mMeshes[i]->mNumVertices;
 	}
-	
+
 	for (u32 i = 0; i < scene->mNumMeshes; ++i) {
 		u32 index_offset = mesh.indices.size();
 		for (u32 j = 0; j < scene->mMeshes[i]->mNumFaces; ++j) {
@@ -160,7 +159,7 @@ void skinned_mesh::load_bones(aiMesh* mesh, u32 vertex_offset)
 
 		for (u32 j = 0; j < mesh->mBones[i]->mNumWeights; ++j) {
 			// since we are using a single vertex buffer
-			// vertex_offset + bones::weights::vertex_id would be actuall vertex index in the 'bones'
+			// vertex_offset + bones::weights::vertex_id would be actual vertex index in the 'bones'
 			u32 vertex_id = vertex_offset + mesh->mBones[i]->mWeights[j].mVertexId;
 			vertex_bone[vertex_id].add(index, mesh->mBones[i]->mWeights[j].mWeight);
 		}
@@ -173,7 +172,7 @@ void skinned_mesh::process_bone_vertex(const aiNode* node, assimp_node* custom_n
 	vertex vert{};
 	vert.bone_weight[0] = 1.0f;
 	vert.position = glm::vec3(0.0f);
-	
+
 	if (custom_node != nullptr) {
 		custom_node->childern_num = node->mNumChildren;
 		custom_node->children.resize(node->mNumChildren);
@@ -183,15 +182,16 @@ void skinned_mesh::process_bone_vertex(const aiNode* node, assimp_node* custom_n
 		if (bone_mapping.find(node->mName.C_Str()) != bone_mapping.end()) {
 			u32 index = bone_mapping[node->mName.C_Str()];
 			custom_node->bone = m_bone_info[index];
+			custom_node->bone->length = (custom_node->transformation.v - custom_node->parent->transformation.v).length();
 		}
 	}
-	
+
 	if (node->mParent != nullptr) {
 
-		const auto &parent_bone_itr = bone_mapping.find(node->mParent->mName.C_Str());
+		const auto& parent_bone_itr = bone_mapping.find(node->mParent->mName.C_Str());
 		const auto& child_bone_itr = bone_mapping.find(node->mName.C_Str());
 
-		if(parent_bone_itr != bone_mapping.end() && child_bone_itr != bone_mapping.end()) {
+		if (parent_bone_itr != bone_mapping.end() && child_bone_itr != bone_mapping.end()) {
 			vert.bone_id[0] = parent_bone_itr->second;
 			bone_debug_mesh.vertices.push_back(vert);
 			vert.bone_id[0] = child_bone_itr->second;
@@ -231,16 +231,17 @@ void skinned_mesh::draw(VkCommandBuffer command_buffer)
 	}
 }
 
-void skinned_mesh::update(f32 dt)
+void skinned_mesh::update(f32 dt, b8 ik_update)
 {
 	running_time += animation_speed * dt;
 
-	float ticks_per_second = (f32)(animation->mTicksPerSecond != 0 ? animation->mTicksPerSecond : 25.0f);
-	float time_in_ticks = running_time * ticks_per_second;
-	float animation_time = fmod(time_in_ticks, (f32)animation->mDuration);
+
+	float ticks_per_second = ik_update ? 0.0f : (f32)(animation->mTicksPerSecond != 0 ? animation->mTicksPerSecond : 25.0f);
+	float time_in_ticks = ik_update ? 0.0f : running_time * ticks_per_second;
+	float animation_time = ik_update ? 0.0f : fmod(time_in_ticks, (f32)animation->mDuration);
 
 	VQS vqs;
-	read_node_hierarchy(animation_time, assimp_node_root, vqs);
+	read_node_hierarchy(animation_time, assimp_node_root, vqs, ik_update);
 
 	for (uint32_t i = 0; i < bone_transforms.size(); i++)
 	{
@@ -355,49 +356,36 @@ VQS skinned_mesh::interpolate(f32 time, const aiNodeAnim* node_anim)
 	return interpolate_vqs(vqs0, vqs1, delta);
 }
 
-void skinned_mesh::read_node_hierarchy(float animation_time, const assimp_node* node, const VQS& parent_transform)
+void skinned_mesh::read_node_hierarchy(float animation_time, assimp_node* node, const VQS& parent_transform, b8 ik_update)
 {
 	//glm::mat4 node_transformation = glm::transpose(glm::make_mat4(&node->mTransformation.a1));
 	VQS node_transformation = node->transformation;
 	glm::mat4 mat = node->transformation.to_matrix();
-	const aiNodeAnim* node_anim = find_node_anim(animation, node->name);
-	//std::cout << "node_name: " << node->name << std::endl;
 
-	if (node_anim)
-	{
-		node_transformation = interpolate(animation_time, node_anim);
+	if (!ik_update) {
+		const aiNodeAnim* node_anim = find_node_anim(animation, node->name);
+		//std::cout << "node_name: " << node->name << std::endl;
+
+		if (node_anim)
+		{
+			node_transformation = interpolate(animation_time, node_anim);
+		}
 	}
 
 	//glm::mat4 global_transformation = parent_transform * node_transformation;
-	VQS global_transformation = parent_transform * node_transformation;
+	node->global_transformation = parent_transform * node->ik_transformation * node_transformation;
+	node->ik_transformation = VQS();
 
 	if (node->bone != nullptr)
 	{
-		node->bone->final_transformation = global_inverse_transform * global_transformation * node->bone->offset;
-
-		aiVector3D debug_bone_rotation;
-		aiVector3D debug_bone_translation;
-		aiVector3D debug_bone_scale;
-		node->bone->offset_mat.Decompose(debug_bone_scale, debug_bone_rotation, debug_bone_translation);
-
-		debug_bone_scale.x = 1 / debug_bone_scale.x;
-		debug_bone_scale.y = 1 / debug_bone_scale.y;
-		debug_bone_scale.z = 1 / debug_bone_scale.z;
-
-		aiMatrix4x4 debug_bone_transform_mat= aiMatrix4x4();
-		debug_bone_transform_mat.Translation(-debug_bone_translation, debug_bone_transform_mat);
-		debug_bone_transform_mat.Scaling(debug_bone_scale, debug_bone_transform_mat);
-		debug_bone_transform_mat.FromEulerAnglesXYZ(-debug_bone_rotation);
-
-		VQS debug_bone_transform = to_vqs(debug_bone_transform_mat);
-
-		debug_bone_transform = global_inverse_transform * global_transformation * to_vqs(debug_bone_transform_mat);
+		node->bone->final_transformation = global_inverse_transform * node->global_transformation * node->bone->offset;
+		VQS debug_bone_transform = global_inverse_transform * node->global_transformation;
 		debug_bone_transforms[node->bone->index] = debug_bone_transform.to_matrix();
 	}
 
 	for (uint32_t i = 0; i < node->childern_num; i++)
 	{
-		read_node_hierarchy(animation_time, node->children[i], global_transformation);
+		read_node_hierarchy(animation_time, node->children[i], node->global_transformation, ik_update);
 	}
 }
 
@@ -406,7 +394,7 @@ void free_assimp_node(assimp_node* node)
 {
 	if (node != nullptr) {
 		if (node->childern_num > 0) {
-			
+
 			for (auto& child_node : node->children) {
 				free_assimp_node(child_node);
 			}
@@ -487,11 +475,35 @@ void skinned_mesh::set_animation()
 			animation = scene->mAnimations[animation_count - 1];
 		else
 			animation = nullptr;
+
+		return;
 	}
 
 	if (scene->mAnimations == nullptr)
 		return;
 
 	animation = scene->mAnimations[selected_anim_index];
+}
+
+const assimp_node* skinned_mesh::get_end_effector() const
+{
+	return end_effectors.at(selected_ee_idx);
+}
+
+void skinned_mesh::set_inverse_kinematic_transformation(const i32 ik_depth)
+{
+
+	const assimp_node* ee = get_end_effector();
+	for (i32 i = 0; i < ik_depth; ++i)
+	{
+		ee->bone->final_transformation = global_inverse_transform * ee->global_transformation * ee->bone->offset;
+
+		//bone_transforms
+
+		if (ee->parent != nullptr)
+			ee = ee->parent;
+	}
+
+
 }
 

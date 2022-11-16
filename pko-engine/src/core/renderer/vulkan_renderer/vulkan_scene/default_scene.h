@@ -39,8 +39,13 @@ private:
 	const char* single_model_name;
 	b8 enable_debug_draw = true;
 	b8 use_ease_inout_path = true;
-	b8 animate_along_path = true;
+	b8 animate_along_path = false;
 	b8 use_inverse_kinematic = false;
+	b8 ik_destination_reachable = true; // test
+	i32 ik_depth = 3;
+
+	glm::vec3 destination_point; // IK destination
+
 };
 
 

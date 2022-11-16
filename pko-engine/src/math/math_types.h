@@ -41,6 +41,14 @@ namespace pko_math {
 			return result;
 		}
 
+		inline vec3_u operator+(const vec3_u& v2) const {
+			return vec3_u(x + v2.x, y + v2.y, z + v2.z);
+		}
+
+		inline vec3_u operator-(const vec3_u& v2) const {
+			return vec3_u(x - v2.x, y - v2.y, z - v2.z);
+		}
+
 		inline f32& operator[](u32 index) {
 			assert(index < 3);
 			return elements[index];
@@ -66,6 +74,12 @@ namespace pko_math {
 			}
 
 			return (*this);
+		}
+
+		inline glm::vec3 to_vec3() const {
+			glm::vec3 result;
+			memcpy_s(&result, sizeof(glm::vec3), elements, sizeof(glm::vec3));
+			return result;
 		}
 
 		union {

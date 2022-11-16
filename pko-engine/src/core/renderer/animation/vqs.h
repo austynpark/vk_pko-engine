@@ -13,13 +13,14 @@ public:
 	VQS();
 
 	// v = translate, q = rotation, s = scale
-	VQS(pko_math::vec3 translate, pko_math::quat rotation, f32 scale);
+	VQS(pko_math::vec3 translate, pko_math::quat rotation = {}, f32 scale = 1.0f);
 	VQS(const VQS& vqs0, const VQS& vqs1);
 
 	// transform
 	pko_math::vec3 operator*(const pko_math::vec3& r) const;
 	VQS	operator*(const VQS& vqs) const;
 	glm::mat4 to_matrix() const;
+	VQS inverse() const;
 
 	pko_math::vec3 v;
 	pko_math::quat q;
