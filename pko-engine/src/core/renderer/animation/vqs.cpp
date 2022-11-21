@@ -45,7 +45,7 @@ VQS VQS::inverse() const
 	f32 inv_s = 1 / s;
 
 	VQS result(
-		quat_mul_vec3(inv_q, quat_mul_vec3(q, (inv_s * -v))),
+		inv_s * rotate(inv_q, -v),
 		inv_q,
 		inv_s
 	);
@@ -76,7 +76,7 @@ VQS to_vqs(const glm::mat4& mat)
 	glm::vec4 perspective;
 	glm::decompose(mat, scale, rotation, translation, skew, perspective);
 
-	VQS vqs(to_vec3(translation), to_quat(rotation), std::max(std::max(scale.x, scale.y), scale.z));
+	VQS vqs(to_vec3(translation), to_quat(rotation), std::min(std::min(scale.x, scale.y), scale.z));
 
 	return vqs;
 }

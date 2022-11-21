@@ -106,7 +106,27 @@ void skinned_mesh::load_model(std::string path)
 
 	aiNode* node = scene->mRootNode;
 	assimp_node_root = new assimp_node();
-	process_bone_vertex(node, assimp_node_root);
+	std::vector<assimp_node*> route;
+	process_bone_vertex(node, assimp_node_root, route);
+
+	// Load animation keyframes into each bone data
+	u32 bone_count = m_bone_info.size();
+	for (u32 b = 0; b < bone_count; ++b)
+	{
+		for (u32 i = 0; i < animation_count; ++i)
+		{
+			const aiAnimation* anim = scene->mAnimations[i];
+			for (uint32_t j = 0; j < animation->mNumChannels; j++)
+			{
+				const aiNodeAnim* nodeAnim = anim->mChannels[j];
+				if (std::string(nodeAnim->mNodeName.data) == m_bone_info[b]->name)
+				{
+					std::string anim_name(anim->mName.C_Str());
+					m_bone_info[b]->add_animation(anim_name, nodeAnim);
+				}
+			}
+		}
+	}
 
 	if (bone_debug_mesh.vertices.size() > 0)
 		upload_mesh(context, &bone_debug_mesh, &debug_vertex_buffer, &debug_index_buffer);
@@ -153,6 +173,7 @@ void skinned_mesh::load_bones(aiMesh* mesh, u32 vertex_offset)
 			skeleton_node* bone = new skeleton_node(index);
 			bone->offset = to_vqs(mesh->mBones[i]->mOffsetMatrix);
 			bone->offset_mat = mesh->mBones[i]->mOffsetMatrix;
+			bone->name = name.c_str();
 			m_bone_info.push_back(bone);
 			bone_mapping[name] = index;
 		}
@@ -167,7 +188,7 @@ void skinned_mesh::load_bones(aiMesh* mesh, u32 vertex_offset)
 }
 
 
-void skinned_mesh::process_bone_vertex(const aiNode* node, assimp_node* custom_node) {
+void skinned_mesh::process_bone_vertex(const aiNode* node, assimp_node* custom_node, std::vector<assimp_node*>& route) {
 
 	vertex vert{};
 	vert.bone_weight[0] = 1.0f;
@@ -177,12 +198,14 @@ void skinned_mesh::process_bone_vertex(const aiNode* node, assimp_node* custom_n
 		custom_node->childern_num = node->mNumChildren;
 		custom_node->children.resize(node->mNumChildren);
 		custom_node->name = node->mName.C_Str();
-		custom_node->transformation = to_vqs(node->mTransformation);
+		custom_node->bind_pose_transformation = to_vqs(node->mTransformation);
+		route.push_back(custom_node);
 
 		if (bone_mapping.find(node->mName.C_Str()) != bone_mapping.end()) {
 			u32 index = bone_mapping[node->mName.C_Str()];
+			m_bone_info[index]->local_transformation = custom_node->bind_pose_transformation;
 			custom_node->bone = m_bone_info[index];
-			custom_node->bone->length = (custom_node->transformation.v - custom_node->parent->transformation.v).length();
+			custom_node->bone->length = (custom_node->bind_pose_transformation.v - custom_node->parent->bind_pose_transformation.v).length();
 		}
 	}
 
@@ -202,6 +225,7 @@ void skinned_mesh::process_bone_vertex(const aiNode* node, assimp_node* custom_n
 	if (node->mNumChildren == 0) {
 		if (custom_node != nullptr && custom_node->bone != nullptr) {
 			end_effectors.push_back(custom_node);
+			route_to_ee.push_back(route);
 		}
 
 		return;
@@ -213,7 +237,8 @@ void skinned_mesh::process_bone_vertex(const aiNode* node, assimp_node* custom_n
 			custom_node->children[i] = new assimp_node();
 		}
 		custom_node->children[i]->parent = custom_node;
-		process_bone_vertex(node->mChildren[i], custom_node->children[i]);
+		process_bone_vertex(node->mChildren[i], custom_node->children[i], route);
+		route.pop_back();
 	}
 }
 
@@ -253,128 +278,28 @@ void skinned_mesh::update(f32 dt, b8 ik_update)
 	vulkan_buffer_upload(context, &debug_transform_buffer, debug_bone_transforms.data(), debug_transform_buffer.size);
 }
 
-const aiNodeAnim* skinned_mesh::find_node_anim(const aiAnimation* animation, const std::string node_name)
-{
-	for (uint32_t i = 0; i < animation->mNumChannels; i++)
-	{
-		const aiNodeAnim* nodeAnim = animation->mChannels[i];
-		if (std::string(nodeAnim->mNodeName.data) == node_name)
-		{
-			return nodeAnim;
-		}
-	}
-	return nullptr;
-}
-
-VQS skinned_mesh::interpolate(f32 time, const aiNodeAnim* node_anim)
-{
-	// use interpolate
-	aiQuaternion rotation;
-	aiVector3D translation;
-	aiVector3D scale;
-
-	VQS vqs0;
-	VQS vqs1;
-
-	f32 delta = 0.0f;
-
-	if (node_anim->mNumRotationKeys == 1)
-	{
-		rotation = node_anim->mRotationKeys[0].mValue;
-	}
-	else
-	{
-		uint32_t frameIndex = 0;
-		for (uint32_t i = 0; i < node_anim->mNumRotationKeys - 1; i++)
-		{
-			if (time < (float)node_anim->mRotationKeys[i + 1].mTime)
-			{
-				frameIndex = i;
-				break;
-			}
-		}
-
-		aiQuatKey currentFrame = node_anim->mRotationKeys[frameIndex];
-		aiQuatKey nextFrame = node_anim->mRotationKeys[(frameIndex + 1) % node_anim->mNumRotationKeys];
-
-		delta = (time - (float)currentFrame.mTime) / (float)(nextFrame.mTime - currentFrame.mTime);
-
-		vqs0.q = pko_math::quat(currentFrame.mValue.w, currentFrame.mValue.x, currentFrame.mValue.y, currentFrame.mValue.z);
-		vqs1.q = pko_math::quat(nextFrame.mValue.w, nextFrame.mValue.x, nextFrame.mValue.y, nextFrame.mValue.z);
-	}
-
-	if (node_anim->mNumScalingKeys == 1)
-	{
-		scale = node_anim->mScalingKeys[0].mValue;
-	}
-	else
-	{
-		uint32_t frameIndex = 0;
-		for (uint32_t i = 0; i < node_anim->mNumScalingKeys - 1; i++)
-		{
-			if (time < (float)node_anim->mScalingKeys[i + 1].mTime)
-			{
-				frameIndex = i;
-				break;
-			}
-		}
-
-		aiVectorKey currentFrame = node_anim->mScalingKeys[frameIndex];
-		aiVectorKey nextFrame = node_anim->mScalingKeys[(frameIndex + 1) % node_anim->mNumScalingKeys];
-
-		delta = (time - (float)currentFrame.mTime) / (float)(nextFrame.mTime - currentFrame.mTime);
-
-		vqs0.s = currentFrame.mValue.x;
-		vqs1.s = nextFrame.mValue.x;
-	}
-
-	if (node_anim->mNumPositionKeys == 1)
-	{
-		translation = node_anim->mPositionKeys[0].mValue;
-	}
-	else
-	{
-		uint32_t frameIndex = 0;
-		for (uint32_t i = 0; i < node_anim->mNumPositionKeys - 1; i++)
-		{
-			if (time < (float)node_anim->mPositionKeys[i + 1].mTime)
-			{
-				frameIndex = i;
-				break;
-			}
-		}
-
-		aiVectorKey currentFrame = node_anim->mPositionKeys[frameIndex];
-		aiVectorKey nextFrame = node_anim->mPositionKeys[(frameIndex + 1) % node_anim->mNumPositionKeys];
-
-		delta = (time - (float)currentFrame.mTime) / (float)(nextFrame.mTime - currentFrame.mTime);
-
-		vqs0.v = pko_math::vec3(currentFrame.mValue.x, currentFrame.mValue.y, currentFrame.mValue.z);
-		vqs1.v = pko_math::vec3(nextFrame.mValue.x, nextFrame.mValue.y, nextFrame.mValue.z);
-	}
-
-	return interpolate_vqs(vqs0, vqs1, delta);
-}
-
 void skinned_mesh::read_node_hierarchy(float animation_time, assimp_node* node, const VQS& parent_transform, b8 ik_update)
 {
-	//glm::mat4 node_transformation = glm::transpose(glm::make_mat4(&node->mTransformation.a1));
-	VQS node_transformation = node->transformation;
-	glm::mat4 mat = node->transformation.to_matrix();
-
-	if (!ik_update) {
-		const aiNodeAnim* node_anim = find_node_anim(animation, node->name);
-		//std::cout << "node_name: " << node->name << std::endl;
-
-		if (node_anim)
+	VQS node_transformation = node->bind_pose_transformation;
+	
+	if (node->bone != nullptr) {
+		if (!ik_update)
 		{
-			node_transformation = interpolate(animation_time, node_anim);
+			if (node->bone->is_animation_exist(animation->mName.C_Str()))
+			{
+				node->bone->interpolate(animation->mName.C_Str(), animation_time);
+				node_transformation = node->bone->local_transformation;
+			}
+		}
+		else
+		{
+			node_transformation = node->bone->local_transformation;
 		}
 	}
 
 	//glm::mat4 global_transformation = parent_transform * node_transformation;
-	node->global_transformation = parent_transform * node->ik_transformation * node_transformation;
-	node->ik_transformation = VQS();
+	node->global_transformation = parent_transform * node_transformation;
+	//node->ik_transformation = VQS();
 
 	if (node->bone != nullptr)
 	{
@@ -388,7 +313,6 @@ void skinned_mesh::read_node_hierarchy(float animation_time, assimp_node* node, 
 		read_node_hierarchy(animation_time, node->children[i], node->global_transformation, ik_update);
 	}
 }
-
 
 void free_assimp_node(assimp_node* node)
 {
@@ -505,5 +429,21 @@ void skinned_mesh::set_inverse_kinematic_transformation(const i32 ik_depth)
 	}
 
 
+}
+
+void skinned_mesh::ik_solve()
+{
+	const std::vector<assimp_node*>& route = route_to_ee[selected_ee_idx];
+
+	VQS global_transformation = VQS();
+	for (const auto& node : route) {
+		if (node->bone)
+		{
+			global_transformation = global_transformation * node->bone->local_transformation;
+			bone_transforms[node->bone->index] = (global_inverse_transform * global_transformation * node->bone->offset).to_matrix();
+		}
+	}
+
+	vulkan_buffer_upload(context, &transform_buffer, bone_transforms.data(), transform_buffer.size);
 }
 

@@ -54,6 +54,8 @@ void path_build(path_builder* out_path_builder);
 glm::mat4 path_get_along(f32 u, path_builder* path, vulkan_render_object* object);
 //glm::mat4 path_get_rotation_matrix(const glm::vec3& p, f32 u, path_builder* path);
 
+glm::mat4 path_line_get_along(f32 dt, const glm::vec3& destination, vulkan_render_object* object);
+
 void path_update(f32 u, path_builder* path);
 
 /*

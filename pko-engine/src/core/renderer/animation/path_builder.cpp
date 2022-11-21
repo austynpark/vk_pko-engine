@@ -317,6 +317,27 @@ glm::mat4 path_get_along(f32 dt, path_builder* path, vulkan_render_object* objec
 	return object->get_transform_matrix() * euler_mat;
 }
 
+glm::mat4 path_line_get_along(f32 dt ,const glm::vec3& destination, vulkan_render_object* object)
+{
+	glm::vec3 roll = glm::normalize(destination - object->position);
+	glm::vec3 pitch = glm::cross(glm::vec3(0, 1, 0), roll);
+	glm::vec3 yaw = glm::normalize(glm::cross(roll, pitch));
+	
+	glm::mat4 euler_mat(1.0f);
+	euler_mat[0] = glm::vec4(pitch, 0);
+	euler_mat[1] = glm::vec4(yaw, 0);
+	euler_mat[2] = glm::vec4(roll, 0);
+
+	/*
+	std::cout << "x: " << result.x << " ";
+	std::cout << "y: " << result.y << " ";
+	std::cout << "z: " << result.z << std::endl;
+	*/
+
+	object->position += roll * dt * 5.0f;
+	return object->get_transform_matrix() * euler_mat;
+}
+
 void path_update(f32 dt, path_builder* path)
 {
 	path->frame_sum += (dt * 0.1f);

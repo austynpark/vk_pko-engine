@@ -61,6 +61,7 @@ protected:
 
 	std::unordered_map<const char*, std::unique_ptr<skinned_mesh>> object_manager;
 	std::unique_ptr<vulkan_render_object> test_object;
+	std::unique_ptr<vulkan_render_object> point_indicator;
 	
 	//TODO: might need texture manager
 

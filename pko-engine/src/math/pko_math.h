@@ -186,6 +186,20 @@ namespace  pko_math {
 		return result;
 	}
 
+	inline quat normalize(const quat& q) {
+		f32 len = q.length();
+		quat result = q;
+
+		if (abs(len - 1.0f) > 0.001f) {
+			f32 len_inv = 1 / len;
+
+			__m128 simd_s = _mm_broadcast_ss((const f32*)&len_inv);
+			result.data = _mm_mul_ps(result.data, simd_s);
+		}
+		
+		return result;
+	}
+
 	inline quat quat_inverse(const quat& q) {
 		__m128 xmm = _mm_mul_ps(q.data, q.data);
 		xmm = _mm_hadd_ps(xmm, xmm);
@@ -218,9 +232,11 @@ namespace  pko_math {
 		return out_matrix;
 	}
 
+	/*
 	inline vec3 rotate(const quat& q, const vec3& v) {
 		return quat_mul_vec3(q, v);
 	}
+	*/
 
 	inline vec4 rotate(const quat& q, const vec4& v) {
 		return quat_mul_vec4(q, v);
@@ -243,6 +259,14 @@ namespace  pko_math {
 		);
 	}
 
+	
+	inline vec3 rotate(const quat& q, const vec3& point) {
+		quat q_norm = normalize(q);
+		quat result = quat_mul(quat_mul(q_norm, quat(point, 0)), quat_inverse(q_norm));
+
+		return vec3(result.x, result.y, result.z);
+	}
+	
 // Interpolation functions
 
 	inline quat lerp(const quat& x, const quat& y, f32 a) {
@@ -320,7 +344,7 @@ namespace  pko_math {
 
 		return glm::transpose(glm::make_mat4(&mat.a1));
 	}
-
+	
 }
 
 

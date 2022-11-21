@@ -400,7 +400,10 @@ void vulkan_renderer::shutdown()
     vulkan_memory_allocator_destroy(&context);
     vulkan_device_destroy(&context, &context.device_context);
     vkDestroySurfaceKHR(context.instance, context.surface, context.allocator);
+#ifdef _DEBUG
     vkDestroyDebugUtilsMessengerEXT(context.instance, context.debug_messenger, context.allocator);
+#endif // _DEBUG
+
     vkDestroyInstance(context.instance, context.allocator);
 }
 
@@ -529,6 +532,7 @@ b8 vulkan_renderer::create_instance()
 
 }
 
+#ifdef _DEBUG
 void vulkan_renderer::create_debug_util_message()
 {
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{ VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT };
@@ -541,6 +545,9 @@ void vulkan_renderer::create_debug_util_message()
 
     VK_CHECK(vkCreateDebugUtilsMessengerEXT(context.instance, &debugCreateInfo, nullptr, &context.debug_messenger));
 }
+
+#endif // _DEBUG
+
 
 b8 vulkan_renderer::create_surface()
 {

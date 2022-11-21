@@ -12,6 +12,11 @@
 #include <glm/gtc/type_ptr.hpp> 
 #include <iostream>
 
+void math_test()
+{
+
+}
+
 b8 default_scene::init(vulkan_context* api_context)
 {
     vulkan_scene::init(api_context);
@@ -172,6 +177,11 @@ b8 default_scene::draw()
     vkCmdPushConstants(command_buffer, non_animation_shader->pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(model_constant), &model_constant);
     test_object->draw(command_buffer);
 
+    model_constant.model = point_indicator->get_transform_matrix();
+    vkCmdPushConstants(command_buffer, non_animation_shader->pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(model_constant), &model_constant);
+    point_indicator->draw(command_buffer);
+
+
     if (!single_model_draw_mode) {
         for (const auto& obj : object_manager) {
             obj.second->update(delta_time, false);
@@ -219,6 +229,7 @@ b8 default_scene::draw()
             glm::mat4 model;
             glm::mat3 normal_matrix = glm::transpose(glm::inverse(model));
 
+            // Project 2 (Animating along the continuous bezier curve)
             if (animate_along_path) {
                 if (use_ease_inout_path) {
                     model = path_get_along(delta_time, &path_ease_inout, obj.second.get());
@@ -231,21 +242,34 @@ b8 default_scene::draw()
             model_constant.model = model;
             model_constant.normal_matrix = normal_matrix;
 
+			glm::vec3 path_dest(destination_point.x, 0, destination_point.z);
+            // Project 3
             if (use_inverse_kinematic)
             {
                 if (ik_destination_reachable)
                 {
-                    b8 result = ik_ccd_get_angles(obj.second->get_end_effector(), destination_point, model, ik_depth);
+                    b8 result = ik_ccd_get_angles(obj.second.get(), destination_point, model, ik_depth);
                     obj.second->update(delta_time, true);
-                    if (!result)
-                    {
-                        std::cout << "";
-                    }
                 }
                 else
                 {
+                    if (obj.second->selected_anim_index != 14)
+                    {
+                        obj.second->selected_anim_index = 14;
+                        obj.second->set_animation();
+                    }
 
+					obj.second->update(delta_time, false);
+					model_constant.model = path_line_get_along(delta_time, path_dest, obj.second.get());
+                   
                 }
+
+			   if (glm::distance(obj.second->position, path_dest) <= 1.0f) {
+					ik_destination_reachable = true;
+				}
+				else {
+					ik_destination_reachable = false;
+				}
             }
             else {
                 obj.second->update(delta_time, false);
@@ -306,41 +330,6 @@ b8 default_scene::draw_imgui()
             ImGui::Spacing();
             ImGui::Separator();
 
-            if (ImGui::CollapsingHeader("Path"))
-            {
-                ImGui::Checkbox("Animate along path", &animate_along_path);
-                ImGui::Checkbox("Inverse Kinematic", &use_inverse_kinematic);
-
-                ImGui::SliderInt("IK depth", &ik_depth, 0, 5);
-                ImGui::SliderFloat3("IK destination point", glm::value_ptr(destination_point), -5.0f, 5.0f);
-
-                if (ImGui::BeginCombo("End effector", current_end_effector))
-                {
-                    u32 i = 0;
-                    for (const auto& ee : object_manager["boxguy"]->end_effectors)
-                    {
-                        bool is_selected =
-                            !strcmp(current_end_effector,
-                                ee->name.c_str()); // You can store your selection however you want, outside or inside your objects
-                        if (ImGui::Selectable(ee->name.c_str(), is_selected)) {
-                            current_end_effector = ee->name.c_str();
-                            object_manager["boxguy"]->selected_ee_idx = i;
-                        }
-                        if (is_selected) {
-                            ImGui::SetItemDefaultFocus();   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
-                        }
-
-                        ++i;
-                    }
-
-                    // object combo
-                    ImGui::EndCombo();
-                }
-
-
-                //ImGui::Checkbox("Use Three velocity-time path", &use_ease_inout_path);
-            }
-
             if (!animate_along_path) {
                 if (ImGui::BeginCombo("Object", current_item))
                 {
@@ -389,6 +378,40 @@ b8 default_scene::draw_imgui()
                             ImGui::SliderFloat("Anim speed", &obj->animation_speed, 0.0f, 2.0f);
                             ImGui::Checkbox("Bone Draw", &enable_debug_draw);
                         }
+                    }
+                }
+
+                if (ImGui::CollapsingHeader("Path"))
+                {
+                    //ImGui::Checkbox("Animate along path", &animate_along_path);
+                    ImGui::Checkbox("Inverse Kinematic", &use_inverse_kinematic);
+
+                    ImGui::SliderInt("IK depth", &ik_depth, 0, 2);
+                    ImGui::SliderFloat3("IK destination point", glm::value_ptr(destination_point), -5.0f, 5.0f);
+                    destination_point.y = 0.0f;
+                    point_indicator->position = destination_point;
+
+                    if (ImGui::BeginCombo("End effector", current_end_effector))
+                    {
+                        u32 i = 0;
+                        for (const auto& ee : object_manager["boxguy"]->end_effectors)
+                        {
+                            bool is_selected =
+                                !strcmp(current_end_effector,
+                                    ee->name.c_str()); // You can store your selection however you want, outside or inside your objects
+                            if (ImGui::Selectable(ee->name.c_str(), is_selected)) {
+                                current_end_effector = ee->name.c_str();
+                                object_manager["boxguy"]->selected_ee_idx = i;
+                            }
+                            if (is_selected) {
+                                ImGui::SetItemDefaultFocus();   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+                            }
+
+                            ++i;
+                        }
+
+                        // object combo
+                        ImGui::EndCombo();
                     }
                 }
             }

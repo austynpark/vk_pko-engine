@@ -40,6 +40,7 @@ public:
 
 	std::vector<skeleton_node*> m_bone_info;
 	std::vector<assimp_node*> end_effectors;
+	std::vector<std::vector<assimp_node*>> route_to_ee;
 	u32 selected_ee_idx = 0;
 
 	//store bone id
@@ -57,6 +58,7 @@ public:
 	void set_animation();
 	const assimp_node* get_end_effector() const;
 	void set_inverse_kinematic_transformation(const i32 ik_depth);
+	void ik_solve();
 
 	const aiScene* scene;
 	aiAnimation* animation;
@@ -65,24 +67,22 @@ public:
 	uint32_t selected_anim_index = 0;
 
 	assimp_node* assimp_node_root;
+	VQS global_inverse_transform;
+
 private:
 	Assimp::Importer importer;
 	f32 running_time = 0.0f;
 
-	VQS global_inverse_transform;
 	void load_bones(aiMesh* mesh, u32 vertex_offset);
 
 	// Find animation for a given node
-	const aiNodeAnim* find_node_anim(const aiAnimation* animation, const std::string node_name);
-
-	VQS interpolate(f32 time, const aiNodeAnim* node_anim);
+	// const aiNodeAnim* find_node_anim(const aiAnimation* animation, const std::string node_name);
 
 	// Get node hierarchy for current animation time
 	void read_node_hierarchy(float animation_time, assimp_node* node, const VQS& parent_transform, b8 ik_update);
 
 	// iterate through the bones and set vertex for the bone drawing
-	void process_bone_vertex(const aiNode* ai_node, assimp_node* node);
-
+	void process_bone_vertex(const aiNode* ai_node, assimp_node* node, std::vector<assimp_node*>& route);
 };
 
 #endif // !VULKAN_SKINNED_MESH

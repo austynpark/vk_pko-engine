@@ -42,7 +42,7 @@ private:
 	b8 animate_along_path = false;
 	b8 use_inverse_kinematic = false;
 	b8 ik_destination_reachable = true; // test
-	i32 ik_depth = 3;
+	i32 ik_depth = 2;
 
 	glm::vec3 destination_point; // IK destination
 

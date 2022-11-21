@@ -5,6 +5,7 @@ layout (location = 2) in vec2 uv;
 
 layout (location = 0) out VS_OUT {
     vec2 uv;
+    vec3 norm;
 } vs_out;
 
 layout(push_constant) uniform constants {
@@ -20,6 +21,7 @@ layout (set = 0, binding = 0) uniform transforms {
 void main()
 {
     vs_out.uv = uv;
+    vs_out.norm = normal;
     gl_Position = global_ubo.projection * global_ubo.view * object_ubo.model * vec4(position, 1.0);
 }
 

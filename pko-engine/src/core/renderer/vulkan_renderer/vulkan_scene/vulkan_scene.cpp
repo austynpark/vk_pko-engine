@@ -46,24 +46,29 @@ b8 vulkan_scene::init(vulkan_context* api_context)
 
     std::cout << "framebuffers created" << std::endl;
 
-    object_manager["boblampclean"] = std::make_unique<skinned_mesh>(context, "model/boblampclean.md5mesh");
-    object_manager["boblampclean"]->position = glm::vec3(-1.7f, -1.5f, 0.0f);
-    object_manager["boblampclean"]->scale = glm::vec3(0.01f);
-    object_manager["boblampclean"]->rotation = glm::vec3(-90.0f, 0.0f, 0.0f);
+    //object_manager["boblampclean"] = std::make_unique<skinned_mesh>(context, "model/boblampclean.md5mesh");
+    //object_manager["boblampclean"]->position = glm::vec3(-1.7f, -1.5f, 0.0f);
+    //object_manager["boblampclean"]->scale = glm::vec3(0.01f);
+    //object_manager["boblampclean"]->rotation = glm::vec3(-90.0f, 0.0f, 0.0f);
 
     object_manager["boxguy"] = std::make_unique<skinned_mesh>(context, "model/boxguy.fbx");
-    object_manager["boxguy"]->position = glm::vec3(0, 0.0f, 0.0f);
+    object_manager["boxguy"]->position = glm::vec3(0.0f, 0.0f, 0.0f);
     object_manager["boxguy"]->scale = glm::vec3(0.01f);
     object_manager["boxguy"]->rotation = glm::vec3(0.0f, 0.0f, 0.0f);
 
-    object_manager["tad"] = std::make_unique<skinned_mesh>(context, "model/FBX 2013/Tad.fbx");
-	object_manager["tad"]->position = glm::vec3(2.5, -1.5f, -2.0f);
-    object_manager["tad"]->scale = glm::vec3(0.5f);
-    object_manager["tad"]->rotation = glm::vec3(130.0f, -30.0f, 120.0f);
+    //object_manager["tad"] = std::make_unique<skinned_mesh>(context, "model/FBX 2013/Tad.fbx");
+	//object_manager["tad"]->position = glm::vec3(0.0f, 0.0f, 0.0f);
+    //object_manager["tad"]->scale = glm::vec3(0.5f);
+    //object_manager["tad"]->rotation = glm::vec3(0.0f, 0.0f, 0.0f);
 
     test_object = std::make_unique<vulkan_render_object>(context, "model/plane.obj");
     test_object->position = glm::vec3(0, 0, 0);
     test_object->scale = glm::vec3(10, 10, 10);
+
+	point_indicator = std::make_unique<vulkan_render_object>(context, "model/bulb.obj");
+    point_indicator->position = glm::vec3(0, 0, 0);
+    point_indicator->scale = glm::vec3(1.0f);
+
 
     //object_manager["giant"] = std::make_unique<skinned_mesh>(context, "model/giant.fbx");
     //object_manager["sponza"] = std::make_unique<vulkan_render_object>(context, "model/sponza.obj");

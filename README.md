@@ -24,6 +24,7 @@ path: src\math
 path: src\core\renderer\animation (\skeleton_node / VQS)
 path: src\core\renderer\vulkan_renderer\vulkan_skinned_mesh
 path: src\core\renderer\animation\path_builder (path, curve building functions)
+path: src\core\renderer\animation\inverse_kinematic (inverse kinematic with CCD)
 
 ### Algorithm
 
@@ -35,6 +36,12 @@ Project2:
 	5. get position with the 'u', and calculate 'center of interest' to get rotation matrix
 	6. based on the position and rotation matrix, build the transform matrix which would eventually move the object along the path
 
+Project3:
+	1. check if destination point is reachable in current animation state
+	2. if not, play the walk animation and move to the point where the bone can be stretched to reach the point
+	3. with the choosen end effector, iterate the joint and get the local rotation to reach the point
+	4. update local transformation of every joint
+	5. update final transformation by reading node hierarchy
 
 ### Machine Tested
 - OS : Windows 10 x64

@@ -6,6 +6,7 @@
 
 #include <vector>
 #include <unordered_map>
+#include <string>
 
 struct keyframe_pos {
 	pko_math::vec3 position;
@@ -27,7 +28,18 @@ struct keyframe_vqs {
 	f32 time;
 };
 
-class aiNodeAnim;
+struct animation_keyframes
+{
+	std::vector<keyframe_pos> pos_frame;
+	std::vector<keyframe_rot> rot_frame;
+	std::vector<keyframe_scale> scale_frame;
+
+	u32 pos_count;
+	u32 rot_count;
+	u32 scale_count;
+};
+
+struct aiNodeAnim;
 
 struct skeleton_node {
 
@@ -43,34 +55,37 @@ struct skeleton_node {
 	// compute on-fly and just store the step value here
 
 	skeleton_node(u32 bone_index);
-	void add_animation(std::string animation_name, const aiNodeAnim* node_anim);
+	void add_animation(const std::string& animation_name, const aiNodeAnim* node_anim);
+	void interpolate(const std::string& animation_name, f32 time);
+	void interpolate(const VQS& vqs, f32 time); // interpolates local_transformation;
+
+	b8 is_animation_exist(const std::string& animation_name);
 	//void set_parent_node(skeleton_node* const parent);
 
 	aiMatrix4x4 offset_mat;
 	VQS offset;
 	VQS final_transformation;
+	VQS local_transformation;
 
-	//TODO: support multiple animation
-	std::vector<keyframe_vqs> vqs_frame;
+	// each element of 'animation_keyframes' stores keyframes of position, rotation, scale of a animation frame
+	std::unordered_map<std::string, animation_keyframes> anim_frames;
 
-	std::vector<keyframe_pos> pos_frame;
-	std::vector<keyframe_rot> rot_frame;
-	std::vector<keyframe_scale> scale_frame;
-
-	//bone_index
+	//bone_index (skinned_mesh->m_bone_info[index])
 	u32 index;
 
 	// bone length (local length)
 	u32 length = 0; // length to parent joint
+
+	//bone name
+	std::string name;
 };
 
 // convert aiNode to custom struct (convert data to VQS)
 struct assimp_node { // actual joint
 
 	std::string name;
-	VQS transformation; // local_node transformation
+	VQS bind_pose_transformation; // local_node transformation (bind pose transformation)
 	VQS global_transformation; // parent_transform * node_transform
-	VQS ik_transformation;
 
 	std::vector<assimp_node*> children;
 	u32 childern_num = 0;
