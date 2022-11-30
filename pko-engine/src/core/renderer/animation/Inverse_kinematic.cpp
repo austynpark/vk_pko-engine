@@ -18,6 +18,8 @@ VQS get_global_transformation(const std::vector<assimp_node*>& route, const assi
 
         if (route[i]->bone != nullptr)
             mat = mat * route[i]->bone->local_transformation.to_matrix();
+        else
+            mat = mat * route[i]->bind_pose_transformation.to_matrix();
         
         if (route[i]->name == node->name)
             break;
@@ -49,7 +51,7 @@ b8 ik_ccd_get_angles(const skinned_mesh* mesh, const glm::vec3& world_Pd, const 
      do {
 		Pv = Pc;
         
-		assimp_node* last_joint = nullptr;
+		assimp_node* last_joint = mesh->end_effectors[mesh->selected_ee_idx];
 		const assimp_node* ee = end_effector;
 		assimp_node* joint = end_effector->parent;
 
@@ -67,7 +69,7 @@ b8 ik_ccd_get_angles(const skinned_mesh* mesh, const glm::vec3& world_Pd, const 
                 continue;
             }
 
-			VQS vqs_ee_to_world = vqs_model_to_world * mesh->global_inverse_transform * end_effector->global_transformation;
+			VQS vqs_ee_to_world = vqs_model_to_world * mesh->global_inverse_transform * get_global_transformation(mesh->route_to_ee[mesh->selected_ee_idx], end_effector);
 
 			VQS vqs_bone_to_world = vqs_model_to_world * mesh->global_inverse_transform * joint->global_transformation;
 			VQS vqs_world_to_bone = (vqs_bone_to_world).inverse();
@@ -97,7 +99,6 @@ b8 ik_ccd_get_angles(const skinned_mesh* mesh, const glm::vec3& world_Pd, const 
                 if (glm::all(glm::isnan(Pci)) || glm::all(glm::isnan(Pdi))) {
 					last_joint = joint;
 					joint = joint->parent;
-
                     //std::cout << joint->bone->name <<" Pci Pdi NAN ANANANANA!!" << std::endl;
                     continue;
                 }

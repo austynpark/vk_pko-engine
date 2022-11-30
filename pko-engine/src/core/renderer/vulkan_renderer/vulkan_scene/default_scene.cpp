@@ -386,7 +386,7 @@ b8 default_scene::draw_imgui()
                     //ImGui::Checkbox("Animate along path", &animate_along_path);
                     ImGui::Checkbox("Inverse Kinematic", &use_inverse_kinematic);
 
-                    ImGui::SliderInt("IK depth", &ik_depth, 0, 2);
+                    ImGui::SliderInt("IK depth", &ik_depth, 0, 3);
                     ImGui::SliderFloat3("IK destination point", glm::value_ptr(destination_point), -5.0f, 5.0f);
                     destination_point.y = 0.0f;
                     point_indicator->position = destination_point;
