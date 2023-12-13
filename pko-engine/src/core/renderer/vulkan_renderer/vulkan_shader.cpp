@@ -1,3 +1,5 @@
+#include "render_type.h"
+
 #include "vulkan_shader.h"
 #include "vulkan_buffer.h"
 #include "vulkan_pipeline.h"
@@ -12,25 +14,96 @@
 #include <fstream>
 #include <sstream>
 
+//TODO: pass shader folder path at init (on start of engine)
+// default shader path
+std::string shaderFolderPath = "shader/";
+
 VkDescriptorPool vulkan_descriptor_pool_create(vulkan_context* context);
 VkDescriptorPool get_descriptor_pool(vulkan_context* context ,std::vector<VkDescriptorPool>& pools);
 //b8 alloc_descriptor_set(vulkan_context* context ,std::vector<VkDescriptorPool>& pools, VkDescriptorSetLayout* layouts, u32 layout_count);
 
-vulkan_shader::vulkan_shader(vulkan_context* vk_context, vulkan_renderpass* renderpass) : context(vk_context), renderpass(renderpass)
-{
-}
 
-vulkan_shader::~vulkan_shader()
-{
-	shutdown();
-}
 
-vulkan_shader& vulkan_shader::add_stage(const char* shader_name, VkShaderStageFlagBits stage_flag)
+void vulkan_shader_load(vulkan_context* context, ShaderLoadDesc* loadDesc, VulkanShader* shader)
 {
-	stage_infos.push_back({ shader_name, stage_flag });
-	return *this;
-}
+	if (loadDesc == nullptr)
+		return;
 
+	// find shader exists on the shader folder
+	// load binary
+	for (i32 i = 0; i < ShaderStage::MAX_SHADER_STAGE; ++i)
+	{
+		if (loadDesc->pFileName[i] == nullptr || loadDesc->pEntryPointName[i] == nullptr)
+			continue;
+
+		std::string shaderPath = shaderFolderPath + loadDesc->pFileName[i];
+		std::string shaderCode;
+		std::vector<u32> shaderBinary;
+		read_file(shaderCode, shaderPath);
+
+		if (!SpirvHelper::GLSLtoSPV(GetShaderStageVulkan((ShaderStage)i), shaderCode.c_str(), shaderBinary)) {
+			std::cout << "Failed to convert GLSL to Spriv\n";
+			return;
+		}
+
+		VkShaderModuleCreateInfo shaderModuleCreateInfo{ VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
+		shaderModuleCreateInfo.codeSize = shaderBinary.size() * sizeof(u32);
+		shaderModuleCreateInfo.pCode = shaderBinary.data();
+
+		VK_CHECK(vkCreateShaderModule(context->device_context.handle, &shaderModuleCreateInfo, nullptr, &shader->shaderModule[i]));
+
+	}
+
+
+	for (auto& s : stage_infos) {
+
+
+
+		SpvReflectShaderModule spvmodule;
+		SpvReflectResult result = spvReflectCreateShaderModule(s.binary_code.size() * sizeof(uint32_t), s.binary_code.data(), &spvmodule);
+
+		uint32_t count = 0;
+		result = spvReflectEnumerateDescriptorSets(&spvmodule, &count, NULL);
+		assert(result == SPV_REFLECT_RESULT_SUCCESS);
+
+		std::vector<SpvReflectDescriptorSet*> sets(count);
+		result = spvReflectEnumerateDescriptorSets(&spvmodule, &count, sets.data());
+		assert(result == SPV_REFLECT_RESULT_SUCCESS);
+
+		for (size_t i_set = 0; i_set < sets.size(); ++i_set) {
+
+			const SpvReflectDescriptorSet& refl_set = *(sets[i_set]);
+
+			descriptor_set_layout_data layout = {};
+
+			layout.bindings.resize(refl_set.binding_count);
+			for (uint32_t i_binding = 0; i_binding < refl_set.binding_count; ++i_binding) {
+				const SpvReflectDescriptorBinding& refl_binding = *(refl_set.bindings[i_binding]);
+				VkDescriptorSetLayoutBinding& layout_binding = layout.bindings[i_binding];
+				layout_binding.binding = refl_binding.binding;
+				layout_binding.descriptorType = static_cast<VkDescriptorType>(refl_binding.descriptor_type);
+				layout_binding.descriptorCount = 1;
+
+				for (uint32_t i_dim = 0; i_dim < refl_binding.array.dims_count; ++i_dim) {
+					layout_binding.descriptorCount *= refl_binding.array.dims[i_dim];
+				}
+				layout_binding.stageFlags = static_cast<VkShaderStageFlagBits>(spvmodule.shader_stage);
+
+				reflected_binding reflected;
+				reflected.binding = layout_binding.binding;
+				reflected.set = refl_set.set;
+				reflected.type = layout_binding.descriptorType;
+
+				bindings[refl_binding.name] = reflected;
+			}
+			layout.set_number = refl_set.set;
+			layout.create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+			layout.create_info.bindingCount = refl_set.binding_count;
+			layout.create_info.pBindings = layout.bindings.data();
+
+			set_layouts_data.push_back(layout);
+		}
+}
 
 b8 vulkan_shader::init()
 {

@@ -25,8 +25,6 @@
     <ClInclude Include="src\core\material.h" />
     <ClInclude Include="src\core\input.h" />
     <ClInclude Include="src\core\renderer\camera.h" />
-    <ClInclude Include="src\core\renderer\renderer.h" />
-    <ClInclude Include="src\core\renderer\renderer_frontend.h" />
     <ClInclude Include="src\core\renderer\SPIRV-Reflect\include\spirv\unified1\spirv.h" />
     <ClInclude Include="src\core\renderer\SPIRV-Reflect\spirv_reflect.h" />
     <ClInclude Include="src\core\renderer\spirv_helper.h" />
@@ -43,7 +41,6 @@
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_renderer.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_renderpass.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_scene\default_scene.h" />
-    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_scene\vulkan_scene.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_shader.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_swapchain.h" />
     <ClInclude Include="src\defines.h" />
@@ -91,11 +88,9 @@
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">pch.h</PrecompiledHeaderFile>
     </ClCompile>
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_renderpass.cpp" />
-    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_scene\default_scene.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_scene\vulkan_scene.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_shader.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_swapchain.cpp" />
-    <ClCompile Include="src\core\renderer\renderer_frontend.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\platform\platform_win32.cpp" />
     <ClCompile Include="vendor\imgui\backends\imgui_impl_vulkan.cpp" />

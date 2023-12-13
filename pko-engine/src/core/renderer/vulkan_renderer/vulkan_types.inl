@@ -45,11 +45,6 @@ struct vulkan_device {
 	VkFormat depth_format;
 };
 
-struct vulkan_command {
-	VkCommandPool pool;
-	VkCommandBuffer buffer;
-};
-
 struct vulkan_image {
 	VkImage handle;
 	VkImageView view;
@@ -99,6 +94,12 @@ struct vulkan_allocated_buffer {
 struct vulkan_pipeline {
 	VkPipeline handle;
 	VkPipelineLayout layout;
+};
+
+struct vulkan_command {
+	VkCommandPool pool;
+	u32 cmdCount;
+	VkCommandBuffer buffer[MAX_FRAME];
 };
 
 struct vulkan_uniform_buffer_data {
@@ -204,13 +205,5 @@ struct vulkan_context {
 	vulkan_swapchain swapchain;
 	vulkan_renderpass main_renderpass;
 
-	std::vector<VkSemaphore> ready_to_render_semaphores;
-	std::vector<VkSemaphore> image_available_semaphores;
-	std::vector<VkFence> render_fences;
 	std::vector<descriptor_allocator> dynamic_descriptor_allocators;
-
-	vulkan_global_data global_data;
-
-	//TODO: maybe put in scene.h? (not sure)
-	VkDescriptorSetLayout object_set_layout;
 };

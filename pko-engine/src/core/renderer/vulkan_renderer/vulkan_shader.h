@@ -2,17 +2,12 @@
 #define VULKAN_SHADER_H
 
 #include "vulkan_types.inl"
+#include "render_type.h"
 
 #include <memory>
 #include <string>
 #include <array>
 #include <unordered_map>
-
-//b8 vulkan_shader_module_create(vulkan_context* context, VkShaderModule* out_shader_module, const char* path);
-
-// initialize vulkan global descriptor set
-b8 vulkan_global_data_initialize(vulkan_context* context, u32 buffer_size);
-void vulkan_global_data_destroy(vulkan_context* context);
 
 struct stage_info {
 	const char* shader_name;
@@ -27,6 +22,27 @@ struct reflected_binding {
 	VkDescriptorType type;
 };
 
+
+inline VkShaderStageFlagBits GetShaderStageVulkan(ShaderStage shaderStage)
+{
+	if (shaderStage == VERTEX_STAGE)
+		return VK_SHADER_STAGE_VERTEX_BIT;
+	else if (shaderStage == FRAGMENT_STAGE)
+		return VK_SHADER_STAGE_FRAGMENT_BIT;
+	else if(shaderStage == COMPUTE_STAGE)
+		return VK_SHADER_STAGE_COMPUTE_BIT;
+
+	return VK_SHADER_STAGE_ALL;
+}
+
+void vulkan_shader_load(ShaderLoadDesc* loadDesc);
+
+struct VulkanShader {
+	const char* name[MAX_SHADER_STAGE];
+	VkShaderModule shaderModule[MAX_SHADER_STAGE];
+	VkShaderStageFlagBits stageFlagBits[MAX_SHADER_STAGE];
+	std::vector<u32> binaryCode[MAX_SHADER_STAGE];
+};
 
 class vulkan_shader
 {

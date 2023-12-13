@@ -16,34 +16,40 @@ void vulkan_command_pool_destroy(vulkan_context* context, vulkan_command* comman
 	vkDestroyCommandPool(context->device_context.handle, command->pool, context->allocator);
 }
 
-void vulkan_command_buffer_allocate(vulkan_context* context, vulkan_command* command, b8 is_primary)
+void vulkan_command_buffer_allocate(vulkan_context* context, vulkan_command* command, b8 is_primary, u32 command_count)
 {
-	//TODO: multiple command buffer
-	VkCommandBufferAllocateInfo alloc_info{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
-	alloc_info.commandPool = command->pool;
-	alloc_info.commandBufferCount = 1;
-	alloc_info.level = is_primary ? VK_COMMAND_BUFFER_LEVEL_PRIMARY : VK_COMMAND_BUFFER_LEVEL_SECONDARY;
+	command->cmdCount = command_count;
 
-	VK_CHECK(vkAllocateCommandBuffers(context->device_context.handle, &alloc_info, &command->buffer));
+	for (u32 cmd = 0; cmd < command_count; ++cmd)
+	{
+		VkCommandBufferAllocateInfo alloc_info{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
+		alloc_info.commandPool = command->pool;
+		alloc_info.commandBufferCount = 1;
+		alloc_info.level = is_primary ? VK_COMMAND_BUFFER_LEVEL_PRIMARY : VK_COMMAND_BUFFER_LEVEL_SECONDARY;
+
+		VK_CHECK(vkAllocateCommandBuffers(context->device_context.handle, &alloc_info, &command->buffer[cmd]));
+	}
 }
 
-void vulkan_command_buffer_begin(vulkan_command* command, VkCommandBufferUsageFlags buffer_usage)
+void vulkan_command_buffer_begin(VkCommandBuffer cmdBuff, b8 oneTimeSubmit)
 {
-	if (command == nullptr)
+	if (cmdBuff == VK_NULL_HANDLE)
 		return;
 
+	//TODO: check cmdBuff state and call vkResetCommandBuffer if needed
+
 	VkCommandBufferBeginInfo begin_info{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-	begin_info.flags = buffer_usage;
+	begin_info.flags = oneTimeSubmit ? VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT : VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
 	//TODO: for secondary command buffer
 	begin_info.pInheritanceInfo = nullptr;
 
-	VK_CHECK(vkBeginCommandBuffer(command->buffer, &begin_info));
+	VK_CHECK(vkBeginCommandBuffer(cmdBuff, &begin_info));
 }
 
-void vulkan_command_buffer_end(vulkan_command* command)
+void vulkan_command_buffer_end(VkCommandBuffer cmdBuff)
 {
-	if (command == nullptr)
+	if (cmdBuff == VK_NULL_HANDLE)
 		return;
 
-	VK_CHECK(vkEndCommandBuffer(command->buffer));
+	VK_CHECK(vkEndCommandBuffer(cmdBuff));
 }

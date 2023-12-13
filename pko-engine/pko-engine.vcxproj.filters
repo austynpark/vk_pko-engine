@@ -13,6 +13,12 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Source Files\ThirdParty">
+      <UniqueIdentifier>{9860fcf2-4f82-4836-b04f-3f8fd108fe33}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\ThirdParty\imgui">
+      <UniqueIdentifier>{28673937-9a0e-47d6-9581-86df5090c554}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="vendor\vulkan\vk_platform.h">
@@ -28,9 +34,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_renderer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\core\renderer\renderer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_functions.h">
@@ -69,9 +72,6 @@
     <ClInclude Include="vendor\tiny_obj_loader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\core\renderer\renderer_frontend.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_image.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -91,9 +91,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\core\material.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_scene\vulkan_scene.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_descriptor_builder.h">
@@ -182,9 +179,6 @@
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_memory_allocate.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\renderer\renderer_frontend.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_image.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -209,8 +203,6 @@
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_descriptor_builder.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_scene\default_scene.cpp">
-    </ClCompile>
     <ClCompile Include="src\core\input.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -221,25 +213,25 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="vendor\imgui\imgui.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\ThirdParty\imgui</Filter>
     </ClCompile>
     <ClCompile Include="vendor\imgui\imgui_demo.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\ThirdParty\imgui</Filter>
     </ClCompile>
     <ClCompile Include="vendor\imgui\imgui_draw.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="vendor\imgui\imgui_tables.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="vendor\imgui\imgui_widgets.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\ThirdParty\imgui</Filter>
     </ClCompile>
     <ClCompile Include="vendor\imgui\backends\imgui_impl_vulkan.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\ThirdParty\imgui</Filter>
     </ClCompile>
     <ClCompile Include="vendor\imgui\backends\imgui_impl_win32.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\ThirdParty\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="vendor\imgui\imgui_tables.cpp">
+      <Filter>Source Files\ThirdParty\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="vendor\imgui\imgui_widgets.cpp">
+      <Filter>Source Files\ThirdParty\imgui</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
