@@ -3,10 +3,10 @@
 
 #include "defines.h"
 
-struct vulkan_context;
+struct RenderContext;
 
-void vulkan_memory_allocator_create(vulkan_context* context);
-void vulkan_memory_allocator_destroy(vulkan_context* context);
+void vulkan_memory_allocator_create(RenderContext* context);
+void vulkan_memory_allocator_destroy(RenderContext* context);
 
 
 #endif // !VULKAN_MEMORY_ALLOCATE_H

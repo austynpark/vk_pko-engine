@@ -3031,7 +3031,7 @@ typedef struct VkPipelineInputAssemblyStateCreateInfo {
     const void*                                pNext;
     VkPipelineInputAssemblyStateCreateFlags    flags;
     VkPrimitiveTopology                        topology;
-    VkBool32                                   primitiveRestartEnable;
+    VkBool32                                   primitiveRestartzEnable;
 } VkPipelineInputAssemblyStateCreateInfo;
 
 typedef struct VkPipelineTessellationStateCreateInfo {

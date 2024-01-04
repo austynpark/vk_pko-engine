@@ -13,6 +13,6 @@ struct file_handle {
 bool pko_file_read(const char* file_path, file_handle* file);
 void pko_file_close(file_handle* file);
 
-void read_file(std::string& buffer, const std::string& filename);
+void read_file(char* out_buffer, const std::string& filename);
 
 #endif // !FILE_HANDLE_H

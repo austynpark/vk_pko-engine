@@ -2,7 +2,7 @@
 
 #include "vulkan_memory_allocate.h"
 
-void vulkan_memory_allocator_create(vulkan_context* context)
+void vulkan_memory_allocator_create(RenderContext* context)
 {
 	VmaVulkanFunctions vulkan_functions = {};
 	vulkan_functions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
@@ -16,7 +16,7 @@ void vulkan_memory_allocator_create(vulkan_context* context)
 	VK_CHECK(vmaCreateAllocator(&vma_allocator_create_info, &context->vma_allocator));
 }
 
-void vulkan_memory_allocator_destroy(vulkan_context* context)
+void vulkan_memory_allocator_destroy(RenderContext* context)
 {
 	vmaDestroyAllocator(context->vma_allocator);
 }

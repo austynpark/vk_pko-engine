@@ -29,22 +29,17 @@
     <ClInclude Include="src\core\renderer\SPIRV-Reflect\spirv_reflect.h" />
     <ClInclude Include="src\core\renderer\spirv_helper.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_buffer.h" />
-    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_command_buffer.h" />
-    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_descriptor_builder.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_device.h" />
-    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_framebuffer.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_functions.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_image.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_memory_allocate.h" />
-    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_mesh.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_pipeline.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_renderer.h" />
-    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_renderpass.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_scene\default_scene.h" />
-    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_shader.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_swapchain.h" />
     <ClInclude Include="src\defines.h" />
     <ClInclude Include="src\platform\platform.h" />
+    <ClInclude Include="src\render_type.h" />
     <ClInclude Include="vendor\imgui\backends\imgui_impl_vulkan.h" />
     <ClInclude Include="vendor\imgui\backends\imgui_impl_win32.h" />
     <ClInclude Include="vendor\imgui\imconfig.h" />
@@ -54,6 +49,7 @@
     <ClInclude Include="vendor\imgui\imstb_textedit.h" />
     <ClInclude Include="vendor\imgui\imstb_truetype.h" />
     <ClInclude Include="vendor\stb_image.h" />
+    <ClInclude Include="vendor\tinydds.h" />
     <ClInclude Include="vendor\tiny_obj_loader.h" />
     <ClInclude Include="vendor\vulkan\vk_platform.h" />
     <ClInclude Include="vendor\vulkan\vulkan.h" />
@@ -67,15 +63,10 @@
     <ClCompile Include="src\core\renderer\camera.cpp" />
     <ClCompile Include="src\core\renderer\SPIRV-Reflect\spirv_reflect.c" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_buffer.cpp" />
-    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_command_buffer.cpp" />
-    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_descriptor_allocator.cpp" />
-    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_descriptor_builder.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_device.cpp" />
-    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_framebuffer.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_functions.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_image.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_memory_allocate.cpp" />
-    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_mesh.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_pipeline.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_renderer.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
@@ -87,9 +78,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">pch.h</PrecompiledHeaderFile>
     </ClCompile>
-    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_renderpass.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_scene\vulkan_scene.cpp" />
-    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_shader.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_swapchain.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\platform\platform_win32.cpp" />

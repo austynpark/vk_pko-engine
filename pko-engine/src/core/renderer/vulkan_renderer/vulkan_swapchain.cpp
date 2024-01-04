@@ -8,7 +8,7 @@
 
 //number of images
 
-b8 vulkan_swapchain_create(vulkan_context* context, i32 width, i32 height, vulkan_swapchain* swapchain)
+b8 vulkan_swapchain_create(RenderContext* context, i32 width, i32 height, Swapchain* swapchain)
 {
     VkExtent2D extent{ width, height };
 
@@ -167,7 +167,7 @@ b8 vulkan_swapchain_create(vulkan_context* context, i32 width, i32 height, vulka
 	return true;
 }
 
-b8 vulkan_swapchain_destroy(vulkan_context* context, vulkan_swapchain* swapchain)
+b8 vulkan_swapchain_destroy(RenderContext* context, Swapchain* swapchain)
 {
     if (context->render_fences.at(context->current_frame) != VK_NULL_HANDLE)
         VK_CHECK(vkWaitForFences(context->device_context.handle, 1, &context->render_fences.at(context->current_frame), true, UINT64_MAX));
@@ -185,9 +185,9 @@ b8 vulkan_swapchain_destroy(vulkan_context* context, vulkan_swapchain* swapchain
 	return true;
 }
 
-b8 vulkan_swapchain_recreate(vulkan_context* context, i32 width, i32 height)
+b8 vulkan_swapchain_recreate(RenderContext* context, i32 width, i32 height)
 {
-    vulkan_swapchain out_swapchain{};
+    Swapchain out_swapchain{};
 	
     if (!vulkan_swapchain_create(context, width, height, &out_swapchain))
         return false;
@@ -204,7 +204,7 @@ b8 vulkan_swapchain_recreate(vulkan_context* context, i32 width, i32 height)
 	return true;
 }
 
-void vulkan_swapchain_get_support_info(vulkan_context* context, vulkan_swapchain_support_info* out_support_info)
+void vulkan_swapchain_get_support_info(RenderContext* context, SwapchainSupportInfo* out_support_info)
 {
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context->device_context.physical_device, context->surface, &out_support_info->surface_capabilites);
 
@@ -218,8 +218,8 @@ void vulkan_swapchain_get_support_info(vulkan_context* context, vulkan_swapchain
 }
 
 b8 acquire_next_image_index_swapchain(
-    vulkan_context* context,
-    vulkan_swapchain* swapchain,
+    RenderContext* context,
+    Swapchain* swapchain,
     u64 timeout_ns,
     VkSemaphore image_available_semaphore,
     VkFence fence,
@@ -241,8 +241,8 @@ b8 acquire_next_image_index_swapchain(
 }
 
 b8 present_image_swapchain(
-    vulkan_context* context,
-    vulkan_swapchain* swapchain,
+    RenderContext* context,
+    Swapchain* swapchain,
     VkQueue present_queue,
     VkSemaphore render_complete_semaphore,
     u32 current_image_index

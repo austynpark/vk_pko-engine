@@ -13,9 +13,13 @@ typedef HMODULE vulkan_library;
 typedef struct internal_state {
     HINSTANCE instance;
     HWND      handle;
+    u32 width;
+    u32 height;
 } internal_state;
 
 #endif
+
+static void on_window_resize(u32 width, u32 height);
 
 struct platform_state {
     public:
@@ -30,11 +34,7 @@ struct platform_state {
         // only use for giving time back to the OS for unused update power
         void sleep(u64 ms);
 
-        // Internal state
-        void* state;
-    private:
-        u32 width;
-        u32 height;
+
 };
 
 #endif // !PLATFORM_H

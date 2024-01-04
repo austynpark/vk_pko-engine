@@ -1,5 +1,3 @@
-#include <vector>
-
 #include "core/application.h"
 
 int main() {

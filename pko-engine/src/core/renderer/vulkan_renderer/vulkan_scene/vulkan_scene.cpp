@@ -22,7 +22,7 @@ vulkan_scene::~vulkan_scene()
 {
 }
 
-b8 vulkan_scene::init(vulkan_context* api_context)
+b8 vulkan_scene::init(RenderContext* api_context)
 {
     if (api_context == nullptr) {
         return false;

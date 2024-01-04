@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <fstream>
 
-void read_file(std::string& buffer, const std::string& filename) {
+void read_file(char* out_buffer, const std::string& filename) {
 	std::ifstream file(filename, std::ios::ate);
 
 	if (!file.is_open()) {
@@ -13,12 +13,19 @@ void read_file(std::string& buffer, const std::string& filename) {
 	}
 
 	size_t fileSize = (size_t)file.tellg();
-	buffer.resize(fileSize);
+    out_buffer = new char[fileSize];
 	file.seekg(0);
-	file.read(buffer.data(), fileSize);
+	file.read(out_buffer, fileSize);
 	file.close();
 }
 
+void deallocate_file(char* out_buffer) {
+    if (out_buffer == nullptr)
+        throw std::runtime_error("failed to close file!");
+
+
+
+}
 
 b8 pko_file_read(const char* file_path, file_handle* file)
 {
@@ -31,6 +38,7 @@ b8 pko_file_read(const char* file_path, file_handle* file)
     
     if (file->f == 0) {
         printf("cant open file %s", file_path);
+        return false;
     }
 
 #ifdef _DEBUG

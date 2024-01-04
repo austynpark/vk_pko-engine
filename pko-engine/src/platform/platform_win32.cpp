@@ -5,9 +5,13 @@
 #include "imgui.h"
 #include "backends/imgui_impl_win32.h"
 
+
+
 #if _WIN32
 
 #define SERIES_NAME "pko_window_class"
+
+static internal_state* state = nullptr;
 
 static f64 clock_frequency;
 static LARGE_INTEGER start_time;
@@ -22,20 +26,18 @@ b8 platform_state::init(
     i32 width,
     i32 height) {
 
-    state = malloc(sizeof(internal_state));
-    internal_state* _state = (internal_state*)state;
-
-    _state->instance = GetModuleHandleA(0);
+    state = (internal_state*)malloc(sizeof(internal_state));
+    state->instance = GetModuleHandleA(0);
 
     // Fill out Window Class & register it
     WNDCLASSA wc;
     memset(&wc, 0, sizeof(wc));
     wc.style = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS;
     wc.lpfnWndProc = WndProc; // pointer to window procedure
-    wc.hIcon = LoadIcon(_state->instance, IDI_APPLICATION);
+    wc.hIcon = LoadIcon(state->instance, IDI_APPLICATION);
     wc.cbClsExtra = 0;
     wc.cbWndExtra = 0;
-    wc.hInstance = _state->instance;
+    wc.hInstance = state->instance;
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     wc.hbrBackground = NULL;
     wc.lpszMenuName = NULL;
@@ -78,9 +80,9 @@ b8 platform_state::init(
     window_width += border_rect.right - border_rect.left;
     window_height += border_rect.bottom - border_rect.top;
 
-    _state->handle = CreateWindowExA(window_ex_style, SERIES_NAME, application_name, window_style, window_x, window_y, window_width, window_height, nullptr, nullptr, _state->instance, nullptr);
+    state->handle = CreateWindowExA(window_ex_style, SERIES_NAME, application_name, window_style, window_x, window_y, window_width, window_height, nullptr, nullptr, state->instance, nullptr);
 
-    if (!_state->handle) {
+    if (!state->handle) {
         MessageBoxA(0, "Window creation failed", "Error", MB_ICONEXCLAMATION | MB_OK);
         return false;
     }
@@ -88,7 +90,7 @@ b8 platform_state::init(
     b32 should_activate = 1; //TODO: if the window should not accept input, this should be false;
     i32 show_window_command_flags = should_activate ? SW_SHOW : SW_SHOWNOACTIVATE;
 
-    ShowWindow(_state->handle, show_window_command_flags);
+    ShowWindow(state->handle, show_window_command_flags);
 
     LARGE_INTEGER frequency;
     QueryPerformanceFrequency(&frequency);
@@ -165,6 +167,15 @@ f64 platform_state::get_absolute_time() {
     return (f64)current_time.QuadPart * clock_frequency;
 }
 
+void on_window_resize(u32 width, u32 height)
+{
+    if (state == nullptr)
+        return;
+
+    state->width = width;
+    state->height = height;
+}
+
 void platform_state::sleep(u64 ms) {
     Sleep(ms);
 }
@@ -184,6 +195,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
         event_context context;
         context.data.u32[0] = width;
         context.data.u32[1] = height;
+
+        on_window_resize(width, height);
 
         event_system::fire_event(event_code::EVENT_CODE_ONRESIZED, context);
         break;

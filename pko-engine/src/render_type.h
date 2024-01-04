@@ -23,9 +23,9 @@ struct RendererSettings
 
 enum ShaderStage
 {
-	VERTEX_STAGE = 0,
-	FRAGMENT_STAGE = 1,
-	COMPUTE_STAGE = 2,
+	VERTEX_STAGE = 1,
+	FRAGMENT_STAGE = 2,
+	COMPUTE_STAGE = 4,
 	MAX_SHADER_STAGE, 
 };
 
@@ -37,8 +37,8 @@ enum PipelineType
 
 struct ShaderLoadDesc
 {
-	const char* pFileName[MAX_SHADER_STAGE];
-	const char* pEntryPointName[MAX_SHADER_STAGE];
+	const char* pFileName;
+	const char* pEntryPointName;
 };
 
 struct DepthLoadDesc

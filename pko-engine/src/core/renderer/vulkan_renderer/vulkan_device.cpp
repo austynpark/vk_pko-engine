@@ -22,14 +22,14 @@ struct device_requirements
 	std::vector<const char*> extensions_name;
 };
 
-b8 pick_physical_device(vulkan_context* context, device_requirements* requirements);
+b8 pick_physical_device(RenderContext* context, device_requirements* requirements);
 b8 check_physical_device_requirements(
 	VkPhysicalDevice device,
 	VkSurfaceKHR surface,
 	device_requirements* requirements,
 	queue_family_info* out_queue_family);
 
-b8 vulkan_device_create(vulkan_context* context, vulkan_device* device_context)
+b8 vulkan_device_create(RenderContext* context, Device* device_context)
 {
 	device_requirements requirements{
 		true,	//b8 use_graphics;
@@ -88,7 +88,25 @@ b8 vulkan_device_create(vulkan_context* context, vulkan_device* device_context)
 		queue_create_infos.at(i).pQueuePriorities = &queue_priorities;
 	}
 
+	VkPhysicalDeviceDescriptorIndexingFeatures descriptorIndexingFeatures{};
+	descriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
+	descriptorIndexingFeatures.pNext = nullptr;
+
+	VkPhysicalDeviceFeatures2 deviceFeatures{};
+	deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+	deviceFeatures.pNext = &descriptorIndexingFeatures;
+
+	// Fetch all features from physical device
+	vkGetPhysicalDeviceFeatures2(context->device_context.physical_device, &deviceFeatures);
+	assert(descriptorIndexingFeatures.shaderSampledImageArrayNonUniformIndexing);
+	assert(descriptorIndexingFeatures.descriptorBindingSampledImageUpdateAfterBind);
+	assert(descriptorIndexingFeatures.shaderUniformBufferArrayNonUniformIndexing);
+	assert(descriptorIndexingFeatures.descriptorBindingUniformBufferUpdateAfterBind);
+	assert(descriptorIndexingFeatures.shaderStorageBufferArrayNonUniformIndexing);
+	assert(descriptorIndexingFeatures.descriptorBindingStorageBufferUpdateAfterBind);
+
 	VkDeviceCreateInfo device_create_info{VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
+	device_create_info.pNext = &deviceFeatures;
 	device_create_info.queueCreateInfoCount = queue_count;
 	device_create_info.pQueueCreateInfos = queue_create_infos.data();
 	device_create_info.enabledExtensionCount = requirements.extensions_name.size();
@@ -102,14 +120,14 @@ b8 vulkan_device_create(vulkan_context* context, vulkan_device* device_context)
 	return true;
 }
 
-b8 vulkan_device_destroy(vulkan_context* context, vulkan_device* device_context)
+b8 vulkan_device_destroy(RenderContext* context, Device* device_context)
 {
 	vkDestroyDevice(device_context->handle, context->allocator);
 
 	return false;
 }
 
-void vulkan_get_device_queue(vulkan_device* device_context)
+void vulkan_get_device_queue(Device* device_context)
 {
 	if (device_context->graphics_family.index != -1)
 		vkGetDeviceQueue(device_context->handle, device_context->graphics_family.index, 0, &device_context->graphics_queue);
@@ -123,7 +141,7 @@ void vulkan_get_device_queue(vulkan_device* device_context)
 	std::cout << "device queue acquired" << std::endl;
 }
 
-b8 pick_physical_device(vulkan_context* context, device_requirements* requirements)
+b8 pick_physical_device(RenderContext* context, device_requirements* requirements)
 {
 	u32 physical_count = 0;
 
@@ -289,7 +307,7 @@ b8 check_physical_device_requirements(VkPhysicalDevice device, VkSurfaceKHR surf
 	return true;
 }
 
-b8 vulkan_device_detect_depth_format(vulkan_device* device)
+b8 vulkan_device_detect_depth_format(Device* device)
 {
 	const u64 candidate_count = 3;
 	VkFormat candidates[candidate_count] = {

@@ -19,6 +19,9 @@
     <Filter Include="Source Files\ThirdParty\imgui">
       <UniqueIdentifier>{28673937-9a0e-47d6-9581-86df5090c554}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\ThirdParty">
+      <UniqueIdentifier>{0ee19826-c59f-4079-b798-14f2a8ee1e97}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="vendor\vulkan\vk_platform.h">
@@ -48,18 +51,6 @@
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_swapchain.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_command_buffer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_renderpass.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_framebuffer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_mesh.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\core\file_handle.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -69,31 +60,13 @@
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_memory_allocate.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="vendor\tiny_obj_loader.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_image.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_buffer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_shader.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\core\renderer\spirv_helper.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\core\renderer\SPIRV-Reflect\spirv_reflect.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\core\renderer\SPIRV-Reflect\include\spirv\unified1\spirv.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\core\material.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_descriptor_builder.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_scene\default_scene.h">
@@ -105,34 +78,52 @@
     <ClInclude Include="src\core\event.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="vendor\stb_image.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\core\renderer\camera.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="vendor\imgui\imconfig.h">
-      <Filter>Header Files</Filter>
+      <Filter>Source Files\ThirdParty</Filter>
     </ClInclude>
     <ClInclude Include="vendor\imgui\imgui.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="vendor\imgui\imgui_internal.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="vendor\imgui\imstb_rectpack.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="vendor\imgui\imstb_textedit.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="vendor\imgui\imstb_truetype.h">
-      <Filter>Header Files</Filter>
+      <Filter>Source Files\ThirdParty</Filter>
     </ClInclude>
     <ClInclude Include="vendor\imgui\backends\imgui_impl_vulkan.h">
-      <Filter>Header Files</Filter>
+      <Filter>Source Files\ThirdParty</Filter>
     </ClInclude>
     <ClInclude Include="vendor\imgui\backends\imgui_impl_win32.h">
+      <Filter>Source Files\ThirdParty</Filter>
+    </ClInclude>
+    <ClInclude Include="vendor\imgui\imgui_internal.h">
+      <Filter>Source Files\ThirdParty</Filter>
+    </ClInclude>
+    <ClInclude Include="vendor\imgui\imstb_rectpack.h">
+      <Filter>Source Files\ThirdParty</Filter>
+    </ClInclude>
+    <ClInclude Include="vendor\imgui\imstb_textedit.h">
+      <Filter>Source Files\ThirdParty</Filter>
+    </ClInclude>
+    <ClInclude Include="vendor\imgui\imstb_truetype.h">
+      <Filter>Source Files\ThirdParty</Filter>
+    </ClInclude>
+    <ClInclude Include="src\render_type.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vendor\stb_image.h">
+      <Filter>Header Files\ThirdParty</Filter>
+    </ClInclude>
+    <ClInclude Include="src\core\renderer\SPIRV-Reflect\include\spirv\unified1\spirv.h">
+      <Filter>Header Files\ThirdParty</Filter>
+    </ClInclude>
+    <ClInclude Include="src\core\renderer\spirv_helper.h">
+      <Filter>Header Files\ThirdParty</Filter>
+    </ClInclude>
+    <ClInclude Include="src\core\renderer\SPIRV-Reflect\spirv_reflect.h">
+      <Filter>Header Files\ThirdParty</Filter>
+    </ClInclude>
+    <ClInclude Include="vendor\tiny_obj_loader.h">
+      <Filter>Header Files\ThirdParty</Filter>
+    </ClInclude>
+    <ClInclude Include="vendor\tinydds.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -158,18 +149,6 @@
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_swapchain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_command_buffer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_renderpass.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_framebuffer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_mesh.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\core\file_handle.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -185,9 +164,6 @@
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_buffer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_shader.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\core\renderer\SPIRV-Reflect\spirv_reflect.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -195,12 +171,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_scene\vulkan_scene.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_descriptor_allocator.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_descriptor_builder.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\core\input.cpp">

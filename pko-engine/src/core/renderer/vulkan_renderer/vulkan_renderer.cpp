@@ -4,26 +4,24 @@
 #include "vulkan_types.inl"
 
 #include "core/application.h"
+#include "core/file_handle.h"
 #include "platform/platform.h"
 
 #include "vulkan_device.h"
+#include "vulkan_pipeline.h"
 #include "vulkan_memory_allocate.h"
 #include "vulkan_swapchain.h"
-#include "vulkan_command_buffer.h"
-#include "vulkan_renderpass.h"
-#include "vulkan_framebuffer.h"
 #include "vulkan_pipeline.h"
-#include "vulkan_mesh.h"
 #include "vulkan_buffer.h"
-#include "vulkan_shader.h"
 
 #include "imgui/imgui.h"
 #include "imgui/backends/imgui_impl_win32.h"
 #include "imgui/backends/imgui_impl_vulkan.h"
 #include <iostream>
+#include <glm/glm.hpp>
 
 static vulkan_library vulkan_library_loader = {};
-static vulkan_context context = {};
+static RenderContext context = {};
 static internal_state* platform_state = nullptr;
 
 u32 currentFrame = 0;
@@ -33,7 +31,16 @@ VkSemaphore ready_to_render_semaphores[MAX_FRAME];
 VkSemaphore image_available_semaphores[MAX_FRAME];
 VkFence render_fences[MAX_FRAME];
 
-vulkan_command command[MAX_FRAME];
+VkCommandPool cmdPools[MAX_FRAME];
+VkCommandBuffer cmdBuffs[MAX_FRAME];
+
+VkShaderModule basicVertShaderModule;
+VkShaderModule basicFragShaderModule;
+VkPipeline basicPipeline;
+
+VkDescriptorSet updateFreqNoneDescriptorSet;
+VkDescriptorSetLayout updateFreqNonedescriptorSetLayout;
+ 
 
 static VKAPI_ATTR VkBool32 debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT           messageSeverity,
@@ -56,6 +63,53 @@ static VKAPI_ATTR VkBool32 debugCallback(
     }
 
     return VK_FALSE;
+}
+
+b8 vulkan_shader_module_create(RenderContext* context, VkShaderModule* out_shaderModule, const char* path)
+{
+    file_handle file;
+    if (!pko_file_read(path, &file)) {
+        std::cout << "failed to read " << path << std::endl;
+        return false;
+    }
+    VkShaderModuleCreateInfo create_info{ VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
+    create_info.pCode = (uint32_t*)file.str;
+    create_info.codeSize = file.size;
+
+    VK_CHECK(vkCreateShaderModule(context->device_context.handle, &create_info, context->allocator, out_shaderModule));
+
+    pko_file_close(&file);
+
+    return true;
+}
+
+//TODO: Configurable CommandPool Create Flags if needed in future 
+void vulkan_command_pool_allocate(RenderContext* context, VkCommandPool out_cmdPool, u32 queueFamilyIndex)
+{
+    VkCommandPoolCreateInfo createInfo = { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
+    createInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT; // - can reset cmdBuffs individually
+    //VK_COMMAND_POOL_CREATE_TRANSIENT_BIT - Hint that cmdBuffs are rerecorded with new cmdBuffs very often
+    createInfo.queueFamilyIndex = queueFamilyIndex;
+    
+    VK_CHECK(vkCreateCommandPool(context->device_context.handle, &createInfo, context->allocator, &out_cmdPool));
+}
+
+void vulkan_command_buffer_begin(VkCommandBuffer cmdBuff, b8 onetimeSubmit)
+{
+    if (cmdBuff == VK_NULL_HANDLE)
+        return;
+
+    VkCommandBufferBeginInfo beginInfo = {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = onetimeSubmit ? VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT : VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+
+    VK_CHECK(vkBeginCommandBuffer(cmdBuff, &beginInfo));
+}
+
+void vulkan_command_buffer_end(VkCommandBuffer cmdBuff)
+{
+    if (cmdBuff != VK_NULL_HANDLE)
+        vkEndCommandBuffer(cmdBuff);
 }
 
 b8 vulkan_create_instance()
@@ -228,10 +282,7 @@ b8 vulkan_renderer_init(internal_state* _platform_state)
         return false;
     }
 
-    vulkan_renderpass_create(&context, &context.main_renderpass, 0, 0, context.framebuffer_width, context.framebuffer_height);
-
     vulkan_renderer_init_imgui();
-
 
     for (u32 i = 0; i < MAX_FRAME; ++i) {
         VkSemaphoreCreateInfo semaphore_create_info{ VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
@@ -240,24 +291,211 @@ b8 vulkan_renderer_init(internal_state* _platform_state)
         VkFenceCreateInfo fence_create_info{ VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
         fence_create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
         vkCreateFence(context.device_context.handle, &fence_create_info, context.allocator, &render_fences[i]);
+        vulkan_command_pool_allocate(&context, cmdPools[i], context.device_context.graphics_family.index);
     }
 
-    // descriptor allocator init
-    context.dynamic_descriptor_allocators.resize(MAX_FRAME);
-    for (auto& desc_alloc : context.dynamic_descriptor_allocators) {
-        desc_alloc.init(context.device_context.handle);
-    }
+    // initialize descriptor allocator
+    // initialize command pool
 
-    for (u32 i = 0; i < MAX_FRAME; ++i)
-    {
-        vulkan_command_pool_create(&context, &command[i], context.device_context.graphics_family.index);
-        vulkan_command_buffer_allocate(&context, &command[i], true, 1);
-    }
+
+    
+    // initialize command buffer
 }
 
 void vulkan_renderer_load()
 {
+    // Load Shader
+    vulkan_shader_module_create(&context, &basicVertShaderModule, "shader/test.vert");
+    vulkan_shader_module_create(&context, &basicFragShaderModule, "shader/test.frag");
+
+    VkPipelineShaderStageCreateInfo shaderStageCreateInfo[2] = {};
+    shaderStageCreateInfo[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaderStageCreateInfo[0].pNext = nullptr;
+    shaderStageCreateInfo[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    shaderStageCreateInfo[0].module = basicVertShaderModule;
+    shaderStageCreateInfo[0].pName = "basicVertexShader";
+
+    shaderStageCreateInfo[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaderStageCreateInfo[1].pNext = nullptr;
+    shaderStageCreateInfo[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    shaderStageCreateInfo[1].module = basicFragShaderModule;
+    shaderStageCreateInfo[1].pName = "basicFragmentShader";
+
+    VkVertexInputBindingDescription vertexBindingDescriptions[2] = {};
+    vertexBindingDescriptions[0].binding = 0;
+    vertexBindingDescriptions[0].stride = sizeof(float) * 3;
+    vertexBindingDescriptions[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    vertexBindingDescriptions[1].binding = 1;
+    vertexBindingDescriptions[1].stride = sizeof(float) * 2;
+    vertexBindingDescriptions[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    VkVertexInputAttributeDescription vertexAttributeDescriptions[3] = {};
+    // vertex position
+    vertexAttributeDescriptions[0].location = 0;
+    vertexAttributeDescriptions[0].binding = 0;
+    vertexAttributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+    vertexAttributeDescriptions[0].offset = 0;
     
+    // vertex normal
+    vertexAttributeDescriptions[1].location = 1;
+    vertexAttributeDescriptions[1].binding = 0;
+    vertexAttributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+    vertexAttributeDescriptions[1].offset = sizeof(float) * 3;
+
+    // vertex uv
+    vertexAttributeDescriptions[2].location = 0;
+    vertexAttributeDescriptions[2].binding = 1;
+    vertexAttributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
+    vertexAttributeDescriptions[2].offset = sizeof(float) * 6;
+
+    //vertex input state
+    VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+    vertexInputStateCreateInfo.vertexBindingDescriptionCount = sizeof(vertexBindingDescriptions) / sizeof(VkVertexInputBindingDescription);
+    vertexInputStateCreateInfo.pVertexBindingDescriptions = vertexBindingDescriptions;
+    vertexInputStateCreateInfo.vertexAttributeDescriptionCount = sizeof(vertexAttributeDescriptions) / sizeof(VkVertexInputAttributeDescription);
+    vertexInputStateCreateInfo.pVertexAttributeDescriptions = vertexAttributeDescriptions;
+    
+    //input assembly
+    VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
+    inputAssemblyStateCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    inputAssemblyStateCreateInfo.primitiveRestartzEnable = false;
+
+    //viewport
+    VkViewport viewport = {};
+    float    width;
+    float    height;
+    float    minDepth;
+    float    maxDepth;
+    viewport.x = 0;
+    viewport.y = 0;
+    viewport.width = platform_state->width;
+    viewport.height = platform_state->height;
+    viewport.minDepth = 0;
+    viewport.maxDepth = 1;
+
+    VkOffset2D    offset;
+    VkExtent2D    extent;
+    VkRect2D scissor = {};
+    scissor.offset.x = 0;
+    scissor.offset.y = 0;
+    scissor.extent.width = platform_state->width;
+    scissor.extent.height = platform_state->height;
+
+    VkPipelineViewportStateCreateInfo viewportStateCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
+    viewportStateCreateInfo.viewportCount = 1;
+    viewportStateCreateInfo.pViewports = &viewport;
+    viewportStateCreateInfo.scissorCount = 1;
+    viewportStateCreateInfo.pScissors = &scissor;
+
+    //rasterization state
+    VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
+    rasterizationStateCreateInfo.depthClampEnable = true;
+    rasterizationStateCreateInfo.rasterizerDiscardEnable = true;
+    rasterizationStateCreateInfo.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterizationStateCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterizationStateCreateInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rasterizationStateCreateInfo.depthBiasEnable = false;
+    rasterizationStateCreateInfo.depthBiasConstantFactor = 0.0f;
+    rasterizationStateCreateInfo.depthBiasClamp = 0.0f;
+    rasterizationStateCreateInfo.depthBiasSlopeFactor = 0.0f;
+    rasterizationStateCreateInfo.lineWidth = 1.0f;
+
+    //MSAA
+    VkPipelineMultisampleStateCreateInfo multisampleStateCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
+    multisampleStateCreateInfo.sampleShadingEnable = VK_FALSE;
+    //multisampling defaulted to no multisampling (1 sample per pixel)
+    multisampleStateCreateInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    multisampleStateCreateInfo.minSampleShading = 1.0f;
+    multisampleStateCreateInfo.pSampleMask = nullptr;
+    multisampleStateCreateInfo.alphaToCoverageEnable = VK_FALSE;
+    multisampleStateCreateInfo.alphaToOneEnable = VK_FALSE;
+
+    //DepthStencil
+    VkPipelineDepthStencilStateCreateInfo depthStencilStateCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
+    depthStencilStateCreateInfo.depthTestEnable = true;
+    depthStencilStateCreateInfo.depthWriteEnable = true;
+    depthStencilStateCreateInfo.depthCompareOp = VK_COMPARE_OP_GREATER; // REVERSE-Z PROJECTION
+    depthStencilStateCreateInfo.depthBoundsTestEnable = false;
+    depthStencilStateCreateInfo.stencilTestEnable = false;
+    //VkStencilOpState                          front;
+    //VkStencilOpState                          back;
+    depthStencilStateCreateInfo.minDepthBounds = 0.0f; // OPTIONAL
+    depthStencilStateCreateInfo.maxDepthBounds = 1.0f; // OPTIONAL
+
+    VkPipelineColorBlendAttachmentState colorBlendAttachmentState = {};
+    colorBlendAttachmentState.blendEnable;
+    colorBlendAttachmentState.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    colorBlendAttachmentState.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    colorBlendAttachmentState.colorBlendOp = VK_BLEND_OP_ADD;
+    colorBlendAttachmentState.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA; // OPTIONAL
+    colorBlendAttachmentState.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA; // OPTIONAL
+    colorBlendAttachmentState.alphaBlendOp = VK_BLEND_OP_ADD; //OPTIONAL
+    colorBlendAttachmentState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+        VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+    VkPipelineColorBlendStateCreateInfo colorBlendStateCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
+    colorBlendStateCreateInfo.logicOpEnable = false; //If you want to use the second method of blending (bitwise combination), then you should set logicOpEnable to VK_TRUE
+    colorBlendStateCreateInfo.logicOp = VK_LOGIC_OP_COPY; 
+    colorBlendStateCreateInfo.attachmentCount = 1;
+    colorBlendStateCreateInfo.pAttachments = &colorBlendAttachmentState;
+    colorBlendStateCreateInfo.blendConstants[0] = 0.0f; // Optional
+    colorBlendStateCreateInfo.blendConstants[1] = 0.0f; // Optional
+    colorBlendStateCreateInfo.blendConstants[2] = 0.0f; // Optional
+    colorBlendStateCreateInfo.blendConstants[3] = 0.0f; // Optional
+
+    VkDynamicState dynamicStates[] = {
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR
+    };
+
+    VkPipelineDynamicStateCreateInfo dynamicStateCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO };
+    dynamicStateCreateInfo.dynamicStateCount = sizeof(dynamicStates) / sizeof(dynamicStates[0]);
+    dynamicStateCreateInfo.pDynamicStates = dynamicStates;
+
+    // textures
+    VkDescriptorSetLayoutBinding bindings[1]; 
+    bindings[0].binding = 0; // binding number
+    bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    bindings[0].descriptorCount = context.device_context.properties.limits.maxDescriptorSetSampledImages;
+    bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    //const VkSampler* pImmutableSamplers;
+
+    VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+    descriptorSetLayoutCreateInfo.bindingCount = sizeof(bindings) / sizeof(bindings[0]);
+    descriptorSetLayoutCreateInfo.pBindings = bindings;
+
+    // Pipeline Layout (Descriptor Set needed)
+    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+    pipelineLayoutCreateInfo.setLayoutCount = 1;
+    pipelineLayoutCreateInfo.pSetLayouts = &updateFreqNonedescriptorSetLayout;
+    //TODO: pushConstant materialID
+    //uint32_t                        pushConstantRangeCount;
+    //const VkPushConstantRange* pPushConstantRanges;
+
+    VkPipelineLayout pipelineLayout;
+    vkCreatePipelineLayout(context.device_context.handle, &pipelineLayoutCreateInfo, nullptr, &pipelineLayout);
+
+    VkGraphicsPipelineCreateInfo basicPipelineCreateInfo = { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
+    basicPipelineCreateInfo.pNext = nullptr;
+    basicPipelineCreateInfo.stageCount = sizeof(shaderStageCreateInfo) / sizeof(VkPipelineShaderStageCreateInfo);
+    basicPipelineCreateInfo.pStages = shaderStageCreateInfo;
+    basicPipelineCreateInfo.pVertexInputState = &vertexInputStateCreateInfo;
+    basicPipelineCreateInfo.pInputAssemblyState = &inputAssemblyStateCreateInfo;
+    basicPipelineCreateInfo.pViewportState = &viewportStateCreateInfo;
+    //const VkPipelineTessellationStateCreateInfo* pTessellationState;
+    basicPipelineCreateInfo.pRasterizationState = &rasterizationStateCreateInfo;
+    basicPipelineCreateInfo.pMultisampleState;
+    basicPipelineCreateInfo.pDepthStencilState = &depthStencilStateCreateInfo;
+    basicPipelineCreateInfo.pColorBlendState = &colorBlendStateCreateInfo;
+    basicPipelineCreateInfo.pDynamicState = &dynamicStateCreateInfo;
+    basicPipelineCreateInfo.layout = pipelineLayout;
+    basicPipelineCreateInfo.renderPass = VK_NULL_HANDLE;
+    //basicPipelineCreateInfo.subpass = -1;
+    //basicPipelineCreateInfo.basePipelineHandle;
+    //basicPipelineCreateInfo.basePipelineIndex;
+    
+    VK_CHECK(vkCreateGraphicsPipelines(context.device_context.handle, VK_NULL_HANDLE, 1, &basicPipelineCreateInfo, nullptr, &basicPipeline));
 }
 
 void vulkan_renderer_update(f64 dt)
@@ -285,15 +523,9 @@ void vulkan_renderer_draw()
         return;
     }
 
+    vulkan_command_buffer_begin(cmdBuffs[currentFrame], true);
 
-    VkCommandBuffer cmdBuff = command[currentFrame].buffer[0];
-
-    vulkan_command_buffer_begin(cmdBuff, true);
-
-
-
-
-    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmdBuff);
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmdBuffs[currentFrame]);
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
@@ -305,7 +537,7 @@ void vulkan_renderer_draw()
     ImGuiIO& io = ImGui::GetIO();
     ImGui::Render();
 
-    vulkan_command_buffer_end(cmdBuff);
+    vulkan_command_buffer_end(cmdBuffs[currentFrame]);
 
     VkPipelineStageFlags wait_stages = {
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
@@ -317,7 +549,7 @@ void vulkan_renderer_draw()
     submit_info.pWaitDstStageMask = &wait_stages;
 
     submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &cmdBuff;
+    submit_info.pCommandBuffers = &cmdBuffs[currentFrame];
     submit_info.signalSemaphoreCount = 1;
     submit_info.pSignalSemaphores = &ready_to_render_semaphores[currentFrame];
 
@@ -420,16 +652,18 @@ void vulkan_renderer_init_imgui()
     init_info.MinImageCount = 3;
     init_info.ImageCount = 3;
     init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+    init_info.UseDynamicRendering = true;
+    init_info.ColorAttachmentFormat = context.swapchain.image_format.format;
 
-    ImGui_ImplVulkan_Init(&init_info, context.main_renderpass.handle);
+    ImGui_ImplVulkan_Init(&init_info, VK_NULL_HANDLE);
 
     //execute a gpu command to upload imgui font textures
 
 
-    VkCommandBuffer cmdBuff = command[currentFrame].buffer[0];
+    VkCommandBuffer cmdBuff = cmdBuffs[currentFrame];
 
     vulkan_command_buffer_begin(cmdBuff, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-	ImGui_ImplVulkan_CreateFontsTexture(cmdBuff);
+	ImGui_ImplVulkan_CreateFontsTexture();
     vulkan_command_buffer_end(cmdBuff);
 
     VkSubmitInfo submit_info{ VK_STRUCTURE_TYPE_SUBMIT_INFO };
@@ -449,8 +683,11 @@ void vulkan_renderer_exit()
     vkQueueWaitIdle(context.device_context.graphics_queue);
 
     for (u32 i = 0; i < MAX_FRAME; ++i)
-        vulkan_command_pool_destroy(&context, &command[0]);
-
+    {
+        vkDestroyCommandPool(context.device_context.handle, cmdPools[i], context.allocator);
+        cmdPools[i] = VK_NULL_HANDLE;
+    }
+       
     for (u32 i = 0; i < context.swapchain.max_frames_in_flight; ++i) {
         vkDestroySemaphore(context.device_context.handle, image_available_semaphores[i], context.allocator);
         vkDestroySemaphore(context.device_context.handle, ready_to_render_semaphores[i], context.allocator);
@@ -461,13 +698,10 @@ void vulkan_renderer_exit()
         render_fences[i] = VK_NULL_HANDLE;
     }
 
-    vulkan_global_data_destroy(&context);
     vulkan_swapchain_destroy(&context, &context.swapchain);
 
     // destroy imgui related objects
     vkDestroyDescriptorPool(context.device_context.handle, context.imgui_pool, context.allocator);
-    //clear font textures from cpu data
-    ImGui_ImplVulkan_DestroyFontUploadObjects();
     ImGui_ImplVulkan_Shutdown();
 
     vulkan_memory_allocator_destroy(&context);
