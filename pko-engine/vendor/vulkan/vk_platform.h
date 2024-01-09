@@ -81,29 +81,4 @@ extern "C"
 } // extern "C"
 #endif // __cplusplus
 
-#ifdef VK_USE_PLATFORM_ANDROID_KHR
-#include <android/native_window.h>
 #endif
-
-#ifdef VK_USE_PLATFORM_MIR_KHR
-#include <mir_toolkit/client_types.h>
-#endif
-
-#ifdef VK_USE_PLATFORM_WAYLAND_KHR
-#include <wayland-client.h>
-#endif
-
-#ifdef VK_USE_PLATFORM_WIN32_KHR
-#include <windows.h>
-#endif
-
-#ifdef VK_USE_PLATFORM_XLIB_KHR
-#include <X11/Xlib.h>
-#endif
-
-#ifdef VK_USE_PLATFORM_XCB_KHR
-#include <xcb/xcb.h>
-#endif
-
-
-#endif // __VK_PLATFORM_H__

@@ -85,6 +85,8 @@
 #define IM_MAX(A, B)    (((A) >= (B)) ? (A) : (B))
 #endif
 
+#define VK_KHR_dynamic_rendering
+
 // Visual Studio warnings
 #ifdef _MSC_VER
 #pragma warning (disable: 4127) // condition expression is constant
