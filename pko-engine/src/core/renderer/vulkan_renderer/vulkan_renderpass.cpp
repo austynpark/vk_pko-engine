@@ -3,7 +3,7 @@
 #include "vulkan_types.inl"
 #include <iostream>
 
-void vulkan_renderpass_create(vulkan_context* context, vulkan_renderpass* renderpass, u32 x, u32 y, u32 w, u32 h)
+void vulkan_renderpass_create(VulkanContext* context, VulkanRenderpass* renderpass, u32 x, u32 y, u32 w, u32 h)
 {
 	renderpass->x = x;
 	renderpass->y = y;
@@ -89,7 +89,7 @@ void vulkan_renderpass_create(vulkan_context* context, vulkan_renderpass* render
 	std::cout << "renderpass created" << std::endl;
 }
 
-void vulkan_renderpass_destroy(vulkan_context* context, vulkan_renderpass* renderpass)
+void vulkan_renderpass_destroy(VulkanContext* context, VulkanRenderpass* renderpass)
 {
 	vkDestroyRenderPass(context->device_context.handle, renderpass->handle, context->allocator);
 	std::cout << "renderepass destroyed" << std::endl;

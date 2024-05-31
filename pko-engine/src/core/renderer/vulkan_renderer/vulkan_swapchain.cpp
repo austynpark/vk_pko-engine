@@ -6,10 +6,20 @@
 
 #include <iostream>
 
+#include "core/renderer/renderer_defines.h"
+
 //number of images
 
-b8 vulkan_swapchain_create(vulkan_context* context, i32 width, i32 height, vulkan_swapchain* swapchain)
+b8 vulkan_swapchain_create(VulkanContext* context, const SwapchainDesc* desc, VulkanSwapchain** pp_out_swapchain)
 {
+    assert(context);
+    assert(desc);
+    assert(pp_out_swapchain);
+
+    uint32_t width = desc->width;
+    uint32_t height = desc->height;
+    uint32_t number_of_images = desc->imageCount;
+
     VkExtent2D extent{ width, height };
 
     vulkan_swapchain_get_support_info(context, &context->swapchain_support_info);
@@ -48,13 +58,7 @@ b8 vulkan_swapchain_create(vulkan_context* context, i32 width, i32 height, vulka
 
     VkSurfaceCapabilitiesKHR surface_capabilites = context->swapchain_support_info.surface_capabilites;
 
-    u32 number_of_images = surface_capabilites.minImageCount + 1;
-    swapchain->max_frames_in_flight = number_of_images - 1;
-
-    if (surface_capabilites.maxImageCount > 0 &&
-        number_of_images > surface_capabilites.maxImageCount) {
-        number_of_images = surface_capabilites.maxImageCount;
-    }
+    u32 number_of_images = (surface_capabilites.minImageCount + 1 > ) ;
 
     if (surface_capabilites.currentExtent.width == UINT32_MAX) {
         if (extent.width < surface_capabilites.minImageExtent.width) {
@@ -167,7 +171,7 @@ b8 vulkan_swapchain_create(vulkan_context* context, i32 width, i32 height, vulka
 	return true;
 }
 
-b8 vulkan_swapchain_destroy(vulkan_context* context, vulkan_swapchain* swapchain)
+b8 vulkan_swapchain_destroy(VulkanContext* context, VulkanSwapchain* swapchain)
 {
     if (context->render_fences.at(context->current_frame) != VK_NULL_HANDLE)
         VK_CHECK(vkWaitForFences(context->device_context.handle, 1, &context->render_fences.at(context->current_frame), true, UINT64_MAX));
@@ -185,9 +189,9 @@ b8 vulkan_swapchain_destroy(vulkan_context* context, vulkan_swapchain* swapchain
 	return true;
 }
 
-b8 vulkan_swapchain_recreate(vulkan_context* context, i32 width, i32 height)
+b8 vulkan_swapchain_recreate(VulkanContext* context, i32 width, i32 height)
 {
-    vulkan_swapchain out_swapchain{};
+    VulkanSwapchain out_swapchain{};
 	
     if (!vulkan_swapchain_create(context, width, height, &out_swapchain))
         return false;
@@ -204,7 +208,7 @@ b8 vulkan_swapchain_recreate(vulkan_context* context, i32 width, i32 height)
 	return true;
 }
 
-void vulkan_swapchain_get_support_info(vulkan_context* context, vulkan_swapchain_support_info* out_support_info)
+void vulkan_swapchain_get_support_info(VulkanContext* context, VulkanSwapchainSupportInfo* out_support_info)
 {
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context->device_context.physical_device, context->surface, &out_support_info->surface_capabilites);
 
@@ -218,8 +222,8 @@ void vulkan_swapchain_get_support_info(vulkan_context* context, vulkan_swapchain
 }
 
 b8 acquire_next_image_index_swapchain(
-    vulkan_context* context,
-    vulkan_swapchain* swapchain,
+    VulkanContext* context,
+    VulkanSwapchain* swapchain,
     u64 timeout_ns,
     VkSemaphore image_available_semaphore,
     VkFence fence,
@@ -241,8 +245,8 @@ b8 acquire_next_image_index_swapchain(
 }
 
 b8 present_image_swapchain(
-    vulkan_context* context,
-    vulkan_swapchain* swapchain,
+    VulkanContext* context,
+    VulkanSwapchain* swapchain,
     VkQueue present_queue,
     VkSemaphore render_complete_semaphore,
     u32 current_image_index

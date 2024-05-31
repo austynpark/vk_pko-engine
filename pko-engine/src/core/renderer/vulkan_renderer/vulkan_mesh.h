@@ -37,13 +37,13 @@ struct vertex {
 struct mesh {
 	std::vector<vertex> vertices;
 	std::vector<u32> indices;
-	std::vector<vulkan_texture> textures;
+	std::vector<VulkanTexture> textures;
 	glm::mat4 transform_matrix;
 };
 
 class vulkan_render_object {
 public:
-	vulkan_render_object(vulkan_context* context, const char* path);
+	vulkan_render_object(VulkanContext* context, const char* path);
 	void upload_mesh();
 	void vulkan_render_object_destroy();
 	~vulkan_render_object();
@@ -54,8 +54,8 @@ public:
 
 	static vertex_input_description get_vertex_input_description();
 
-	std::vector<vulkan_allocated_buffer> vertex_buffers;
-	std::vector<vulkan_allocated_buffer> index_buffers;
+	std::vector<VulkanBuffer> vertex_buffers;
+	std::vector<VulkanBuffer> index_buffers;
 
 	glm::mat4 get_transform_matrix() const;
 	void rotate(float degree, glm::vec3 axis);
@@ -68,10 +68,10 @@ public:
 private:
 	void process_node(aiNode* node, const aiScene* scene);
 	mesh process_mesh(aiMesh* mesh, const aiScene* scene);
-	std::vector<vulkan_texture> load_material_textures(aiMaterial* mat, aiTextureType type,
+	std::vector<VulkanTexture> load_material_textures(aiMaterial* mat, aiTextureType type,
 		std::string typeName);
 
-	vulkan_context* context;
+	VulkanContext* context;
 };
 
 

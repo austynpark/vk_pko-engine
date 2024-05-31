@@ -9,7 +9,7 @@
 #include <iostream>
 
 void vulkan_image_create(
-	vulkan_context* context,
+	VulkanContext* context,
 	VkImageType image_type,
 	u32 width, u32 height,
 	VkFormat format,
@@ -18,7 +18,7 @@ void vulkan_image_create(
 	VkMemoryPropertyFlags memory_flags,
 	b32 create_view,
 	VkImageAspectFlags view_aspect_flags,
-	vulkan_image* out_image
+	VulkanImage* out_image
 )
 {
 	out_image->width = width;
@@ -50,7 +50,7 @@ void vulkan_image_create(
 	}
 }
 
-void vulkan_image_view_create(vulkan_context* context, VkFormat format, vulkan_image* out_image, VkImageAspectFlags aspect_flags)
+void vulkan_image_view_create(VulkanContext* context, VkFormat format, VulkanImage* out_image, VkImageAspectFlags aspect_flags)
 {
 	VkImageViewCreateInfo image_view_create_info{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
 	image_view_create_info.image = out_image->handle;
@@ -66,7 +66,7 @@ void vulkan_image_view_create(vulkan_context* context, VkFormat format, vulkan_i
 	VK_CHECK(vkCreateImageView(context->device_context.handle, &image_view_create_info, context->allocator, &out_image->view));
 }
 
-void vulkan_image_destroy(vulkan_context* context, vulkan_image* image)
+void vulkan_image_destroy(VulkanContext* context, VulkanImage* image)
 {
 	if (image->view) {
 		vkDestroyImageView(context->device_context.handle, image->view, context->allocator);
@@ -85,8 +85,8 @@ void vulkan_image_destroy(vulkan_context* context, vulkan_image* image)
 }
 
 void vulkan_image_layout_transition(
-	vulkan_image* image, 
-	vulkan_command* command,
+	VulkanImage* image, 
+	VulkanCommand* command,
 	VkImageLayout old_layout,
 	VkImageLayout new_layout,
 	VkAccessFlags src_access_mask,
@@ -118,7 +118,7 @@ void vulkan_image_layout_transition(
 	vkCmdPipelineBarrier(command->buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &image_barrier_to_transfer);
 }
 
-b8 load_image_from_file(vulkan_context* context, const char* file, vulkan_image* out_image)
+b8 load_image_from_file(VulkanContext* context, const char* file, VulkanImage* out_image)
 {
 	i32 tex_width, tex_height, tex_channels;
 	stbi_uc* pixels = stbi_load(file, &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha);
@@ -130,7 +130,7 @@ b8 load_image_from_file(vulkan_context* context, const char* file, vulkan_image*
 
 	void* pixel_ptr = pixels;
 
-	vulkan_allocated_buffer staging_buffer;
+	VulkanBuffer staging_buffer;
 	u32 staging_buffer_size = tex_width * tex_height * 4;
 
 	vulkan_buffer_create(context, staging_buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT, &staging_buffer);
@@ -150,7 +150,7 @@ b8 load_image_from_file(vulkan_context* context, const char* file, vulkan_image*
 	);
 
 	// create one time submit command buffer for image copy from staging buffer
-	vulkan_command one_time_submit;
+	VulkanCommand one_time_submit;
 	vulkan_command_pool_create(context, &one_time_submit, context->device_context.transfer_family.index);
 	vulkan_command_buffer_allocate(context, &one_time_submit, true);
 
@@ -209,7 +209,7 @@ b8 load_image_from_file(vulkan_context* context, const char* file, vulkan_image*
 	return true;
 }
 
-void vulkan_texture_create(vulkan_context* context, vulkan_texture* out_texture, vulkan_image image, VkFilter filters, VkSamplerAddressMode samplerAdressMode)
+void vulkan_texture_create(VulkanContext* context, VulkanTexture* out_texture, VulkanImage image, VkFilter filters, VkSamplerAddressMode samplerAdressMode)
 {
 	out_texture->image = image;
 
@@ -224,7 +224,7 @@ void vulkan_texture_create(vulkan_context* context, vulkan_texture* out_texture,
 	VK_CHECK(vkCreateSampler(context->device_context.handle, &create_info, context->allocator, &out_texture->sampler));
 }
 
-void vulkan_texture_destroy(vulkan_context* context, vulkan_texture* texture)
+void vulkan_texture_destroy(VulkanContext* context, VulkanTexture* texture)
 {
 	vulkan_image_destroy(context, &texture->image);
 	vkDestroySampler(context->device_context.handle, texture->sampler, context->allocator);

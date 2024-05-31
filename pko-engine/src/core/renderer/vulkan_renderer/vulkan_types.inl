@@ -25,7 +25,7 @@ struct vulkan_queue_family {
 	//std::vector<VkQueue> queues;
 };
 
-struct vulkan_device {
+struct VulkanDevice {
 	VkDevice handle;
 	VkPhysicalDevice physical_device;
 
@@ -45,25 +45,25 @@ struct vulkan_device {
 	VkFormat depth_format;
 };
 
-struct vulkan_command {
+struct VulkanCommand {
 	VkCommandPool pool;
 	VkCommandBuffer buffer;
 };
 
-struct vulkan_image {
-	VkImage handle;
-	VkImageView view;
-	VmaAllocation allocation; 
-	u32 width;
-	u32 height;
+// Samplers should be managed by the texture system / as dyanmic storage
+VkSampler sampler;
+
+struct VulkanTexture {
+	VkImage image;
+	uint32_t aspectMask;
 };
 
-struct vulkan_texture {
-	vulkan_image image;
-	VkSampler sampler;
+struct RenderTarget
+{
+	VulkanTexture* pTexture;
 };
 
-struct vulkan_swapchain_support_info {
+struct VulkanSwapchainSupportInfo {
 	VkSurfaceCapabilitiesKHR surface_capabilites;
 	std::vector<VkSurfaceFormatKHR> surface_formats;
 	std::vector<VkPresentModeKHR> present_modes;
@@ -72,18 +72,27 @@ struct vulkan_swapchain_support_info {
 	u32 present_mode_count;
 };
 
-struct vulkan_swapchain {
+struct SwapchainDesc
+{
+	void* phWnd;
+	uint32_t width : 16;
+	uint32_t height : 16;
+	uint32_t image_count : 2; // MAX_FRAMES (TRIPPLE BUFFERING)
+
+};
+
+struct VulkanSwapchain {
 	VkSwapchainKHR handle;
-	VkPresentModeKHR present_mode;
+	SwapchainDesc* pDesc;
+	
+	//VkPresentModeKHR present_mode;
 	VkSurfaceFormatKHR image_format;
 	u32 image_count;
-	std::vector<VkImage> images;
-	std::vector<VkImageView> image_views;
-	vulkan_image depth_attachment;
+
 	u8 max_frames_in_flight;
 };
 
-struct vulkan_renderpass {
+struct VulkanRenderpass {
 	VkRenderPass handle;
 	u32 x;
 	u32 y;
@@ -91,31 +100,19 @@ struct vulkan_renderpass {
 	u32 height;
 };
 
-struct vulkan_allocated_buffer {
+struct VulkanBuffer {
 	VkBuffer handle;
 	VmaAllocation allocation;
 };
 
-struct vulkan_pipeline {
+struct VulkanPipeline {
 	VkPipeline handle;
 	VkPipelineLayout layout;
 };
 
-struct vulkan_uniform_buffer_data {
-	vulkan_allocated_buffer buffer;
-	VkDescriptorSet descriptor_set;
-} typedef vulkan_ubo_data;
-
-struct vulkan_global_data {
-	VkDescriptorSetLayout set_layout;
-
-	// per frame data ( MAX FRAME  = 3, triple buffering )
-	vulkan_ubo_data ubo_data[MAX_FRAME];
-};
-
-class descriptor_allocator {
+class DescriptorAllocator {
 public:
-	descriptor_allocator() = default;
+	DescriptorAllocator() = default;
 
 	struct pool_sizes {
 		std::vector<std::pair<VkDescriptorType, float>> sizes =
@@ -153,41 +150,41 @@ private:
 	std::vector<VkDescriptorPool> free_pools;
 };
 
-class descriptor_layout_cache {
+class DescriptorLayoutCache {
 public:
-	descriptor_layout_cache() = default;
+	DescriptorLayoutCache() = default;
 	void init(VkDevice new_device);
 	void cleanup();
 
 	VkDescriptorSetLayout create_descriptor_layout(VkDescriptorSetLayoutCreateInfo* info);
 
-	struct descriptor_layout_info {
+	struct DescriptorLayoutInfo {
 		std::vector<VkDescriptorSetLayoutBinding> bindings;
 
-		bool operator==(const descriptor_layout_info& other) const;
+		bool operator==(const DescriptorLayoutInfo& other) const;
 
 		size_t hash() const;
 	};
 
 private:
 
-	struct descriptor_layout_hash {
-		std::size_t operator() (const descriptor_layout_info& info) const {
+	struct DescriptorLayoutHash {
+		std::size_t operator() (const DescriptorLayoutInfo& info) const {
 			return info.hash();
 		}
 	};
 
-	std::unordered_map<descriptor_layout_info, VkDescriptorSetLayout, descriptor_layout_hash> layout_cache;
+	std::unordered_map<DescriptorLayoutInfo, VkDescriptorSetLayout, DescriptorLayoutHash> layout_cache;
 	VkDevice device = VK_NULL_HANDLE;
 };
 
-struct vulkan_context {
+struct VulkanContext {
 	VmaAllocator vma_allocator;
 	VkAllocationCallbacks* allocator;
 	VkInstance	instance;
 	
 	//imgui
-	VkDescriptorPool imgui_pool;
+	// VkDescriptorPool imgui_pool;
 
 #if defined(_DEBUG)
 	VkDebugUtilsMessengerEXT	debug_messenger;
@@ -199,18 +196,10 @@ struct vulkan_context {
 	u32 framebuffer_height;
 
 	VkSurfaceKHR surface;
-	vulkan_device device_context;
-	vulkan_swapchain_support_info swapchain_support_info;
-	vulkan_swapchain swapchain;
-	vulkan_renderpass main_renderpass;
+	VulkanDevice device_context;
+	VulkanSwapchainSupportInfo swapchain_support_info;
+	VulkanSwapchain swapchain;
+	VulkanRenderpass main_renderpass;
 
-	std::vector<VkSemaphore> ready_to_render_semaphores;
-	std::vector<VkSemaphore> image_available_semaphores;
-	std::vector<VkFence> render_fences;
-	std::vector<descriptor_allocator> dynamic_descriptor_allocators;
-
-	vulkan_global_data global_data;
-
-	//TODO: maybe put in scene.h? (not sure)
-	VkDescriptorSetLayout object_set_layout;
+	std::vector<DescriptorAllocator> dynamic_descriptor_allocators;
 };

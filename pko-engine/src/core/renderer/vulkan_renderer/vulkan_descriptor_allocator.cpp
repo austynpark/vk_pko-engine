@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-void descriptor_allocator::reset_pools()
+void DescriptorAllocator::reset_pools()
 {
 	for (auto pool : used_pools) {
 		vkResetDescriptorPool(device, pool, 0);
@@ -13,7 +13,7 @@ void descriptor_allocator::reset_pools()
 	current_pool = VK_NULL_HANDLE;
 }
 
-bool descriptor_allocator::allocate(VkDescriptorSet* set, VkDescriptorSetLayout layout)
+bool DescriptorAllocator::allocate(VkDescriptorSet* set, VkDescriptorSetLayout layout)
 {
 	if (current_pool == VK_NULL_HANDLE) {
 		current_pool = grab_pool();
@@ -55,12 +55,12 @@ bool descriptor_allocator::allocate(VkDescriptorSet* set, VkDescriptorSetLayout 
 	return false;
 }
 
-void descriptor_allocator::init(VkDevice new_device)
+void DescriptorAllocator::init(VkDevice new_device)
 {
 	device = new_device;
 }
 
-void descriptor_allocator::cleanup()
+void DescriptorAllocator::cleanup()
 {
 	for (auto pool : free_pools) {
 		vkDestroyDescriptorPool(device, pool, nullptr);
@@ -72,7 +72,7 @@ void descriptor_allocator::cleanup()
 
 }
 
-VkDescriptorPool descriptor_allocator::grab_pool()
+VkDescriptorPool DescriptorAllocator::grab_pool()
 {
 	// there are reusable pools avail
 	if (free_pools.size() > 0) {
@@ -87,7 +87,7 @@ VkDescriptorPool descriptor_allocator::grab_pool()
 }
 
 // count: multiplier of each VkDescriptorType & max number of descriptor sets that can be allocated from the pool
-VkDescriptorPool descriptor_allocator::pool_sizes::create_pool(VkDevice device, i32 count, VkDescriptorPoolCreateFlags flags)
+VkDescriptorPool DescriptorAllocator::pool_sizes::create_pool(VkDevice device, i32 count, VkDescriptorPoolCreateFlags flags)
 {
 	std::vector<VkDescriptorPoolSize> sizes;
 	sizes.reserve(this->sizes.size());
@@ -108,12 +108,12 @@ VkDescriptorPool descriptor_allocator::pool_sizes::create_pool(VkDevice device, 
 	return pool;
 }
 
-void descriptor_layout_cache::init(VkDevice new_device)
+void DescriptorLayoutCache::init(VkDevice new_device)
 {
 	device = new_device;
 }
 
-void descriptor_layout_cache::cleanup()
+void DescriptorLayoutCache::cleanup()
 {
 	for (auto cache : layout_cache) {
 		vkDestroyDescriptorSetLayout(device, cache.second, nullptr);
@@ -122,9 +122,9 @@ void descriptor_layout_cache::cleanup()
 	layout_cache.clear();
 }
 
-VkDescriptorSetLayout descriptor_layout_cache::create_descriptor_layout(VkDescriptorSetLayoutCreateInfo* info)
+VkDescriptorSetLayout DescriptorLayoutCache::create_descriptor_layout(VkDescriptorSetLayoutCreateInfo* info)
 {
-	descriptor_layout_info layout_info;
+	DescriptorLayoutInfo layout_info;
 	layout_info.bindings.reserve(info->bindingCount);
 	b8 is_sorted = true;
 	i32 last_binding = -1;
@@ -164,7 +164,7 @@ VkDescriptorSetLayout descriptor_layout_cache::create_descriptor_layout(VkDescri
 	return layout;
 }
 
-bool descriptor_layout_cache::descriptor_layout_info::operator==(const descriptor_layout_info& other) const
+bool DescriptorLayoutCache::DescriptorLayoutInfo::operator==(const DescriptorLayoutInfo& other) const
 {
 	if (other.bindings.size() != bindings.size()) {
 		return false;
@@ -186,7 +186,7 @@ bool descriptor_layout_cache::descriptor_layout_info::operator==(const descripto
 	return true;
 }
 
-size_t descriptor_layout_cache::descriptor_layout_info::hash() const
+size_t DescriptorLayoutCache::DescriptorLayoutInfo::hash() const
 {
 	size_t result = std::hash<size_t>()(bindings.size());
 

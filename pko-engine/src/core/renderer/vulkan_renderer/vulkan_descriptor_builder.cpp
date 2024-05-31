@@ -2,8 +2,8 @@
 
 void descriptor_builder::begin(VkDevice device)
 {
-	alloc = new descriptor_allocator();
-    cache = new descriptor_layout_cache();
+	alloc = new DescriptorAllocator();
+    cache = new DescriptorLayoutCache();
 
     cache->init(device);
     alloc->init(device);

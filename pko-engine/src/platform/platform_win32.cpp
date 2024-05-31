@@ -15,15 +15,15 @@ static LARGE_INTEGER start_time;
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-b8 platform_state::init(
+b8 PlatformState::init(
     const char* application_name,
     i32 x,
     i32 y,
     i32 width,
     i32 height) {
 
-    state = malloc(sizeof(internal_state));
-    internal_state* _state = (internal_state*)state;
+    state = malloc(sizeof(InternalState));
+    InternalState* _state = (InternalState*)state;
 
     _state->instance = GetModuleHandleA(0);
 
@@ -98,9 +98,9 @@ b8 platform_state::init(
     return true;
 }
 
-void platform_state::shutdown() {
+void PlatformState::shutdown() {
 
-    internal_state* _state = (internal_state*)state;
+    InternalState* _state = (InternalState*)state;
 
     if (_state->handle) {
         DestroyWindow(_state->handle);
@@ -114,7 +114,7 @@ void platform_state::shutdown() {
     free(state);
 }
 
-b8 platform_state::platform_message() {
+b8 PlatformState::platform_message() {
     // Main message loop
     MSG message;
     //bool resize = false;
@@ -159,13 +159,13 @@ b8 platform_state::platform_message() {
     return true;
 }
 
-f64 platform_state::get_absolute_time() {
+f64 PlatformState::get_absolute_time() {
     LARGE_INTEGER current_time;
     QueryPerformanceCounter(&current_time);
     return (f64)current_time.QuadPart * clock_frequency;
 }
 
-void platform_state::sleep(u64 ms) {
+void PlatformState::sleep(u64 ms) {
     Sleep(ms);
 }
 
@@ -259,9 +259,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
 /*
 //NOTE: Vulkan specific
-void platform_create_vulkan_surface(vulkan_parameters* vulkan_parameter, platform_state* plat_state) {
+void platform_create_vulkan_surface(vulkan_parameters* vulkan_parameter, PlatformState* platform_state) {
 
-    internal_state* state = (internal_state*)plat_state->state;
+    InternalState* state = (InternalState*)platform_state->state;
 
     VkWin32SurfaceCreateInfoKHR create_info{ VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR };
     create_info.hinstance = state->instance;

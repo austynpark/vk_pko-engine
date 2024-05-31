@@ -16,16 +16,20 @@
 #include "vulkan_mesh.h"
 #include "vulkan_buffer.h"
 #include "vulkan_shader.h"
-#include "vulkan_scene/vulkan_scene.h"
-#include "vulkan_scene/default_scene.h"
 
 #include "imgui/imgui.h"
 #include "imgui/backends/imgui_impl_win32.h"
 #include "imgui/backends/imgui_impl_vulkan.h"
 #include <iostream>
 
+static uint32_t MAX_FRAME = 3;
+
 static vulkan_library vulkan_library_loader;
-static vulkan_context context;
+static VulkanContext context;
+
+VkSemaphore ready_to_render_semaphores[MAX_FRAME];
+VkSemaphore image_available_semaphores[MAX_FRAME];
+VkFence render_fences[MAX_FRAME];
 
 static VKAPI_ATTR VkBool32 debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT           messageSeverity,
@@ -55,16 +59,13 @@ b8 load_global_level_function();
 b8 load_instance_level_function();
 b8 load_device_level_function();
 
-vulkan_renderer::vulkan_renderer(void* platform_internal_state) : renderer(platform_internal_state)
+VulkanRenderer::VulkanRenderer(void* platform_internal_state) : Renderer(platform_internal_state)
 {
-    scene_index = 0;
-    scene.resize(scene_count);
-    scene[0] = std::make_unique<default_scene>();
 }
 
-vulkan_renderer::~vulkan_renderer()
+VulkanRenderer::~VulkanRenderer()
 {
-    shutdown();
+    Shutdown();
 #if defined _WIN32
     FreeLibrary(vulkan_library_loader);
 #elif defined _linux
@@ -73,7 +74,7 @@ vulkan_renderer::~vulkan_renderer()
     vulkan_library_loader = 0;
 }
 
-b8 vulkan_renderer::init()
+b8 VulkanRenderer::Init()
 {
 #if defined(_WIN32)
 	vulkan_library_loader = LoadLibrary("vulkan-1.dll");
@@ -90,7 +91,7 @@ b8 vulkan_renderer::init()
     if (!load_global_level_function())
         return false;
 
-    if (!create_instance()) {
+    if (!createInstance()) {
         std::cout << "create instance failed" << std::endl;
         return false;
     }
@@ -98,7 +99,7 @@ b8 vulkan_renderer::init()
     if (!load_instance_level_function())
         return false;
 
-    if (!create_surface()) {
+    if (!createSurface()) {
         std::cout << "create surface failed" << std::endl;
         return false;
     }
@@ -117,7 +118,7 @@ b8 vulkan_renderer::init()
 
 	    //validation debug logger create
 #if defined(_DEBUG)
-    create_debug_util_message();
+    createDebugUtilMessage();
 #endif 
 
     if (!vulkan_swapchain_create(&context, context.framebuffer_width, context.framebuffer_height, &context.swapchain)) {
@@ -125,35 +126,9 @@ b8 vulkan_renderer::init()
         return false;
     }
     
-/* Moved to vulkan_scene.cpp
-    // create command pool per frame
-    for (u32 i = 0; i < context.swapchain.max_frames_in_flight; ++i) {
-		vulkan_command_pool_create(&context, &context.graphics_commands.at(i), context.device_context.graphics_family.index);
-		vulkan_command_buffer_allocate(&context, &context.graphics_commands.at(i), true);
-    }
+    initImgui();
 
-    vulkan_renderpass_create(&context, &context.main_renderpass, 0, 0, context.framebuffer_width, context.framebuffer_height);
-*/
-
-	vulkan_renderpass_create(&context, &context.main_renderpass, 0, 0, context.framebuffer_width, context.framebuffer_height);
-
-    // create command buffer, pool, renderpass, framebuffer 
-    for (const auto& s : scene) {
-        s->init(&context);
-    }
-
-    init_imgui();
-
-    /*
-
-    context.framebuffers.resize(context.swapchain.image_count);
-
-    regenerate_framebuffer();
-
-    std::cout << "framebuffers created" << std::endl;
-	*/
-
-    context.image_available_semaphores.resize(context.swapchain.max_frames_in_flight);
+    image_available_semaphores.resize(context.swapchain.max_frames_in_flight);
     context.ready_to_render_semaphores.resize(context.swapchain.max_frames_in_flight);
     context.render_fences.resize(context.swapchain.max_frames_in_flight);
 
@@ -176,7 +151,7 @@ b8 vulkan_renderer::init()
     /*
     * global descriptor initialize
     */
-    vulkan_global_data_initialize(&context, sizeof(global_ubo));
+    //vulkan_global_data_initialize(&context, sizeof(global_ubo));
 
     /*
 
@@ -240,7 +215,27 @@ b8 vulkan_renderer::init()
 	return true;
 }
 
-b8 vulkan_renderer::begin_frame(f32 dt)
+void VulkanRenderer::Load()
+{
+
+}
+
+void VulkanRenderer::UnLoad()
+{
+
+}
+
+void VulkanRenderer::Update(float deltaTime)
+{
+
+}
+
+void VulkanRenderer::Draw()
+{
+
+}
+
+b8 VulkanRenderer::begin_frame(f32 dt)
 {
     context.current_frame = frame_number % context.swapchain.max_frames_in_flight;
 
@@ -271,17 +266,7 @@ b8 vulkan_renderer::begin_frame(f32 dt)
     return scene[scene_index]->begin_frame(dt);
 }
 
-b8 vulkan_renderer::begin_renderpass()
-{
-    return scene[scene_index]->begin_renderpass(context.current_frame);
-}
-
-b8 vulkan_renderer::end_renderpass()
-{
-    return scene[scene_index]->end_renderpass(context.current_frame);
-}
-
-b8 vulkan_renderer::end_frame()
+b8 VulkanRenderer::end_frame()
 {
 	//TODO: multiple command buffers
     VkCommandBuffer command_buffer = scene[scene_index]->graphics_commands.at(context.current_frame).buffer;
@@ -331,38 +316,27 @@ b8 vulkan_renderer::end_frame()
     return scene[scene_index]->end_frame();
 }
 
-b8 vulkan_renderer::draw()
+void VulkanRenderer::Draw()
 {
-    vulkan_command command = scene[scene_index]->graphics_commands.at(context.current_frame);
-
-    scene[scene_index]->draw();
-
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), command.buffer);
-
-
-    return true;
 }
 
-b8 vulkan_renderer::draw_imgui()
-{
-    vulkan_command command = scene[scene_index]->graphics_commands.at(context.current_frame);
+//b8 VulkanRenderer::drawImgui()
+//{
+//    ImGui_ImplVulkan_NewFrame();
+//    ImGui_ImplWin32_NewFrame();
+//    ImGui::NewFrame();
+//
+//    bool demo = true;
+//    ImGui::ShowDemoWindow(&demo);
+//    ImGuiIO& io = ImGui::GetIO();
+//    ImGui::Render();
+//
+//
+//    return true;
+//}
 
-    ImGui_ImplVulkan_NewFrame();
-    ImGui_ImplWin32_NewFrame();
-    ImGui::NewFrame();
-
-    bool demo = true;
-    ImGui::ShowDemoWindow(&demo);
-    scene[scene_index]->draw_imgui();
-
-    ImGuiIO& io = ImGui::GetIO();
-    ImGui::Render();
-
-
-    return true;
-}
-
-void vulkan_renderer::shutdown()
+void VulkanRenderer::Shutdown()
 {
     vkQueueWaitIdle(context.device_context.graphics_queue);
 
@@ -396,56 +370,27 @@ void vulkan_renderer::shutdown()
     vkDestroyInstance(context.instance, context.allocator);
 }
 
-b8 vulkan_renderer::on_resize(u32 w, u32 h)
-{
-    if (context.device_context.handle != nullptr) {
-        vkDeviceWaitIdle(context.device_context.handle);
+//b8 VulkanRenderer::onResize(u32 w, u32 h)
+//{
+//    if (context.device_context.handle != nullptr) {
+//        vkDeviceWaitIdle(context.device_context.handle);
+//
+//		//get_app_framebuffer_size(&context.framebuffer_width, &context.framebuffer_height);
+//        context.framebuffer_width = w;
+//        context.framebuffer_height = h;
+//
+//        if (!vulkan_swapchain_recreate(&context, context.framebuffer_width, context.framebuffer_height))
+//            return false;
+//
+//        scene[scene_index]->on_resize(w, h);
+//
+//        return true;
+//    }
+//
+//	return false;
+//}
 
-		//get_app_framebuffer_size(&context.framebuffer_width, &context.framebuffer_height);
-        context.framebuffer_width = w;
-        context.framebuffer_height = h;
-
-        if (!vulkan_swapchain_recreate(&context, context.framebuffer_width, context.framebuffer_height))
-            return false;
-
-        scene[scene_index]->on_resize(w, h);
-
-        return true;
-    }
-
-	return false;
-}
-
-b8 vulkan_renderer::add_shader(const char* name)
-{
-    /*
-    if (shader_manager.find(name) != shader_manager.end())
-    {
-        std::cout << "shader already exists!" << std::endl;
-        return false;
-    }
-
-    shader_manager[name] = std::make_unique<vulkan_shader>(&context, &scene[scene_index]->main_renderpass);
-    */
-    return true;
-}
-
-void vulkan_renderer::update_global_data()
-{
-    renderer::update_global_data();
-
-    vulkan_buffer_upload(&context, &context.global_data.ubo_data[context.current_frame].buffer, &global_ubo, sizeof(global_ubo));
-}
-
-b8 vulkan_renderer::bind_global_data()
-{
-    vkCmdBindDescriptorSets(scene[scene_index]->graphics_commands[context.current_frame].buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, scene[scene_index]->graphics_pipeline.layout,
-        0, 1, &context.global_data.ubo_data[context.current_frame].descriptor_set, 0, nullptr);
-
-    return true;
-}
-
-b8 vulkan_renderer::create_instance()
+b8 VulkanRenderer::createInstance()
 {
     std::cout << "create instance" << std::endl;
     //TODO: custom allocator (for future use)
@@ -521,7 +466,7 @@ b8 vulkan_renderer::create_instance()
 
 }
 
-void vulkan_renderer::create_debug_util_message()
+void VulkanRenderer::createDebugUtilMessage()
 {
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{ VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT };
     debugCreateInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
@@ -534,13 +479,17 @@ void vulkan_renderer::create_debug_util_message()
     VK_CHECK(vkCreateDebugUtilsMessengerEXT(context.instance, &debugCreateInfo, nullptr, &context.debug_messenger));
 }
 
-b8 vulkan_renderer::create_surface()
+b8 VulkanRenderer::createSurface()
 {
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
     VkWin32SurfaceCreateInfoKHR createInfo{ VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR };
+    
 
-    createInfo.hinstance = ((internal_state*)plat_state)->instance;
-    createInfo.hwnd = ((internal_state*)plat_state)->handle;
+    const InternalState* internal_state = (InternalState*)((PlatformState*)platform_state)->state;
+    assert(internal_state);
+
+    createInfo.hinstance = internal_state->instance;
+    createInfo.hwnd = ((InternalState*)platform_state)->handle;
 
     VK_CHECK(vkCreateWin32SurfaceKHR(context.instance, &createInfo, context.allocator, &context.surface));
     return true;
@@ -548,7 +497,7 @@ b8 vulkan_renderer::create_surface()
     return false;
 }
 
-void vulkan_renderer::init_imgui()
+void VulkanRenderer::initImgui()
 {
     //1: create descriptor pool for IMGUI
     // the size of the pool is very oversize, but it's copied from imgui demo itself.
@@ -582,7 +531,7 @@ void vulkan_renderer::init_imgui()
     //this initializes the core structures of imgui
     ImGui::CreateContext();
 
-    internal_state* state = (internal_state*)plat_state;
+    InternalState* state = (InternalState*)platform_state;
 
     //this initializes imgui for SDL
     ImGui_ImplVulkan_LoadFunctions([](const char* function_name, void*) { return vkGetInstanceProcAddr(context.instance, function_name); });
@@ -603,8 +552,8 @@ void vulkan_renderer::init_imgui()
 
     //execute a gpu command to upload imgui font textures
 
-
-    vulkan_command command = scene[scene_index]->graphics_commands.at(context.current_frame);
+    // Begin Command
+    VulkanCommand command = scene[scene_index]->graphics_commands.at(context.current_frame);
 
     vulkan_command_buffer_begin(&command, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 	ImGui_ImplVulkan_CreateFontsTexture(command.buffer);

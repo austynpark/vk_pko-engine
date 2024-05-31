@@ -10,14 +10,20 @@
 
 typedef HMODULE vulkan_library;
 
-typedef struct internal_state {
+typedef struct InternalState {
     HINSTANCE instance;
     HWND      handle;
-} internal_state;
+} InternalState;
+
+typedef enum ReloadType {
+    RELOAD_TYPE_RESIZE = 0x1,
+    RELOAD_TYPE_ALL = UINT32_MAX,
+    RELOAD_TYPE_COUNT = 1
+} ReloadType;
 
 #endif
 
-struct platform_state {
+struct PlatformState {
     public:
         b8 init(const char* application_name, i32 x, i32 y, i32 width, i32 height);
         void shutdown();

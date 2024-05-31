@@ -12,11 +12,11 @@
 #include <fstream>
 #include <sstream>
 
-VkDescriptorPool vulkan_descriptor_pool_create(vulkan_context* context);
-VkDescriptorPool get_descriptor_pool(vulkan_context* context ,std::vector<VkDescriptorPool>& pools);
-//b8 alloc_descriptor_set(vulkan_context* context ,std::vector<VkDescriptorPool>& pools, VkDescriptorSetLayout* layouts, u32 layout_count);
+VkDescriptorPool vulkan_descriptor_pool_create(VulkanContext* context);
+VkDescriptorPool get_descriptor_pool(VulkanContext* context ,std::vector<VkDescriptorPool>& pools);
+//b8 alloc_descriptor_set(VulkanContext* context ,std::vector<VkDescriptorPool>& pools, VkDescriptorSetLayout* layouts, u32 layout_count);
 
-vulkan_shader::vulkan_shader(vulkan_context* vk_context, vulkan_renderpass* renderpass) : context(vk_context), renderpass(renderpass)
+vulkan_shader::vulkan_shader(VulkanContext* vk_context, VulkanRenderpass* renderpass) : context(vk_context), renderpass(renderpass)
 {
 }
 
@@ -229,7 +229,7 @@ b8 vulkan_shader::reflect_layout(VkDevice device)
 	return true;
 }
 
-b8 vulkan_global_data_initialize(vulkan_context* context, u32 buffer_size)
+b8 vulkan_global_data_initialize(VulkanContext* context, u32 buffer_size)
 {
 	b8 result = true;
 	
@@ -285,7 +285,7 @@ b8 vulkan_global_data_initialize(vulkan_context* context, u32 buffer_size)
 	return result;
 }
 
-void vulkan_global_data_destroy(vulkan_context* context)
+void vulkan_global_data_destroy(VulkanContext* context)
 {
 	for (uint32_t i = 0; i < MAX_FRAME; ++i)
 		vulkan_buffer_destroy(context, &context->global_data.ubo_data[i].buffer);

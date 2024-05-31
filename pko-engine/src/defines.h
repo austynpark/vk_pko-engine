@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdint.h>
 // Unsigned int types.
 typedef unsigned char u8;
 typedef unsigned short u16;
@@ -40,3 +41,13 @@ STATIC_ASSERT(sizeof(i64) == 8, "Expected i64 to be 8 bytes.");
 
 STATIC_ASSERT(sizeof(f32) == 4, "Expected f32 to be 4 bytes.");
 STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
+
+#if defined (_MSC_VER)
+#define PKO_EXPORT __declspec(dllexport)
+#define PKO_IMPORT __declspec(dllimport)
+#elif defined (__GNUC__)
+#define PKO_EXPORT __attribute__((visibility("default")))
+#define PKO_IMPORT
+#endif //_MSC_VER
+
+

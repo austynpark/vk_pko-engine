@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-void vulkan_framebuffer_create(vulkan_context* context, vulkan_renderpass* renderpass, u32 attachment_count, VkImageView* image_view, VkFramebuffer* out_framebuffer)
+void vulkan_framebuffer_create(VulkanContext* context, VulkanRenderpass* renderpass, u32 attachment_count, VkImageView* image_view, VkFramebuffer* out_framebuffer)
 {
 	VkFramebufferCreateInfo create_info{ VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
 	create_info.renderPass = renderpass->handle;
@@ -20,7 +20,7 @@ void vulkan_framebuffer_create(vulkan_context* context, vulkan_renderpass* rende
 	));
 }
 
-void vulkan_framebuffer_destroy(vulkan_context* context, VkFramebuffer* framebuffer) {
+void vulkan_framebuffer_destroy(VulkanContext* context, VkFramebuffer* framebuffer) {
 	vkDestroyFramebuffer(context->device_context.handle, *framebuffer, context->allocator);
 	framebuffer = 0;
 }

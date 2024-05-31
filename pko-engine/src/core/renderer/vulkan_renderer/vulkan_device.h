@@ -3,13 +3,13 @@
 
 #include "defines.h"
 
-struct vulkan_device;
-struct vulkan_context;
+struct VulkanDevice;
+struct VulkanContext;
 
-b8 vulkan_device_create(vulkan_context* context,vulkan_device* device_context);
-b8 vulkan_device_destroy(vulkan_context* context, vulkan_device* device_context);
+b8 vulkan_device_create(VulkanContext* context,VulkanDevice* device_context);
+b8 vulkan_device_destroy(VulkanContext* context, VulkanDevice* device_context);
 
-void vulkan_get_device_queue(vulkan_device* device_context);
-b8 vulkan_device_detect_depth_format(vulkan_device* device);
+void vulkan_get_device_queue(VulkanDevice* device_context);
+b8 vulkan_device_detect_depth_format(VulkanDevice* device);
 #endif // !VULKAN_DEVICE_H
 

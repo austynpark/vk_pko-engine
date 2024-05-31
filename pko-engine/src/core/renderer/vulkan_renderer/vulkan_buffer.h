@@ -9,18 +9,18 @@
 
 */
 void vulkan_buffer_create(
-	vulkan_context* context,
+	VulkanContext* context,
 	u64 buffer_size,
 	VkBufferUsageFlags buffer_usage_flag,
 	VmaMemoryUsage memory_usage_flag,
 	VmaAllocationCreateFlags alloc_create_flag,
-	vulkan_allocated_buffer* buffer
+	VulkanBuffer* buffer
 );
 
-void vulkan_buffer_copy(vulkan_context* context, vulkan_allocated_buffer* src_buffer, vulkan_allocated_buffer* dst_buffer, u64 size,u64 src_offset = 0, u64 dst_offset = 0);
+void vulkan_buffer_copy(VulkanContext* context, VulkanBuffer* src_buffer, VulkanBuffer* dst_buffer, u64 size,u64 src_offset = 0, u64 dst_offset = 0);
 
-void vulkan_buffer_destroy(vulkan_context* context, vulkan_allocated_buffer* buffer);
+void vulkan_buffer_destroy(VulkanContext* context, VulkanBuffer* buffer);
 
-void vulkan_buffer_upload(vulkan_context* context, vulkan_allocated_buffer* buffer, void* data, u32 data_size);
+void vulkan_buffer_upload(VulkanContext* context, VulkanBuffer* buffer, void* data, u32 data_size);
 
 #endif // !VULKAN_BUFFER_H

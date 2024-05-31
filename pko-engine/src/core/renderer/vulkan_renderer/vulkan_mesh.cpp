@@ -10,7 +10,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-vulkan_render_object::vulkan_render_object(vulkan_context* context_, const char* path) {
+vulkan_render_object::vulkan_render_object(VulkanContext* context_, const char* path) {
 	context = context_;
 	position = glm::vec3(0.0f);
 	scale = glm::vec3(1.0f);
@@ -28,7 +28,7 @@ void vulkan_render_object::upload_mesh()
 
 	for (u32 i = 0; i < mesh_count; ++i) {
 
-		vulkan_allocated_buffer staging_buffer;
+		VulkanBuffer staging_buffer;
 
 		vulkan_buffer_create(
 			context,
@@ -59,7 +59,7 @@ void vulkan_render_object::upload_mesh()
 
 		if (meshes[i].indices.size() > 0) {
 
-			vulkan_allocated_buffer index_staging_buffer;
+			VulkanBuffer index_staging_buffer;
 
 			vulkan_buffer_create(
 				context,
@@ -143,7 +143,7 @@ mesh vulkan_render_object::process_mesh(aiMesh* mesh_, const aiScene* scene_)
 {
 	std::vector<vertex> vertices;
 	std::vector<u32> indices;
-	std::vector<vulkan_texture> textures;
+	std::vector<VulkanTexture> textures;
 
 	for (unsigned int i = 0; i < mesh_->mNumVertices; i++)
 	{
@@ -184,10 +184,10 @@ mesh vulkan_render_object::process_mesh(aiMesh* mesh_, const aiScene* scene_)
 	if (mesh_->mMaterialIndex >= 0)
 	{
 		aiMaterial* material = scene_->mMaterials[mesh_->mMaterialIndex];
-		std::vector<vulkan_texture> diffuseMaps = load_material_textures(material,
+		std::vector<VulkanTexture> diffuseMaps = load_material_textures(material,
 			aiTextureType_DIFFUSE, "texture_diffuse");
 		textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
-		std::vector<vulkan_texture> specularMaps = load_material_textures(material,
+		std::vector<VulkanTexture> specularMaps = load_material_textures(material,
 			aiTextureType_SPECULAR, "texture_specular");
 		textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
 	}
@@ -195,19 +195,19 @@ mesh vulkan_render_object::process_mesh(aiMesh* mesh_, const aiScene* scene_)
 	return { vertices, indices, textures };
 }
 
-std::vector<vulkan_texture> vulkan_render_object::load_material_textures(aiMaterial* mat, aiTextureType type, std::string typeName)
+std::vector<VulkanTexture> vulkan_render_object::load_material_textures(aiMaterial* mat, aiTextureType type, std::string typeName)
 {
-	std::vector<vulkan_texture> textures;
+	std::vector<VulkanTexture> textures;
 	for (unsigned int i = 0; i < mat->GetTextureCount(type); i++)
 	{
 		aiString str;
 		mat->GetTexture(type, i, &str);
-		vulkan_image image;
+		VulkanImage image;
 		std::string directory = "model/";
 		directory.append(str.C_Str());
 		load_image_from_file(context, directory.c_str(), &image);
 
-		vulkan_texture texture_;
+		VulkanTexture texture_;
 		vulkan_texture_create(context, &texture_, image, VK_FILTER_LINEAR);
 		textures.push_back(texture_);
 	}

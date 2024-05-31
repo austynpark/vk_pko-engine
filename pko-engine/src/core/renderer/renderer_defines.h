@@ -1,0 +1,5 @@
+#ifndef RENDERER_DEFINES_H
+#define RENDERER_DEFINES_H
+
+
+#endif //RENDERER_DEFINES_H

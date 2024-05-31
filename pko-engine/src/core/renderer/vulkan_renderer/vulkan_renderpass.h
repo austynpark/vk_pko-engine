@@ -3,10 +3,10 @@
 
 #include "defines.h"
 
-struct vulkan_context;
-struct vulkan_renderpass;
+struct VulkanContext;
+struct VulkanRenderpass;
 
-void vulkan_renderpass_create(vulkan_context* context, vulkan_renderpass* renderpass, u32 x, u32 y, u32 w, u32 h);
-void vulkan_renderpass_destroy(vulkan_context* context, vulkan_renderpass* renderpass);
+void vulkan_renderpass_create(VulkanContext* context, VulkanRenderpass* renderpass, u32 x, u32 y, u32 w, u32 h);
+void vulkan_renderpass_destroy(VulkanContext* context, VulkanRenderpass* renderpass);
 
 #endif // !VULKAN_RENDERPASS_H

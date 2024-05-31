@@ -22,14 +22,14 @@ struct device_requirements
 	std::vector<const char*> extensions_name;
 };
 
-b8 pick_physical_device(vulkan_context* context, device_requirements* requirements);
+b8 pick_physical_device(VulkanContext* context, device_requirements* requirements);
 b8 check_physical_device_requirements(
 	VkPhysicalDevice device,
 	VkSurfaceKHR surface,
 	device_requirements* requirements,
 	queue_family_info* out_queue_family);
 
-b8 vulkan_device_create(vulkan_context* context, vulkan_device* device_context)
+b8 vulkan_device_create(VulkanContext* context, VulkanDevice* device_context)
 {
 	device_requirements requirements{
 		true,	//b8 use_graphics;
@@ -102,14 +102,14 @@ b8 vulkan_device_create(vulkan_context* context, vulkan_device* device_context)
 	return true;
 }
 
-b8 vulkan_device_destroy(vulkan_context* context, vulkan_device* device_context)
+b8 vulkan_device_destroy(VulkanContext* context, VulkanDevice* device_context)
 {
 	vkDestroyDevice(device_context->handle, context->allocator);
 
 	return false;
 }
 
-void vulkan_get_device_queue(vulkan_device* device_context)
+void vulkan_get_device_queue(VulkanDevice* device_context)
 {
 	if (device_context->graphics_family.index != -1)
 		vkGetDeviceQueue(device_context->handle, device_context->graphics_family.index, 0, &device_context->graphics_queue);
@@ -123,7 +123,7 @@ void vulkan_get_device_queue(vulkan_device* device_context)
 	std::cout << "device queue acquired" << std::endl;
 }
 
-b8 pick_physical_device(vulkan_context* context, device_requirements* requirements)
+b8 pick_physical_device(VulkanContext* context, device_requirements* requirements)
 {
 	u32 physical_count = 0;
 
@@ -289,7 +289,7 @@ b8 check_physical_device_requirements(VkPhysicalDevice device, VkSurfaceKHR surf
 	return true;
 }
 
-b8 vulkan_device_detect_depth_format(vulkan_device* device)
+b8 vulkan_device_detect_depth_format(VulkanDevice* device)
 {
 	const u64 candidate_count = 3;
 	VkFormat candidates[candidate_count] = {

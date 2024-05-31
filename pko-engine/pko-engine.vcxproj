@@ -26,6 +26,7 @@
     <ClInclude Include="src\core\input.h" />
     <ClInclude Include="src\core\renderer\camera.h" />
     <ClInclude Include="src\core\renderer\renderer.h" />
+    <ClInclude Include="src\core\renderer\renderer_defines.h" />
     <ClInclude Include="src\core\renderer\renderer_frontend.h" />
     <ClInclude Include="src\core\renderer\SPIRV-Reflect\include\spirv\unified1\spirv.h" />
     <ClInclude Include="src\core\renderer\SPIRV-Reflect\spirv_reflect.h" />
@@ -42,8 +43,6 @@
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_pipeline.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_renderer.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_renderpass.h" />
-    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_scene\default_scene.h" />
-    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_scene\vulkan_scene.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_shader.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_swapchain.h" />
     <ClInclude Include="src\defines.h" />
@@ -56,6 +55,7 @@
     <ClInclude Include="vendor\imgui\imstb_rectpack.h" />
     <ClInclude Include="vendor\imgui\imstb_textedit.h" />
     <ClInclude Include="vendor\imgui\imstb_truetype.h" />
+    <ClInclude Include="vendor\mmgr\mmgr.h" />
     <ClInclude Include="vendor\stb_image.h" />
     <ClInclude Include="vendor\tiny_obj_loader.h" />
     <ClInclude Include="vendor\vulkan\vk_platform.h" />
@@ -91,8 +91,6 @@
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">pch.h</PrecompiledHeaderFile>
     </ClCompile>
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_renderpass.cpp" />
-    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_scene\default_scene.cpp" />
-    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_scene\vulkan_scene.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_shader.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_swapchain.cpp" />
     <ClCompile Include="src\core\renderer\renderer_frontend.cpp" />
@@ -105,6 +103,7 @@
     <ClCompile Include="vendor\imgui\imgui_draw.cpp" />
     <ClCompile Include="vendor\imgui\imgui_tables.cpp" />
     <ClCompile Include="vendor\imgui\imgui_widgets.cpp" />
+    <ClCompile Include="vendor\mmgr\mmgr.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shader\test.frag" />
@@ -226,7 +225,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)vendor/glslang/;$(ProjectDir)vendor\assimp\include;$(ProjectDir)vendor\imgui</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)vendor/glslang/;$(ProjectDir)vendor\assimp\include;$(ProjectDir)vendor/mmgr/;$(ProjectDir)vendor\imgui</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
@@ -244,7 +243,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)vendor/glslang/;$(ProjectDir)vendor\assimp\include;$(ProjectDir)vendor\imgui\;$(ProjectDir)vendor\imgui</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)vendor/glslang/;$(ProjectDir)vendor\assimp\include;$(ProjectDir)vendor/mmgr/;$(ProjectDir)vendor\imgui\</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>

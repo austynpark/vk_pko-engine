@@ -21,8 +21,8 @@ private:
 	std::vector<VkWriteDescriptorSet> writes;
 	std::vector<VkDescriptorSetLayoutBinding> bindings;
 
-	descriptor_layout_cache* cache;
-	descriptor_allocator* alloc;
+	DescriptorLayoutCache* cache;
+	DescriptorAllocator* alloc;
 };
 
 #endif // !VULKAN_DESCRIPTOR_BUILDER
