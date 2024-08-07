@@ -19,23 +19,39 @@
 
 constexpr int MAX_FRAME = 3;
 
-struct vulkan_queue_family {
+typedef union ClearValue
+{
+	struct
+	{
+		float r;
+		float g;
+		float b;
+		float a;
+	};
+	struct
+	{
+		float    depth;
+		uint32_t stencil;
+	};
+}ClearValue;
+
+typedef struct QueueFamily {
 	u32 index = -1;
 	u32 count;
 	//std::vector<VkQueue> queues;
-};
+}QueueFamily;
 
-struct VulkanDevice {
+typedef struct DeviceContext {
 	VkDevice handle;
 	VkPhysicalDevice physical_device;
 
 	VkPhysicalDeviceFeatures features;
 	VkPhysicalDeviceProperties properties;
 
-	vulkan_queue_family graphics_family;
-	vulkan_queue_family present_family;
-	vulkan_queue_family transfer_family;
-	vulkan_queue_family compute_family;
+	QueueFamily graphics_family;
+	QueueFamily present_family;
+	QueueFamily transfer_family;
+	QueueFamily compute_family;
 
 	VkQueue graphics_queue;
 	VkQueue present_queue;
@@ -43,45 +59,103 @@ struct VulkanDevice {
 	VkQueue compute_queue;
 
 	VkFormat depth_format;
-};
+}DeviceContext;
 
-struct VulkanCommand {
+typedef struct Command {
 	VkCommandPool pool;
 	VkCommandBuffer buffer;
-};
+}Command;
 
-// Samplers should be managed by the texture system / as dyanmic storage
+// Samplers should be managed by the texture system / as dynamic storage
 VkSampler sampler;
 
-struct VulkanTexture {
-	VkImage image;
-	uint32_t aspectMask;
-};
+typedef enum ResourceState
+{
+	RESOURCE_STATE_UNDEFINED = 0,
+	RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER = 0x1,
+	RESOURCE_STATE_INDEX_BUFFER = 0x2,
+	RESOURCE_STATE_RENDER_TARGET = 0x4,
+	RESOURCE_STATE_UNORDERED_ACCESS = 0x8,
+	RESOURCE_STATE_DEPTH_WRITE = 0x10,
+	RESOURCE_STATE_DEPTH_READ = 0x20,
+	RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE = 0x40,
+	RESOURCE_STATE_PIXEL_SHADER_RESOURCE = 0x80,
+	RESOURCE_STATE_SHADER_RESOURCE = 0x40 | 0x80,
+	RESOURCE_STATE_PRESENT = 0x200,
+	RESOURCE_STATE_COPY_DEST = 0x400,
+	RESOURCE_STATE_COPY_SOURCE = 0x800,
+	RESOURCE_STATE_COMMON = 0x1000
+}ResourceState;
 
-struct RenderTarget
+typedef enum DescriptorType
+{
+	DEXCRIPTOR,
+	DESCRIPTOR_TYPE_RENDERTARGET,
+	DESCRIPTOR_TYPE_TEXTURE,
+	DESCRIPTOR_TYPE_RW_TEXTURE,
+	DESCRIPTOR_TYPE_
+}DescriptorType;
+
+typedef struct TextureDesc
+{
+	uint32_t width;
+	uint32_t height;
+	uint32_t mipLevels;
+	uint32_t sampleCount;
+
+	ResourceState startState;
+	VkDescriptorType 
+}TextureDesc;
+
+typedef struct VulkanTexture {
+	VkImage pSRVDescriptor;
+	VkImage* pUAVDescriptors;
+
+	uint32_t width : 16;
+	uint32_t height : 16;
+	uint32_t format : 8;
+	uint32_t sampleCount : 4;
+	uint32_t aspectMask : 4;
+}VulkanTexture;
+
+typedef struct RenderTargetDesc {
+	uint32_t width;
+	uint32_t height;
+	uint32_t mipLevels;
+	VkFormat format;
+	
+	// For Descriptor 
+	VkDescriptorType descriptorType;
+	const void* pNativeHandle; // VkImage
+
+}RenderTargetDesc;
+
+typedef struct RenderTarget
 {
 	VulkanTexture* pTexture;
-};
 
-struct VulkanSwapchainSupportInfo {
+}RenderTarget;
+
+typedef struct VulkanSwapchainSupportInfo {
 	VkSurfaceCapabilitiesKHR surface_capabilites;
 	std::vector<VkSurfaceFormatKHR> surface_formats;
 	std::vector<VkPresentModeKHR> present_modes;
 
 	u32 format_count;
 	u32 present_mode_count;
-};
+}VulkanSwapchainSupportInfo;
 
-struct SwapchainDesc
+typedef struct SwapchainDesc
 {
 	void* phWnd;
 	uint32_t width : 16;
 	uint32_t height : 16;
 	uint32_t image_count : 2; // MAX_FRAMES (TRIPPLE BUFFERING)
+}SwapchainDesc;
 
-};
+typedef struct VulkanSwapchain {
+	RenderTarget** ppRenderTargets;
 
-struct VulkanSwapchain {
 	VkSwapchainKHR handle;
 	SwapchainDesc* pDesc;
 	
@@ -90,25 +164,25 @@ struct VulkanSwapchain {
 	u32 image_count;
 
 	u8 max_frames_in_flight;
-};
+}VulkanSwapchain;
 
-struct VulkanRenderpass {
+typedef struct VulkanRenderpass {
 	VkRenderPass handle;
 	u32 x;
 	u32 y;
 	u32 width;
 	u32 height;
-};
+}VulkanRenderpass;
 
-struct VulkanBuffer {
+typedef struct VulkanBuffer {
 	VkBuffer handle;
 	VmaAllocation allocation;
-};
+}VulkanBuffer;
 
-struct VulkanPipeline {
+typedef struct VulkanPipeline {
 	VkPipeline handle;
 	VkPipelineLayout layout;
-};
+}VulkanPipeline;
 
 class DescriptorAllocator {
 public:
@@ -178,7 +252,7 @@ private:
 	VkDevice device = VK_NULL_HANDLE;
 };
 
-struct VulkanContext {
+typedef struct VulkanContext {
 	VmaAllocator vma_allocator;
 	VkAllocationCallbacks* allocator;
 	VkInstance	instance;
@@ -196,10 +270,9 @@ struct VulkanContext {
 	u32 framebuffer_height;
 
 	VkSurfaceKHR surface;
-	VulkanDevice device_context;
+	DeviceContext device_context;
 	VulkanSwapchainSupportInfo swapchain_support_info;
-	VulkanSwapchain swapchain;
 	VulkanRenderpass main_renderpass;
 
-	std::vector<DescriptorAllocator> dynamic_descriptor_allocators;
-};
+	DescriptorAllocator* pDynamic_descriptor_allocators;
+} VulkanContext;

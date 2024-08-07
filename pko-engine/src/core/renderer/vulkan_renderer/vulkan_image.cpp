@@ -86,7 +86,7 @@ void vulkan_image_destroy(VulkanContext* context, VulkanImage* image)
 
 void vulkan_image_layout_transition(
 	VulkanImage* image, 
-	VulkanCommand* command,
+	Command* command,
 	VkImageLayout old_layout,
 	VkImageLayout new_layout,
 	VkAccessFlags src_access_mask,
@@ -150,7 +150,7 @@ b8 load_image_from_file(VulkanContext* context, const char* file, VulkanImage* o
 	);
 
 	// create one time submit command buffer for image copy from staging buffer
-	VulkanCommand one_time_submit;
+	Command one_time_submit;
 	vulkan_command_pool_create(context, &one_time_submit, context->device_context.transfer_family.index);
 	vulkan_command_buffer_allocate(context, &one_time_submit, true);
 

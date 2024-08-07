@@ -7,6 +7,8 @@
 
 #include <glm/glm.hpp>
 
+class PlatformState;
+
 class Renderer
 {
 public:
@@ -27,6 +29,6 @@ public:
 
 protected:
 	// platform internal state
-	void* platform_state;
+	PlatformState* platform_state;
 	u32 frame_number;
 };

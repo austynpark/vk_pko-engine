@@ -46,6 +46,6 @@ void vulkan_pipeline_destroy(
 	VulkanPipeline* pipeline
 );
 
-void vulkan_pipeline_bind(VulkanCommand* command_buffer, VkPipelineBindPoint bind_point, VulkanPipeline* pipeline);
+void vulkan_pipeline_bind(Command* command_buffer, VkPipelineBindPoint bind_point, VulkanPipeline* pipeline);
 
 #endif // !VULKAN_PIPELINE_H

@@ -329,7 +329,7 @@ void vulkan_pipeline_destroy(VulkanContext* context, VulkanPipeline* pipeline)
 	}
 }
 
-void vulkan_pipeline_bind(VulkanCommand* command_buffer,VkPipelineBindPoint bind_point ,VulkanPipeline* pipeline) {
+void vulkan_pipeline_bind(Command* command_buffer,VkPipelineBindPoint bind_point ,VulkanPipeline* pipeline) {
 	//TODO: command buffer
 	vkCmdBindPipeline(command_buffer->buffer, bind_point, pipeline->handle);
 }

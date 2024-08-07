@@ -3,6 +3,10 @@
 
 #include "vulkan_types.inl"
 
+void vulkan_rendertarget_create(VulkanContext* context, );
+
+
+
 void vulkan_image_create(
 	VulkanContext* context,
 	VkImageType image_type,
@@ -26,7 +30,7 @@ void vulkan_image_view_create(
 void vulkan_image_destroy(VulkanContext* context, VulkanImage* image);
 
 void vulkan_image_layout_transition(VulkanImage* image, 
-	VulkanCommand* command,
+	Command* command,
 	VkImageLayout old_layout,
 	VkImageLayout new_layout,
 	VkAccessFlags src_access_mask,

@@ -27,6 +27,7 @@ static uint32_t MAX_FRAME = 3;
 static vulkan_library vulkan_library_loader;
 static VulkanContext context;
 
+VulkanSwapchain* pSwapchain = nullptr;
 VkSemaphore ready_to_render_semaphores[MAX_FRAME];
 VkSemaphore image_available_semaphores[MAX_FRAME];
 VkFence render_fences[MAX_FRAME];
@@ -121,16 +122,18 @@ b8 VulkanRenderer::Init()
     createDebugUtilMessage();
 #endif 
 
-    if (!vulkan_swapchain_create(&context, context.framebuffer_width, context.framebuffer_height, &context.swapchain)) {
+
+    SwapchainDesc swapchainDesc = {};
+    swapchainDesc.width = 1920;
+    swapchainDesc.height = 1080;
+    swapchainDesc.phWnd = ((InternalState*)platform_state->state)->handle;
+
+    if (!vulkan_swapchain_create(&context, &swapchainDesc, &context.swapchain)) {
         std::cout << "create swapchain failed" << std::endl;
         return false;
     }
     
     initImgui();
-
-    image_available_semaphores.resize(context.swapchain.max_frames_in_flight);
-    context.ready_to_render_semaphores.resize(context.swapchain.max_frames_in_flight);
-    context.render_fences.resize(context.swapchain.max_frames_in_flight);
 
     for (u32 i = 0; i < context.swapchain.max_frames_in_flight; ++i) {
         VkSemaphoreCreateInfo semaphore_create_info{ VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
@@ -351,8 +354,6 @@ void VulkanRenderer::Shutdown()
     }
 
     vulkan_global_data_destroy(&context);
-
-    scene[scene_index]->shutdown();
 	vulkan_renderpass_destroy(&context, &context.main_renderpass);
 
     vulkan_swapchain_destroy(&context, &context.swapchain);
@@ -553,7 +554,7 @@ void VulkanRenderer::initImgui()
     //execute a gpu command to upload imgui font textures
 
     // Begin Command
-    VulkanCommand command = scene[scene_index]->graphics_commands.at(context.current_frame);
+    Command command = scene[scene_index]->graphics_commands.at(context.current_frame);
 
     vulkan_command_buffer_begin(&command, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 	ImGui_ImplVulkan_CreateFontsTexture(command.buffer);

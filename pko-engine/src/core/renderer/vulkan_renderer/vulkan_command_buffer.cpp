@@ -2,7 +2,7 @@
 
 #include "vulkan_types.inl"
 
-void vulkan_command_pool_create(VulkanContext* context, VulkanCommand* command, u32 queue_family_index)
+void vulkan_command_pool_create(VulkanContext* context, Command* command, u32 queue_family_index)
 {
 	VkCommandPoolCreateInfo create_info{ VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
 	create_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
@@ -11,12 +11,12 @@ void vulkan_command_pool_create(VulkanContext* context, VulkanCommand* command, 
 	VK_CHECK(vkCreateCommandPool(context->device_context.handle, &create_info, context->allocator, &command->pool));
 }
 
-void vulkan_command_pool_destroy(VulkanContext* context, VulkanCommand* command)
+void vulkan_command_pool_destroy(VulkanContext* context, Command* command)
 {
 	vkDestroyCommandPool(context->device_context.handle, command->pool, context->allocator);
 }
 
-void vulkan_command_buffer_allocate(VulkanContext* context, VulkanCommand* command, b8 is_primary)
+void vulkan_command_buffer_allocate(VulkanContext* context, Command* command, b8 is_primary)
 {
 	//TODO: multiple command buffer
 	VkCommandBufferAllocateInfo alloc_info{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
@@ -27,7 +27,7 @@ void vulkan_command_buffer_allocate(VulkanContext* context, VulkanCommand* comma
 	VK_CHECK(vkAllocateCommandBuffers(context->device_context.handle, &alloc_info, &command->buffer));
 }
 
-void vulkan_command_buffer_begin(VulkanCommand* command, VkCommandBufferUsageFlags buffer_usage)
+void vulkan_command_buffer_begin(Command* command, VkCommandBufferUsageFlags buffer_usage)
 {
 	if (command == nullptr)
 		return;
@@ -40,7 +40,7 @@ void vulkan_command_buffer_begin(VulkanCommand* command, VkCommandBufferUsageFla
 	VK_CHECK(vkBeginCommandBuffer(command->buffer, &begin_info));
 }
 
-void vulkan_command_buffer_end(VulkanCommand* command)
+void vulkan_command_buffer_end(Command* command)
 {
 	if (command == nullptr)
 		return;

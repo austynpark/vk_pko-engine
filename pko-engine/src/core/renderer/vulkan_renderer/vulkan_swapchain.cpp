@@ -7,6 +7,7 @@
 #include <iostream>
 
 #include "core/renderer/renderer_defines.h"
+#include "vendor/mmgr/mmgr.h"
 
 //number of images
 
@@ -16,9 +17,14 @@ b8 vulkan_swapchain_create(VulkanContext* context, const SwapchainDesc* desc, Vu
     assert(desc);
     assert(pp_out_swapchain);
 
+    VulkanSwapchain* pSwapchain = (VulkanSwapchain*)alloc_aligned_memory(sizeof(VulkanSwapchain) + sizeof(RenderTarget*) * desc->image_count + sizeof(SwapchainDesc), 16);
+    pSwapchain->ppRenderTargets = (RenderTarget**)(pSwapchain + 1);
+    pSwapchain->pDesc = (SwapchainDesc*)(pSwapchain->ppRenderTargets + desc->image_count);
+    assert(pSwapchain);
+
     uint32_t width = desc->width;
     uint32_t height = desc->height;
-    uint32_t number_of_images = desc->imageCount;
+    uint32_t number_of_images = desc->image_count;
 
     VkExtent2D extent{ width, height };
 
@@ -34,7 +40,7 @@ b8 vulkan_swapchain_create(VulkanContext* context, const SwapchainDesc* desc, Vu
         if ((surface_format.colorSpace == VK_COLORSPACE_SRGB_NONLINEAR_KHR) &&
             (surface_format.format == VkFormat::VK_FORMAT_B8G8R8A8_UNORM))
         {
-            swapchain->image_format = surface_format;
+            pSwapchain->image_format = surface_format;
             is_found = true;
             break;
         }
@@ -53,12 +59,10 @@ b8 vulkan_swapchain_create(VulkanContext* context, const SwapchainDesc* desc, Vu
             break;
         }
     }
-    
-    swapchain->present_mode = selected_present_mode;
 
     VkSurfaceCapabilitiesKHR surface_capabilites = context->swapchain_support_info.surface_capabilites;
 
-    u32 number_of_images = (surface_capabilites.minImageCount + 1 > ) ;
+    assert(surface_capabilites.minImageCount > number_of_images);
 
     if (surface_capabilites.currentExtent.width == UINT32_MAX) {
         if (extent.width < surface_capabilites.minImageExtent.width) {
@@ -87,8 +91,8 @@ b8 vulkan_swapchain_create(VulkanContext* context, const SwapchainDesc* desc, Vu
 	VkSwapchainCreateInfoKHR swapchain_create_info{ VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
     swapchain_create_info.surface = context->surface;
     swapchain_create_info.minImageCount = number_of_images;
-    swapchain_create_info.imageFormat = swapchain->image_format.format;
-    swapchain_create_info.imageColorSpace = swapchain->image_format.colorSpace;
+    swapchain_create_info.imageFormat = pSwapchain->image_format.format;
+    swapchain_create_info.imageColorSpace = pSwapchain->image_format.colorSpace;
     swapchain_create_info.imageExtent = extent;
     swapchain_create_info.imageArrayLayers = 1;
     swapchain_create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
@@ -115,56 +119,62 @@ b8 vulkan_swapchain_create(VulkanContext* context, const SwapchainDesc* desc, Vu
     swapchain_create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     swapchain_create_info.presentMode = selected_present_mode;
     swapchain_create_info.clipped = VK_TRUE;
-    swapchain_create_info.oldSwapchain = context->swapchain.handle;
+    swapchain_create_info.oldSwapchain = 0;
 
-	VK_CHECK(vkCreateSwapchainKHR(context->device_context.handle, &swapchain_create_info, context->allocator, &swapchain->handle));
+	VK_CHECK(vkCreateSwapchainKHR(context->device_context.handle, &swapchain_create_info, context->allocator, &pSwapchain->handle));
 
-    swapchain->image_count = 0;
-    vkGetSwapchainImagesKHR(context->device_context.handle, swapchain->handle, &swapchain->image_count, 0);
+    pSwapchain->image_count = 0;
+    vkGetSwapchainImagesKHR(context->device_context.handle, pSwapchain->handle, &pSwapchain->image_count, 0);
 
-    if (swapchain->image_count != 0)
+    for (uint32_t rt = 0; rt < number_of_images; ++rt)
     {
-	    swapchain->images.resize(swapchain->image_count);
-		swapchain->image_views.resize(swapchain->image_count);
+        RenderTarget* pRenderTarget = pSwapchain->ppRenderTargets[rt];
+    }
+
+
+    if (pSwapchain->image_count != 0)
+    {
+        //images.resize(pSwapchain->image_count);
+        //pSwapchain->image_views.resize(pSwapchain->image_count);
     }
       
-    vkGetSwapchainImagesKHR(context->device_context.handle, swapchain->handle, &swapchain->image_count, swapchain->images.data());
+    //vkGetSwapchainImagesKHR(context->device_context.handle, pSwapchain->handle, &pSwapchain->image_count, pSwapchain->images.data());
     
 
-    for (u32 i = 0; i < swapchain->image_count; ++i) {
+    //for (u32 i = 0; i < pSwapchain->image_count; ++i) {
 
-        VkImageViewCreateInfo create_info{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-        create_info.image = swapchain->images.at(i);
-        create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        create_info.format = swapchain->image_format.format;
-        create_info.components = { VK_COMPONENT_SWIZZLE_IDENTITY };
-        create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        create_info.subresourceRange.baseArrayLayer = 0;
-        create_info.subresourceRange.baseMipLevel = 0;
-        create_info.subresourceRange.layerCount = 1;
-        create_info.subresourceRange.levelCount = 1;
+    //    VkImageViewCreateInfo create_info{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+    //    create_info.image = pSwapchain->images.at(i);
+    //    create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    //    create_info.format = swapchain->image_format.format;
+    //    create_info.components = { VK_COMPONENT_SWIZZLE_IDENTITY };
+    //    create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    //    create_info.subresourceRange.baseArrayLayer = 0;
+    //    create_info.subresourceRange.baseMipLevel = 0;
+    //    create_info.subresourceRange.layerCount = 1;
+    //    create_info.subresourceRange.levelCount = 1;
 
-        VK_CHECK(vkCreateImageView(context->device_context.handle, &create_info, context->allocator, &swapchain->image_views.at(i)));
-    }
+    //    VK_CHECK(vkCreateImageView(context->device_context.handle, &create_info, context->allocator, &swapchain->image_views.at(i)));
+    //}
 
     if (!vulkan_device_detect_depth_format(&context->device_context)) {
         std::cout << "depth format not detected" << std::endl;
         return false;
     }
 
-    vulkan_image_create(
-        context,
-        VK_IMAGE_TYPE_2D,
-        width,
-        height,
-        context->device_context.depth_format,
-        VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, //GPU ONLY
-        true,
-        VK_IMAGE_ASPECT_DEPTH_BIT,
-        &swapchain->depth_attachment
-    );
+    //vulkan_image_create(
+    //    context,
+    //    VK_IMAGE_TYPE_2D,
+    //    width,
+    //    height,
+    //    context->device_context.depth_format,
+    //    VK_IMAGE_TILING_OPTIMAL,
+    //    VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+    //    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, //GPU ONLY
+    //    true,
+    //    VK_IMAGE_ASPECT_DEPTH_BIT,
+    //    &swapchain->depth_attachment
+    //);
 
     std::cout << "swapchain created" << std::endl;
 
@@ -173,14 +183,14 @@ b8 vulkan_swapchain_create(VulkanContext* context, const SwapchainDesc* desc, Vu
 
 b8 vulkan_swapchain_destroy(VulkanContext* context, VulkanSwapchain* swapchain)
 {
-    if (context->render_fences.at(context->current_frame) != VK_NULL_HANDLE)
-        VK_CHECK(vkWaitForFences(context->device_context.handle, 1, &context->render_fences.at(context->current_frame), true, UINT64_MAX));
+    //if (context->render_fences.at(context->current_frame) != VK_NULL_HANDLE)
+    //    VK_CHECK(vkWaitForFences(context->device_context.handle, 1, &context->render_fences.at(context->current_frame), true, UINT64_MAX));
 
-    vulkan_image_destroy(context, &swapchain->depth_attachment);
+    //vulkan_image_destroy(context, &swapchain->depth_attachment);
    
-    for (u32 i = 0; i < swapchain->image_count; ++i) {
-        vkDestroyImageView(context->device_context.handle, swapchain->image_views.at(i), context->allocator);
-    }
+    //for (u32 i = 0; i < swapchain->image_count; ++i) {
+    //    vkDestroyImageView(context->device_context.handle, swapchain->image_views.at(i), context->allocator);
+    //}
 
     vkDestroySwapchainKHR(context->device_context.handle, swapchain->handle, context->allocator);
 
@@ -193,8 +203,8 @@ b8 vulkan_swapchain_recreate(VulkanContext* context, i32 width, i32 height)
 {
     VulkanSwapchain out_swapchain{};
 	
-    if (!vulkan_swapchain_create(context, width, height, &out_swapchain))
-        return false;
+    //if (!vulkan_swapchain_create(context, width, height, &out_swapchain))
+    //    return false;
 
 
 	vulkan_swapchain_destroy(context, &context->swapchain);

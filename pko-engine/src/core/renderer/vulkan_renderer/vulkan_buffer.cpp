@@ -38,7 +38,7 @@ void vulkan_buffer_copy(VulkanContext* context,
 	u64 dst_offset
 )
 {
-	VulkanCommand one_time_submit;
+	Command one_time_submit;
 	vulkan_command_pool_create(context, &one_time_submit, context->device_context.transfer_family.index);
 	vulkan_command_buffer_allocate(context, &one_time_submit, true);
 
