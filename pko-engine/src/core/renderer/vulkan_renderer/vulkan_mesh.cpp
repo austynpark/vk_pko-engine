@@ -11,7 +11,7 @@
 #include <glm/gtc/quaternion.hpp>
 
 vulkan_render_object::vulkan_render_object(VulkanContext* context_, const char* path) {
-	context = context_;
+	pContext = context_;
 	position = glm::vec3(0.0f);
 	scale = glm::vec3(1.0f);
 	rotation = glm::vec3(0.0f);
@@ -31,7 +31,7 @@ void vulkan_render_object::upload_mesh()
 		VulkanBuffer staging_buffer;
 
 		vulkan_buffer_create(
-			context,
+			pContext,
 			meshes[i].vertices.size() * sizeof(vertex),
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 			VMA_MEMORY_USAGE_AUTO,
@@ -39,22 +39,22 @@ void vulkan_render_object::upload_mesh()
 			&staging_buffer);
 
 		void* data;
-		VK_CHECK(vmaMapMemory(context->vma_allocator, staging_buffer.allocation, &data));
+		VK_CHECK(vmaMapMemory(pContext->vma_allocator, staging_buffer.allocation, &data));
 
 		memcpy(data, meshes[i].vertices.data(), meshes[i].vertices.size() * sizeof(vertex));
 
-		vmaUnmapMemory(context->vma_allocator, staging_buffer.allocation);
+		vmaUnmapMemory(pContext->vma_allocator, staging_buffer.allocation);
 
 		vulkan_buffer_create(
-			context,
+			pContext,
 			meshes[i].vertices.size() * sizeof(vertex),
 			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
 			VMA_MEMORY_USAGE_AUTO,
 			VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT,
 			&vertex_buffers[i]);
 
-		vulkan_buffer_copy(context, &staging_buffer, &vertex_buffers[i], meshes[i].vertices.size() * sizeof(vertex));
-		vulkan_buffer_destroy(context, &staging_buffer);
+		vulkan_buffer_copy(pContext, &staging_buffer, &vertex_buffers[i], meshes[i].vertices.size() * sizeof(vertex));
+		vulkan_buffer_destroy(pContext, &staging_buffer);
 
 
 		if (meshes[i].indices.size() > 0) {
@@ -62,21 +62,21 @@ void vulkan_render_object::upload_mesh()
 			VulkanBuffer index_staging_buffer;
 
 			vulkan_buffer_create(
-				context,
+				pContext,
 				meshes[i].indices.size() * sizeof(u32),
 				VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 				VMA_MEMORY_USAGE_AUTO,
 				VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
 				&index_staging_buffer);
 
-			VK_CHECK(vmaMapMemory(context->vma_allocator, index_staging_buffer.allocation, &data));
+			VK_CHECK(vmaMapMemory(pContext->vma_allocator, index_staging_buffer.allocation, &data));
 
 			memcpy(data, meshes[i].indices.data(), meshes[i].indices.size() * sizeof(u32));
 
-			vmaUnmapMemory(context->vma_allocator, index_staging_buffer.allocation);
+			vmaUnmapMemory(pContext->vma_allocator, index_staging_buffer.allocation);
 
 			vulkan_buffer_create(
-				context,
+				pContext,
 				meshes[i].indices.size() * sizeof(u32),
 				VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
 				VMA_MEMORY_USAGE_AUTO,
@@ -84,8 +84,8 @@ void vulkan_render_object::upload_mesh()
 				&index_buffers[i]
 			);
 
-			vulkan_buffer_copy(context, &index_staging_buffer, &index_buffers[i], meshes[i].indices.size() * sizeof(u32));
-			vulkan_buffer_destroy(context, &index_staging_buffer);
+			vulkan_buffer_copy(pContext, &index_staging_buffer, &index_buffers[i], meshes[i].indices.size() * sizeof(u32));
+			vulkan_buffer_destroy(pContext, &index_staging_buffer);
 		}
 	}
 }
@@ -94,14 +94,14 @@ void vulkan_render_object::vulkan_render_object_destroy()
 {
 	for (auto& mesh : meshes) {
 		for (auto& texture : mesh.textures)
-			vulkan_texture_destroy(context, &texture);
+			vulkan_texture_destroy(pContext, &texture);
 	}
 
 	for (auto& vertex_buffer : vertex_buffers)
-		vmaDestroyBuffer(context->vma_allocator, vertex_buffer.handle, vertex_buffer.allocation);
+		vmaDestroyBuffer(pContext->vma_allocator, vertex_buffer.handle, vertex_buffer.allocation);
 
 	for(auto& index_buffer: index_buffers)
-		vmaDestroyBuffer(context->vma_allocator, index_buffer.handle, index_buffer.allocation);
+		vmaDestroyBuffer(pContext->vma_allocator, index_buffer.handle, index_buffer.allocation);
 }
 
 vulkan_render_object::~vulkan_render_object()
@@ -143,7 +143,7 @@ mesh vulkan_render_object::process_mesh(aiMesh* mesh_, const aiScene* scene_)
 {
 	std::vector<vertex> vertices;
 	std::vector<u32> indices;
-	std::vector<VulkanTexture> textures;
+	std::vector<Texture> textures;
 
 	for (unsigned int i = 0; i < mesh_->mNumVertices; i++)
 	{
@@ -184,10 +184,10 @@ mesh vulkan_render_object::process_mesh(aiMesh* mesh_, const aiScene* scene_)
 	if (mesh_->mMaterialIndex >= 0)
 	{
 		aiMaterial* material = scene_->mMaterials[mesh_->mMaterialIndex];
-		std::vector<VulkanTexture> diffuseMaps = load_material_textures(material,
+		std::vector<Texture> diffuseMaps = load_material_textures(material,
 			aiTextureType_DIFFUSE, "texture_diffuse");
 		textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
-		std::vector<VulkanTexture> specularMaps = load_material_textures(material,
+		std::vector<Texture> specularMaps = load_material_textures(material,
 			aiTextureType_SPECULAR, "texture_specular");
 		textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
 	}
@@ -195,9 +195,9 @@ mesh vulkan_render_object::process_mesh(aiMesh* mesh_, const aiScene* scene_)
 	return { vertices, indices, textures };
 }
 
-std::vector<VulkanTexture> vulkan_render_object::load_material_textures(aiMaterial* mat, aiTextureType type, std::string typeName)
+std::vector<Texture> vulkan_render_object::load_material_textures(aiMaterial* mat, aiTextureType type, std::string typeName)
 {
-	std::vector<VulkanTexture> textures;
+	std::vector<Texture> textures;
 	for (unsigned int i = 0; i < mat->GetTextureCount(type); i++)
 	{
 		aiString str;
@@ -205,10 +205,10 @@ std::vector<VulkanTexture> vulkan_render_object::load_material_textures(aiMateri
 		VulkanImage image;
 		std::string directory = "model/";
 		directory.append(str.C_Str());
-		load_image_from_file(context, directory.c_str(), &image);
+		load_image_from_file(pContext, directory.c_str(), &image);
 
-		VulkanTexture texture_;
-		vulkan_texture_create(context, &texture_, image, VK_FILTER_LINEAR);
+		Texture texture_;
+		vulkan_texture_create(pContext, &texture_, image, VK_FILTER_LINEAR);
 		textures.push_back(texture_);
 	}
 	return textures;

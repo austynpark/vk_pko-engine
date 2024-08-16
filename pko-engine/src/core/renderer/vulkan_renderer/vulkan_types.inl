@@ -71,7 +71,7 @@ VkSampler sampler;
 
 typedef enum ResourceState
 {
-	RESOURCE_STATE_UNDEFINED = 0,
+	RESOURCE_STATE_UNDEFINED = 0x0,
 	RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER = 0x1,
 	RESOURCE_STATE_INDEX_BUFFER = 0x2,
 	RESOURCE_STATE_RENDER_TARGET = 0x4,
@@ -89,50 +89,71 @@ typedef enum ResourceState
 
 typedef enum DescriptorType
 {
-	DEXCRIPTOR,
-	DESCRIPTOR_TYPE_RENDERTARGET,
-	DESCRIPTOR_TYPE_TEXTURE,
-	DESCRIPTOR_TYPE_RW_TEXTURE,
-	DESCRIPTOR_TYPE_
+	DESCRIPTOR_TYPE_UNDEFINED = 0x0,
+	DESCRIPTOR_TYPE_TEXTURE = 0x1,
+	DESCRIPTOR_TYPE_RW_TEXTURE = (DESCRIPTOR_TYPE_TEXTURE << 1),
 }DescriptorType;
+ENUM_FLAGS_OPERATOR(u32, DescriptorType)
 
-typedef struct TextureDesc
+typedef __declspec(align(32)) struct TextureDesc
 {
-	uint32_t width;
-	uint32_t height;
+	uint32_t width : 16;
+	uint32_t height : 16;
 	uint32_t mipLevels;
 	uint32_t sampleCount;
-
+	VkFormat format;
+	ClearValue clearValue;
 	ResourceState startState;
-	VkDescriptorType 
+	DescriptorType type;
+
+	const void* pNativeHandle;
 }TextureDesc;
 
-typedef struct VulkanTexture {
-	VkImage pSRVDescriptor;
-	VkImage* pUAVDescriptors;
+typedef __declspec(align(32)) struct Texture {
+	VkImage pImage;
+	VkImageView pSRVDescriptor;
+	VkImageView* pUAVDescriptors;
+
+	VmaAllocation allocation;
 
 	uint32_t width : 16;
 	uint32_t height : 16;
 	uint32_t format : 8;
 	uint32_t sampleCount : 4;
 	uint32_t aspectMask : 4;
-}VulkanTexture;
+	uint32_t mipLevels : 5;
+	uint32_t ownsImage : 1;
+}Texture;
 
-typedef struct RenderTargetDesc {
+typedef __declspec(align(32)) struct RenderTargetDesc {
 	uint32_t width;
 	uint32_t height;
 	uint32_t mipLevels;
+	uint32_t sampleCount;
 	VkFormat format;
-	
+	ClearValue clearValue;
 	// For Descriptor 
-	VkDescriptorType descriptorType;
+	DescriptorType descriptorType;
 	const void* pNativeHandle; // VkImage
 
 }RenderTargetDesc;
 
-typedef struct RenderTarget
+typedef __declspec(align(64)) struct RenderTarget
 {
-	VulkanTexture* pTexture;
+	Texture* pTexture;
+	ClearValue      mClearValue;
+	uint32_t        mArraySize : 16;
+	uint32_t        mDepth : 16;
+	uint32_t        mWidth : 16;
+	uint32_t        mHeight : 16;
+	uint32_t        mDescriptors : 20;
+	uint32_t        mMipLevels : 10;
+	uint32_t        mSampleQuality : 5;
+	VkFormat		mFormat;
+	VkSampleCountFlagBits     mSampleCount;
+
+	VkImageView pDescriptor;
+	VkImageView* pArrayDescriptors;
 
 }RenderTarget;
 
@@ -145,7 +166,7 @@ typedef struct VulkanSwapchainSupportInfo {
 	u32 present_mode_count;
 }VulkanSwapchainSupportInfo;
 
-typedef struct SwapchainDesc
+typedef __declspec(align(16)) struct SwapchainDesc
 {
 	void* phWnd;
 	uint32_t width : 16;
@@ -162,8 +183,6 @@ typedef struct VulkanSwapchain {
 	//VkPresentModeKHR present_mode;
 	VkSurfaceFormatKHR image_format;
 	u32 image_count;
-
-	u8 max_frames_in_flight;
 }VulkanSwapchain;
 
 typedef struct VulkanRenderpass {

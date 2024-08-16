@@ -6,8 +6,8 @@
 struct DeviceContext;
 struct VulkanContext;
 
-b8 vulkan_device_create(VulkanContext* context,DeviceContext* device_context);
-b8 vulkan_device_destroy(VulkanContext* context, DeviceContext* device_context);
+b8 vulkan_device_create(VulkanContext* pContext,DeviceContext* device_context);
+b8 vulkan_device_destroy(VulkanContext* pContext, DeviceContext* device_context);
 
 void vulkan_get_device_queue(DeviceContext* device_context);
 b8 vulkan_device_detect_depth_format(DeviceContext* device);

@@ -22,14 +22,14 @@ struct device_requirements
 	std::vector<const char*> extensions_name;
 };
 
-b8 pick_physical_device(VulkanContext* context, device_requirements* requirements);
+b8 pick_physical_device(VulkanContext* pContext, device_requirements* requirements);
 b8 check_physical_device_requirements(
 	VkPhysicalDevice device,
 	VkSurfaceKHR surface,
 	device_requirements* requirements,
 	queue_family_info* out_queue_family);
 
-b8 vulkan_device_create(VulkanContext* context, DeviceContext* device_context)
+b8 vulkan_device_create(VulkanContext* pContext, DeviceContext* device_context)
 {
 	device_requirements requirements{
 		true,	//b8 use_graphics;
@@ -43,21 +43,21 @@ b8 vulkan_device_create(VulkanContext* context, DeviceContext* device_context)
 	};
 
 
-	if (!pick_physical_device(context, &requirements)) {
+	if (!pick_physical_device(pContext, &requirements)) {
 		return false;
 	}
 
 	u32 queue_count = 1;
 
 	b8 present_shares_graphics_queue =
-		(context->device_context.graphics_family.index ==
-			context->device_context.present_family.index);
+		(pContext->device_context.graphics_family.index ==
+			pContext->device_context.present_family.index);
 
 	b8 transfer_shares_graphics_queue =
-		(context->device_context.graphics_family.index ==
-			context->device_context.transfer_family.index);
+		(pContext->device_context.graphics_family.index ==
+			pContext->device_context.transfer_family.index);
 
-	if (context->device_context.compute_family.index != UINT32_MAX)
+	if (pContext->device_context.compute_family.index != UINT32_MAX)
 		++queue_count;
 
 	if (!present_shares_graphics_queue) {
@@ -71,12 +71,12 @@ b8 vulkan_device_create(VulkanContext* context, DeviceContext* device_context)
 	std::vector<VkDeviceQueueCreateInfo> queue_create_infos(queue_count);
 	std::vector<u32> queue_indices(queue_count);
 	u32 queue_index_count = 0;
-	queue_indices.at(queue_index_count++) = context->device_context.graphics_family.index;
+	queue_indices.at(queue_index_count++) = pContext->device_context.graphics_family.index;
 	if (!present_shares_graphics_queue)
-		queue_indices.at(queue_index_count++) = context->device_context.present_family.index;
+		queue_indices.at(queue_index_count++) = pContext->device_context.present_family.index;
 
 	if (!transfer_shares_graphics_queue)
-		queue_indices.at(queue_index_count++) = context->device_context.transfer_family.index;
+		queue_indices.at(queue_index_count++) = pContext->device_context.transfer_family.index;
 
 	for (u32 i = 0; i < queue_count; ++i) {
 		queue_create_infos.at(i).sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
@@ -95,16 +95,16 @@ b8 vulkan_device_create(VulkanContext* context, DeviceContext* device_context)
 	device_create_info.ppEnabledExtensionNames = requirements.extensions_name.data();
 	//device_create_info.pEnabledFeatures;
 
-	VK_CHECK(vkCreateDevice(device_context->physical_device, &device_create_info, context->allocator, &device_context->handle));
+	VK_CHECK(vkCreateDevice(device_context->physical_device, &device_create_info, pContext->allocator, &device_context->handle));
 
 	std::cout << "device successfully created" << std::endl;
 
 	return true;
 }
 
-b8 vulkan_device_destroy(VulkanContext* context, DeviceContext* device_context)
+b8 vulkan_device_destroy(VulkanContext* pContext, DeviceContext* device_context)
 {
-	vkDestroyDevice(device_context->handle, context->allocator);
+	vkDestroyDevice(device_context->handle, pContext->allocator);
 
 	return false;
 }
@@ -123,11 +123,11 @@ void vulkan_get_device_queue(DeviceContext* device_context)
 	std::cout << "device queue acquired" << std::endl;
 }
 
-b8 pick_physical_device(VulkanContext* context, device_requirements* requirements)
+b8 pick_physical_device(VulkanContext* pContext, device_requirements* requirements)
 {
 	u32 physical_count = 0;
 
-	VK_CHECK(vkEnumeratePhysicalDevices(context->instance, &physical_count, 0));
+	VK_CHECK(vkEnumeratePhysicalDevices(pContext->instance, &physical_count, 0));
 
 	if (physical_count == 0) {
 		std::cout << "physical device doesn't exists\n";
@@ -135,23 +135,23 @@ b8 pick_physical_device(VulkanContext* context, device_requirements* requirement
 	}
 
 	std::vector<VkPhysicalDevice> physical_devices(physical_count);
-	VK_CHECK(vkEnumeratePhysicalDevices(context->instance, &physical_count, physical_devices.data()));
+	VK_CHECK(vkEnumeratePhysicalDevices(pContext->instance, &physical_count, physical_devices.data()));
 
 	queue_family_info out_queue_family_info{ UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX };
 
 	for (u32 i = 0; i < physical_count; ++i)
 	{
-		if (check_physical_device_requirements(physical_devices.at(i), context->surface, requirements, &out_queue_family_info)) {
+		if (check_physical_device_requirements(physical_devices.at(i), pContext->surface, requirements, &out_queue_family_info)) {
 			
-			context->device_context.physical_device = physical_devices.at(i);
+			pContext->device_context.physical_device = physical_devices.at(i);
 
-			context->device_context.graphics_family.index = out_queue_family_info.graphics_queue_family_index;
-			context->device_context.present_family.index = out_queue_family_info.present_queue_family_index;
-			context->device_context.transfer_family.index = out_queue_family_info.transfer_queue_family_index;
-			context->device_context.compute_family.index = out_queue_family_info.compute_queue_family_index;
+			pContext->device_context.graphics_family.index = out_queue_family_info.graphics_queue_family_index;
+			pContext->device_context.present_family.index = out_queue_family_info.present_queue_family_index;
+			pContext->device_context.transfer_family.index = out_queue_family_info.transfer_queue_family_index;
+			pContext->device_context.compute_family.index = out_queue_family_info.compute_queue_family_index;
 
-			vkGetPhysicalDeviceFeatures(context->device_context.physical_device, &context->device_context.features);
-			vkGetPhysicalDeviceProperties(context->device_context.physical_device, &context->device_context.properties);
+			vkGetPhysicalDeviceFeatures(pContext->device_context.physical_device, &pContext->device_context.features);
+			vkGetPhysicalDeviceProperties(pContext->device_context.physical_device, &pContext->device_context.properties);
 
 			break;
 		}

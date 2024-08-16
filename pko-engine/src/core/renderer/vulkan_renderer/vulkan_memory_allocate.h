@@ -5,8 +5,8 @@
 
 struct VulkanContext;
 
-void vulkan_memory_allocator_create(VulkanContext* context);
-void vulkan_memory_allocator_destroy(VulkanContext* context);
+void vulkan_memory_allocator_create(VulkanContext* pContext);
+void vulkan_memory_allocator_destroy(VulkanContext* pContext);
 
 
 #endif // !VULKAN_MEMORY_ALLOCATE_H

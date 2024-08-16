@@ -147,8 +147,15 @@ void	operator delete(void *reportedAddress);
 void	operator delete[](void *reportedAddress);
 
 #define ALIGN_TO(size, alignment) ((size + (alignment - 1)) & ~(alignment - 1))
-#define alloc_aligned_memory(size, alignment) mmgrAllocateAlignedMemory(size, alignment, __FILE__ ,__LINE__, __FUNCTION__);
-#define free_aligned_memory(ptr) mmgrFreeAlignedMemory(ptr, __FILE__, __LINE__, __FUNCTION__);
+#define alloc_aligned_memory(size, alignment) mmgrAllocateAlignedMemory(size, alignment, __FILE__ ,__LINE__, __FUNCTION__)
+#define free_aligned_memory(ptr) mmgrFreeAlignedMemory(ptr, __FILE__, __LINE__, __FUNCTION__)
+
+#define SAFE_FREE(ptr)				\
+	if(ptr)							\
+	{								\
+		free_aligned_memory(ptr);	\
+		ptr = NULL;				\
+	}
 
 void* mmgrAllocateAlignedMemory(uint32_t size, uint32_t alignment, const char* srcName, uint32_t line, const char* funcName);
 void mmgrFreeAlignedMemory(void* ptr, const char* srcName, uint32_t line, const char* funcName);

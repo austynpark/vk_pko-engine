@@ -3,7 +3,7 @@
 #include "vulkan_command_buffer.h"
 
 void vulkan_buffer_create(
-	VulkanContext* context,
+	VulkanContext* pContext,
 	u64 buffer_size,
 	VkBufferUsageFlags buffer_usage_flag,
 	VmaMemoryUsage memory_usage_flag,
@@ -20,7 +20,7 @@ void vulkan_buffer_create(
 	alloc_create_info.flags = alloc_create_flag;
 
 	VK_CHECK(vmaCreateBuffer(
-		context->vma_allocator,
+		pContext->vma_allocator,
 		&buffer_create_info,
 		&alloc_create_info,
 		&buffer->handle,
@@ -30,7 +30,7 @@ void vulkan_buffer_create(
 
 }
 
-void vulkan_buffer_copy(VulkanContext* context,
+void vulkan_buffer_copy(VulkanContext* pContext,
 	VulkanBuffer* src_buffer,
 	VulkanBuffer* dst_buffer,
 	u64 size,
@@ -39,8 +39,8 @@ void vulkan_buffer_copy(VulkanContext* context,
 )
 {
 	Command one_time_submit;
-	vulkan_command_pool_create(context, &one_time_submit, context->device_context.transfer_family.index);
-	vulkan_command_buffer_allocate(context, &one_time_submit, true);
+	vulkan_command_pool_create(pContext, &one_time_submit, pContext->device_context.transfer_family.index);
+	vulkan_command_buffer_allocate(pContext, &one_time_submit, true);
 
 	VkBufferCopy buffer_copy{
 		src_offset,// srcOffset
@@ -57,21 +57,21 @@ void vulkan_buffer_copy(VulkanContext* context,
 	submit_info.commandBufferCount = 1;
 	submit_info.pCommandBuffers = &one_time_submit.buffer;
 
-	VK_CHECK(vkQueueSubmit(context->device_context.transfer_queue, 1, &submit_info, VK_NULL_HANDLE));
-	vkQueueWaitIdle(context->device_context.transfer_queue);
-	vulkan_command_pool_destroy(context, &one_time_submit);
+	VK_CHECK(vkQueueSubmit(pContext->device_context.transfer_queue, 1, &submit_info, VK_NULL_HANDLE));
+	vkQueueWaitIdle(pContext->device_context.transfer_queue);
+	vulkan_command_pool_destroy(pContext, &one_time_submit);
 }
 
 
-void vulkan_buffer_destroy(VulkanContext* context, VulkanBuffer* buffer) {
+void vulkan_buffer_destroy(VulkanContext* pContext, VulkanBuffer* buffer) {
 
-	vmaDestroyBuffer(context->vma_allocator, buffer->handle, buffer->allocation);
+	vmaDestroyBuffer(pContext->vma_allocator, buffer->handle, buffer->allocation);
 }
 
-void vulkan_buffer_upload(VulkanContext* context, VulkanBuffer* buffer, void* data, u32 data_size)
+void vulkan_buffer_upload(VulkanContext* pContext, VulkanBuffer* buffer, void* data, u32 data_size)
 {
 	void* copied_data;
-	vmaMapMemory(context->vma_allocator, buffer->allocation, &copied_data);
+	vmaMapMemory(pContext->vma_allocator, buffer->allocation, &copied_data);
 	memcpy(copied_data, data, data_size);
-	vmaUnmapMemory(context->vma_allocator, buffer->allocation);
+	vmaUnmapMemory(pContext->vma_allocator, buffer->allocation);
 }

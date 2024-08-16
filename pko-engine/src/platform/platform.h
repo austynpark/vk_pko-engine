@@ -39,7 +39,6 @@ struct PlatformState {
 
         // Internal state
         void* state;
-    private:
         u32 width;
         u32 height;
 };

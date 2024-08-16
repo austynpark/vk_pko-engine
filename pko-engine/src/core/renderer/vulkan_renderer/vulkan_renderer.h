@@ -10,15 +10,16 @@ class VulkanRenderer : public Renderer {
 	
 public:
 	VulkanRenderer() = delete;
-	VulkanRenderer(void* platform_internal_state);
+	VulkanRenderer(PlatformState* platform_internal_state);
 	~VulkanRenderer() override;
 
 	b8 Init() override;
-	void Load() override;
+	void Load(ReloadDesc* desc) override;
 	void UnLoad() override;
 	void Update(float deltaTime) override;
 	void Draw() override;
 	void Shutdown() override;
+	b8 OnResize(u32 w, u32 h) override;
 
 private:
 	void initImgui();

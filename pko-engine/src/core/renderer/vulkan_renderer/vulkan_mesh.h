@@ -37,13 +37,13 @@ struct vertex {
 struct mesh {
 	std::vector<vertex> vertices;
 	std::vector<u32> indices;
-	std::vector<VulkanTexture> textures;
+	std::vector<Texture> textures;
 	glm::mat4 transform_matrix;
 };
 
 class vulkan_render_object {
 public:
-	vulkan_render_object(VulkanContext* context, const char* path);
+	vulkan_render_object(VulkanContext* pContext, const char* path);
 	void upload_mesh();
 	void vulkan_render_object_destroy();
 	~vulkan_render_object();
@@ -68,10 +68,10 @@ public:
 private:
 	void process_node(aiNode* node, const aiScene* scene);
 	mesh process_mesh(aiMesh* mesh, const aiScene* scene);
-	std::vector<VulkanTexture> load_material_textures(aiMaterial* mat, aiTextureType type,
+	std::vector<Texture> load_material_textures(aiMaterial* mat, aiTextureType type,
 		std::string typeName);
 
-	VulkanContext* context;
+	VulkanContext* pContext;
 };
 
 

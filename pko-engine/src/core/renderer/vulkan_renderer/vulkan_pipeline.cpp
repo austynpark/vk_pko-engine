@@ -3,10 +3,10 @@
 #include "core/file_handle.h"
 #include <iostream>
 
-b8 vulkan_shader_module_create(VulkanContext* context, VkShaderModule* out_shader_module, const char* path);
+b8 vulkan_shader_module_create(VulkanContext* pContext, VkShaderModule* out_shader_module, const char* path);
 
 b8 vulkan_graphics_pipeline_create(
-	VulkanContext* context,
+	VulkanContext* pContext,
 	VulkanRenderpass* renderpass,
 	VulkanPipeline* out_pipeline,
 	u32 binding_description_count,
@@ -23,14 +23,14 @@ b8 vulkan_graphics_pipeline_create(
 {
 	VkShaderModule vertex_shader_module;
 
-	if (!vulkan_shader_module_create(context, &vertex_shader_module, vertex_file_path)) {
+	if (!vulkan_shader_module_create(pContext, &vertex_shader_module, vertex_file_path)) {
 		std::cout << " vertex shader module failed to create" << std::endl;
 		return false;
 	}
 
 	VkShaderModule fragment_shader_module;
 
-	if (!vulkan_shader_module_create(context, &fragment_shader_module, fragment_file_path)) {
+	if (!vulkan_shader_module_create(pContext, &fragment_shader_module, fragment_file_path)) {
 		std::cout << "frag shader module failed to create" << std::endl;
 		return false;
 	}
@@ -148,7 +148,7 @@ b8 vulkan_graphics_pipeline_create(
 	pipeline_layout_info.setLayoutCount = descriptor_set_layout_count;
 	pipeline_layout_info.pSetLayouts = descriptor_set_layouts;
 
-	VK_CHECK(vkCreatePipelineLayout(context->device_context.handle, &pipeline_layout_info, context->allocator, &out_pipeline->layout));
+	VK_CHECK(vkCreatePipelineLayout(pContext->device_context.handle, &pipeline_layout_info, pContext->allocator, &out_pipeline->layout));
 
 	VkGraphicsPipelineCreateInfo graphics_pipeline_create_info{ VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
 	//graphics_pipeline_create_info.flags
@@ -169,15 +169,15 @@ b8 vulkan_graphics_pipeline_create(
 	graphics_pipeline_create_info.basePipelineHandle = VK_NULL_HANDLE;
 	graphics_pipeline_create_info.basePipelineIndex = -1;
 	
-	VK_CHECK(vkCreateGraphicsPipelines(context->device_context.handle, VK_NULL_HANDLE, 1, &graphics_pipeline_create_info, context->allocator, &out_pipeline->handle));
+	VK_CHECK(vkCreateGraphicsPipelines(pContext->device_context.handle, VK_NULL_HANDLE, 1, &graphics_pipeline_create_info, pContext->allocator, &out_pipeline->handle));
 
-	vkDestroyShaderModule(context->device_context.handle, vertex_shader_module, context->allocator);
-	vkDestroyShaderModule(context->device_context.handle, fragment_shader_module, context->allocator);
+	vkDestroyShaderModule(pContext->device_context.handle, vertex_shader_module, pContext->allocator);
+	vkDestroyShaderModule(pContext->device_context.handle, fragment_shader_module, pContext->allocator);
 
 	return true;
 }
 
-b8 vulkan_graphics_pipeline_create(VulkanContext* context, VulkanRenderpass* renderpass, VulkanPipeline* out_pipeline, VkShaderModule vertex_shader_module,
+b8 vulkan_graphics_pipeline_create(VulkanContext* pContext, VulkanRenderpass* renderpass, VulkanPipeline* out_pipeline, VkShaderModule vertex_shader_module,
 	VkShaderModule fragment_shader_module, u32 binding_description_count, VkVertexInputBindingDescription* binding_descriptions, u32 attribute_description_count, VkVertexInputAttributeDescription* attribute_descriptions, VkPipelineLayout pipeline_layout)
 {
 	VkPipelineShaderStageCreateInfo vert_create_info{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
@@ -306,25 +306,25 @@ b8 vulkan_graphics_pipeline_create(VulkanContext* context, VulkanRenderpass* ren
 	graphics_pipeline_create_info.basePipelineHandle = VK_NULL_HANDLE;
 	graphics_pipeline_create_info.basePipelineIndex = -1;
 
-	VK_CHECK(vkCreateGraphicsPipelines(context->device_context.handle, VK_NULL_HANDLE, 1, &graphics_pipeline_create_info, context->allocator, &out_pipeline->handle));
+	VK_CHECK(vkCreateGraphicsPipelines(pContext->device_context.handle, VK_NULL_HANDLE, 1, &graphics_pipeline_create_info, pContext->allocator, &out_pipeline->handle));
 
-	vkDestroyShaderModule(context->device_context.handle, vertex_shader_module, context->allocator);
-	vkDestroyShaderModule(context->device_context.handle, fragment_shader_module, context->allocator);
+	vkDestroyShaderModule(pContext->device_context.handle, vertex_shader_module, pContext->allocator);
+	vkDestroyShaderModule(pContext->device_context.handle, fragment_shader_module, pContext->allocator);
 
 	return true;
 }
 
-void vulkan_pipeline_destroy(VulkanContext* context, VulkanPipeline* pipeline)
+void vulkan_pipeline_destroy(VulkanContext* pContext, VulkanPipeline* pipeline)
 {
-	//vkQueueWaitIdle(context->device_context.graphics_queue);
+	//vkQueueWaitIdle(pContext->device_context.graphics_queue);
 
 	if (pipeline->layout != VK_NULL_HANDLE) {
-		vkDestroyPipelineLayout(context->device_context.handle, pipeline->layout, context->allocator);
+		vkDestroyPipelineLayout(pContext->device_context.handle, pipeline->layout, pContext->allocator);
 		pipeline->layout = VK_NULL_HANDLE;
 	}
 
 	if (pipeline->handle != VK_NULL_HANDLE) {
-		vkDestroyPipeline(context->device_context.handle, pipeline->handle, context->allocator);
+		vkDestroyPipeline(pContext->device_context.handle, pipeline->handle, pContext->allocator);
 		pipeline->handle = VK_NULL_HANDLE;
 	}
 }
@@ -334,7 +334,7 @@ void vulkan_pipeline_bind(Command* command_buffer,VkPipelineBindPoint bind_point
 	vkCmdBindPipeline(command_buffer->buffer, bind_point, pipeline->handle);
 }
 
-b8 vulkan_shader_module_create(VulkanContext* context, VkShaderModule* out_shader_module, const char* path)
+b8 vulkan_shader_module_create(VulkanContext* pContext, VkShaderModule* out_shader_module, const char* path)
 {
 	file_handle file;
 	if (!pko_file_read(path, &file)) {
@@ -345,7 +345,7 @@ b8 vulkan_shader_module_create(VulkanContext* context, VkShaderModule* out_shade
 	create_info.pCode = (uint32_t*)file.str;
 	create_info.codeSize = file.size;
 
-	VK_CHECK(vkCreateShaderModule(context->device_context.handle, &create_info, context->allocator, out_shader_module));
+	VK_CHECK(vkCreateShaderModule(pContext->device_context.handle, &create_info, pContext->allocator, out_shader_module));
 
 	pko_file_close(&file);
 

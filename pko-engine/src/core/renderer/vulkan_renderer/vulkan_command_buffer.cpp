@@ -2,29 +2,28 @@
 
 #include "vulkan_types.inl"
 
-void vulkan_command_pool_create(VulkanContext* context, Command* command, u32 queue_family_index)
+void vulkan_command_pool_create(VulkanContext* pContext, Command* command, u32 queue_family_index)
 {
 	VkCommandPoolCreateInfo create_info{ VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
 	create_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 	create_info.queueFamilyIndex = queue_family_index;
 	
-	VK_CHECK(vkCreateCommandPool(context->device_context.handle, &create_info, context->allocator, &command->pool));
+	VK_CHECK(vkCreateCommandPool(pContext->device_context.handle, &create_info, pContext->allocator, &command->pool));
 }
 
-void vulkan_command_pool_destroy(VulkanContext* context, Command* command)
+void vulkan_command_pool_destroy(VulkanContext* pContext, Command* command)
 {
-	vkDestroyCommandPool(context->device_context.handle, command->pool, context->allocator);
+	vkDestroyCommandPool(pContext->device_context.handle, command->pool, pContext->allocator);
 }
 
-void vulkan_command_buffer_allocate(VulkanContext* context, Command* command, b8 is_primary)
+void vulkan_command_buffer_allocate(VulkanContext* pContext, Command* command, b8 is_primary)
 {
-	//TODO: multiple command buffer
 	VkCommandBufferAllocateInfo alloc_info{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
 	alloc_info.commandPool = command->pool;
 	alloc_info.commandBufferCount = 1;
 	alloc_info.level = is_primary ? VK_COMMAND_BUFFER_LEVEL_PRIMARY : VK_COMMAND_BUFFER_LEVEL_SECONDARY;
 
-	VK_CHECK(vkAllocateCommandBuffers(context->device_context.handle, &alloc_info, &command->buffer));
+	VK_CHECK(vkAllocateCommandBuffers(pContext->device_context.handle, &alloc_info, &command->buffer));
 }
 
 void vulkan_command_buffer_begin(Command* command, VkCommandBufferUsageFlags buffer_usage)

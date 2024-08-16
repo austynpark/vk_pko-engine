@@ -12,11 +12,11 @@
 #include <fstream>
 #include <sstream>
 
-VkDescriptorPool vulkan_descriptor_pool_create(VulkanContext* context);
-VkDescriptorPool get_descriptor_pool(VulkanContext* context ,std::vector<VkDescriptorPool>& pools);
-//b8 alloc_descriptor_set(VulkanContext* context ,std::vector<VkDescriptorPool>& pools, VkDescriptorSetLayout* layouts, u32 layout_count);
+VkDescriptorPool vulkan_descriptor_pool_create(VulkanContext* pContext);
+VkDescriptorPool get_descriptor_pool(VulkanContext* pContext ,std::vector<VkDescriptorPool>& pools);
+//b8 alloc_descriptor_set(VulkanContext* pContext ,std::vector<VkDescriptorPool>& pools, VkDescriptorSetLayout* layouts, u32 layout_count);
 
-vulkan_shader::vulkan_shader(VulkanContext* vk_context, VulkanRenderpass* renderpass) : context(vk_context), renderpass(renderpass)
+vulkan_shader::vulkan_shader(VulkanContext* vk_context, VulkanRenderpass* renderpass) : pContext(vk_context), renderpass(renderpass)
 {
 }
 
@@ -34,12 +34,12 @@ vulkan_shader& vulkan_shader::add_stage(const char* shader_name, VkShaderStageFl
 
 b8 vulkan_shader::init()
 {
-	if (reflect_layout(context->device_context.handle) != true)
+	if (reflect_layout(pContext->device_context.handle) != true)
 		return false;
 	
 	vertex_input_description input_description = vulkan_render_object::get_vertex_input_description();
 
-	if (vulkan_graphics_pipeline_create(context, renderpass, &pipeline,
+	if (vulkan_graphics_pipeline_create(pContext, renderpass, &pipeline,
 		stage_infos[0].shader_module, stage_infos[1].shader_module,
 		input_description.bindings.size(), input_description.bindings.data(),
 		input_description.attributes.size(), input_description.attributes.data(), pipeline.layout
@@ -54,12 +54,12 @@ void vulkan_shader::shutdown()
 {
 	for (auto& layout : set_layouts) {
 		if (layout != VK_NULL_HANDLE) {
-			vkDestroyDescriptorSetLayout(context->device_context.handle, layout, context->allocator);
+			vkDestroyDescriptorSetLayout(pContext->device_context.handle, layout, pContext->allocator);
 			layout = VK_NULL_HANDLE;
 		}
 	}
 
-    vulkan_pipeline_destroy(context, &pipeline);
+    vulkan_pipeline_destroy(pContext, &pipeline);
 }
 
 struct descriptor_set_layout_data {
@@ -199,7 +199,7 @@ b8 vulkan_shader::reflect_layout(VkDevice device)
 		ly.create_info.pNext = 0;
 
 		if (ly.create_info.bindingCount > 0) {
-			VK_CHECK(vkCreateDescriptorSetLayout(device, &ly.create_info, context->allocator, &set_layouts[i]));
+			VK_CHECK(vkCreateDescriptorSetLayout(device, &ly.create_info, pContext->allocator, &set_layouts[i]));
 		}
 		else {
 			set_layouts[i] = VK_NULL_HANDLE;
@@ -224,12 +224,12 @@ b8 vulkan_shader::reflect_layout(VkDevice device)
 	pipeline_layout_info.setLayoutCount = s;
 	pipeline_layout_info.pSetLayouts = compacted_layouts.data();
 
-	VK_CHECK(vkCreatePipelineLayout(device, &pipeline_layout_info, context->allocator, &pipeline.layout));
+	VK_CHECK(vkCreatePipelineLayout(device, &pipeline_layout_info, pContext->allocator, &pipeline.layout));
 
 	return true;
 }
 
-b8 vulkan_global_data_initialize(VulkanContext* context, u32 buffer_size)
+b8 vulkan_global_data_initialize(VulkanContext* pContext, u32 buffer_size)
 {
 	b8 result = true;
 	
@@ -245,25 +245,25 @@ b8 vulkan_global_data_initialize(VulkanContext* context, u32 buffer_size)
 	global_layout_create_info.pBindings = &global_binding;
 	//global_layout_create_info.flags
 
-	VK_CHECK(vkCreateDescriptorSetLayout(context->device_context.handle, &global_layout_create_info, context->allocator, &context->global_data.set_layout));
+	VK_CHECK(vkCreateDescriptorSetLayout(pContext->device_context.handle, &global_layout_create_info, pContext->allocator, &pContext->global_data.set_layout));
 
 	for (u32 i = 0; i < MAX_FRAME; ++i) {
-		//alloc_descriptor_set(context, context->, &context->global_data.set_layout, 1, &context->global_data.ubo_data[i].descriptor_set);
-		result = context->dynamic_descriptor_allocators[i].allocate(&context->global_data.ubo_data[i].descriptor_set, context->global_data.set_layout);
+		//alloc_descriptor_set(pContext, pContext->, &pContext->global_data.set_layout, 1, &pContext->global_data.ubo_data[i].descriptor_set);
+		result = pContext->dynamic_descriptor_allocators[i].allocate(&pContext->global_data.ubo_data[i].descriptor_set, pContext->global_data.set_layout);
 		if (!result) {
 			std::cout << "global descriptor set allocation failed" << std::endl;
 			break;
 		}
 
-		vulkan_buffer_create(context, buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,&context->global_data.ubo_data[i].buffer);
+		vulkan_buffer_create(pContext, buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,&pContext->global_data.ubo_data[i].buffer);
 
 		VkDescriptorBufferInfo buffer_info{};
-		buffer_info.buffer = context->global_data.ubo_data[i].buffer.handle;
+		buffer_info.buffer = pContext->global_data.ubo_data[i].buffer.handle;
 		buffer_info.offset = 0;
 		buffer_info.range = buffer_size;
 
 		VkWriteDescriptorSet write_set{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-		write_set.dstSet = context->global_data.ubo_data[i].descriptor_set;
+		write_set.dstSet = pContext->global_data.ubo_data[i].descriptor_set;
 		write_set.dstBinding = 0;
 		write_set.descriptorCount = 1;
 		write_set.pBufferInfo = &buffer_info;
@@ -279,14 +279,14 @@ b8 vulkan_global_data_initialize(VulkanContext* context, u32 buffer_size)
     	const VkBufferView*              pTexelBufferView;
 
 
-		vkUpdateDescriptorSets(context->device_context.handle, 1, &write_set, 0, nullptr);
+		vkUpdateDescriptorSets(pContext->device_context.handle, 1, &write_set, 0, nullptr);
 	}
 
 	return result;
 }
 
-void vulkan_global_data_destroy(VulkanContext* context)
+void vulkan_global_data_destroy(VulkanContext* pContext)
 {
 	for (uint32_t i = 0; i < MAX_FRAME; ++i)
-		vulkan_buffer_destroy(context, &context->global_data.ubo_data[i].buffer);
+		vulkan_buffer_destroy(pContext, &pContext->global_data.ubo_data[i].buffer);
 }
