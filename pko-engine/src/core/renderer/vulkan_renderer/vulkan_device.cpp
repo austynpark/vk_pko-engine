@@ -35,13 +35,12 @@ b8 vulkan_device_create(VulkanContext* pContext, DeviceContext* device_context)
 		true,	//b8 use_graphics;
 		true,	//b8 use_present;
 		true,	//b8 use_compute;
-		false,	//b8 use_transfer;
+		true,	//b8 use_transfer;
 		false,	//b8 use_discrete_gpu;
 		{
 			VK_KHR_SWAPCHAIN_EXTENSION_NAME
 		}
 	};
-
 
 	if (!pick_physical_device(pContext, &requirements)) {
 		return false;
@@ -138,6 +137,11 @@ b8 pick_physical_device(VulkanContext* pContext, device_requirements* requiremen
 	VK_CHECK(vkEnumeratePhysicalDevices(pContext->instance, &physical_count, physical_devices.data()));
 
 	queue_family_info out_queue_family_info{ UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX };
+
+	pContext->device_context.graphics_family.type = QUEUE_TYPE_GRAPHICS;
+	pContext->device_context.compute_family.type = QUEUE_TYPE_COMPUTE;
+	pContext->device_context.present_family.type = QUEUE_TYPE_PRESENT;
+	pContext->device_context.transfer_family.type = QUEUE_TYPE_TRANSFER;
 
 	for (u32 i = 0; i < physical_count; ++i)
 	{

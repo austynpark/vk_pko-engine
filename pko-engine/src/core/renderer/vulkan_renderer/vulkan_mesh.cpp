@@ -28,7 +28,7 @@ void vulkan_render_object::upload_mesh()
 
 	for (u32 i = 0; i < mesh_count; ++i) {
 
-		VulkanBuffer staging_buffer;
+		Buffer staging_buffer;
 
 		vulkan_buffer_create(
 			pContext,
@@ -59,7 +59,7 @@ void vulkan_render_object::upload_mesh()
 
 		if (meshes[i].indices.size() > 0) {
 
-			VulkanBuffer index_staging_buffer;
+			Buffer index_staging_buffer;
 
 			vulkan_buffer_create(
 				pContext,

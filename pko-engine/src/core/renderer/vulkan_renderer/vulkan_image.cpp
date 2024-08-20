@@ -5,7 +5,6 @@
 #include "vulkan_command_buffer.h"
 #include "vulkan_device.h"
 
-#include "core/renderer/renderer_defines.h"
 #include "vendor/mmgr/mmgr.h"
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -438,6 +437,40 @@ VkImageAspectFlags format_to_vulkan_image_aspect(VkFormat format)
     return flags;
 }
 
+VkImageLayout resource_state_to_vulkan_image_layout(ResourceState state)
+{
+    VkImageLayout result = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    switch (state)
+    {
+    case RESOURCE_STATE_COMMON:
+        result = VK_IMAGE_LAYOUT_GENERAL;
+        break;
+    case RESOURCE_STATE_COPY_DEST:
+        result = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        break;
+    case RESOURCE_STATE_COPY_SOURCE:
+        result = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        break;
+    case RESOURCE_STATE_DEPTH_WRITE:
+        result = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        break;
+    case RESOURCE_STATE_DEPTH_READ:
+        result = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL;
+    case RESOURCE_STATE_PRESENT:
+        result = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        break;
+    case RESOURCE_STATE_RENDER_TARGET:
+        result = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        break;
+    default:
+        result = VK_IMAGE_LAYOUT_UNDEFINED;
+        break;
+    }
+
+    return result;
+}
+
 b8 vulkan_texture_create(VulkanContext* pContext, TextureDesc* pDesc, Texture** ppTexture)
 {
     assert(pContext);
@@ -552,7 +585,7 @@ void vulkan_texture_destroy(VulkanContext* pContext, Texture* pTexture)
         vmaDestroyImage(pContext->vma_allocator, pTexture->pImage, pTexture->allocation);
 }
 
-b8 load_image_from_file(VulkanContext* pContext, const char* file, VulkanImage* out_image)
+b8 load_image_from_file(VulkanContext* pContext, const char* file, Texture* pTexture)
 {
     i32 tex_width, tex_height, tex_channels;
     stbi_uc* pixels = stbi_load(file, &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha);
@@ -564,7 +597,7 @@ b8 load_image_from_file(VulkanContext* pContext, const char* file, VulkanImage* 
 
     void* pixel_ptr = pixels;
 
-    VulkanBuffer staging_buffer;
+    Buffer staging_buffer;
     u32 staging_buffer_size = tex_width * tex_height * 4;
 
     vulkan_buffer_create(pContext, staging_buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT, &staging_buffer);
@@ -586,7 +619,7 @@ b8 load_image_from_file(VulkanContext* pContext, const char* file, VulkanImage* 
     // create one time submit command buffer for image copy from staging buffer
     Command one_time_submit;
 
-    vulkan_command_pool_create(pContext, &one_time_submit, pContext->device_context.transfer_family.index);
+    vulkan_command_pool_create(pContext, &one_time_submit, QUEUE_TYPE_TRANSFER);
     vulkan_command_buffer_allocate(pContext, &one_time_submit, true);
 
     vulkan_command_buffer_begin(&one_time_submit, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);

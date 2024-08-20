@@ -41,7 +41,7 @@ public:
 
 	std::unordered_map<std::string, reflected_binding> bindings;
 	std::array<VkDescriptorSetLayout, 4> set_layouts;
-	VulkanPipeline pipeline;
+	Pipeline pipeline;
 
 	b8 reflect_layout(VkDevice device);
 private:

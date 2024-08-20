@@ -54,8 +54,8 @@ public:
 
 	static vertex_input_description get_vertex_input_description();
 
-	std::vector<VulkanBuffer> vertex_buffers;
-	std::vector<VulkanBuffer> index_buffers;
+	std::vector<Buffer> vertex_buffers;
+	std::vector<Buffer> index_buffers;
 
 	glm::mat4 get_transform_matrix() const;
 	void rotate(float degree, glm::vec3 axis);

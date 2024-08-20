@@ -8,7 +8,7 @@ void vulkan_buffer_create(
 	VkBufferUsageFlags buffer_usage_flag,
 	VmaMemoryUsage memory_usage_flag,
 	VmaAllocationCreateFlags alloc_create_flag,
-	VulkanBuffer* buffer
+	Buffer* buffer
 	) 
 {
 	VkBufferCreateInfo buffer_create_info{ VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
@@ -31,8 +31,8 @@ void vulkan_buffer_create(
 }
 
 void vulkan_buffer_copy(VulkanContext* pContext,
-	VulkanBuffer* src_buffer,
-	VulkanBuffer* dst_buffer,
+	Buffer* src_buffer,
+	Buffer* dst_buffer,
 	u64 size,
 	u64 src_offset,
 	u64 dst_offset
@@ -63,12 +63,12 @@ void vulkan_buffer_copy(VulkanContext* pContext,
 }
 
 
-void vulkan_buffer_destroy(VulkanContext* pContext, VulkanBuffer* buffer) {
+void vulkan_buffer_destroy(VulkanContext* pContext, Buffer* buffer) {
 
 	vmaDestroyBuffer(pContext->vma_allocator, buffer->handle, buffer->allocation);
 }
 
-void vulkan_buffer_upload(VulkanContext* pContext, VulkanBuffer* buffer, void* data, u32 data_size)
+void vulkan_buffer_upload(VulkanContext* pContext, Buffer* buffer, void* data, u32 data_size)
 {
 	void* copied_data;
 	vmaMapMemory(pContext->vma_allocator, buffer->allocation, &copied_data);

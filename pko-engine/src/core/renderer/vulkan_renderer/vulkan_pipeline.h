@@ -15,7 +15,7 @@ VkPipelineDepthStencilStateCreateInfo depth_stencil_create_info(bool b_depth_tes
 b8 vulkan_graphics_pipeline_create(
 	VulkanContext* pContext,
 	VulkanRenderpass* renderpass,
-	VulkanPipeline* out_pipeline,
+	Pipeline* out_pipeline,
 	u32 binding_description_count,
 	VkVertexInputBindingDescription* binding_descriptions,
 	u32 attribute_description_count,
@@ -31,7 +31,7 @@ b8 vulkan_graphics_pipeline_create(
 b8 vulkan_graphics_pipeline_create(
 	VulkanContext* pContext,
 	VulkanRenderpass* renderpass,
-	VulkanPipeline* out_pipeline,
+	Pipeline* out_pipeline,
 	VkShaderModule vertex_shader_module,
 	VkShaderModule fragment_shader_module,
 	u32 binding_description_count,
@@ -43,9 +43,9 @@ b8 vulkan_graphics_pipeline_create(
 
 void vulkan_pipeline_destroy(
 	VulkanContext* pContext,
-	VulkanPipeline* pipeline
+	Pipeline* pipeline
 );
 
-void vulkan_pipeline_bind(Command* command_buffer, VkPipelineBindPoint bind_point, VulkanPipeline* pipeline);
+void vulkan_pipeline_bind(Command* command_buffer, VkPipelineBindPoint bind_point, Pipeline* pipeline);
 
 #endif // !VULKAN_PIPELINE_H

@@ -8,7 +8,7 @@ b8 vulkan_shader_module_create(VulkanContext* pContext, VkShaderModule* out_shad
 b8 vulkan_graphics_pipeline_create(
 	VulkanContext* pContext,
 	VulkanRenderpass* renderpass,
-	VulkanPipeline* out_pipeline,
+	Pipeline* out_pipeline,
 	u32 binding_description_count,
 	VkVertexInputBindingDescription* binding_descriptions,
 	u32 attribute_description_count,
@@ -177,7 +177,7 @@ b8 vulkan_graphics_pipeline_create(
 	return true;
 }
 
-b8 vulkan_graphics_pipeline_create(VulkanContext* pContext, VulkanRenderpass* renderpass, VulkanPipeline* out_pipeline, VkShaderModule vertex_shader_module,
+b8 vulkan_graphics_pipeline_create(VulkanContext* pContext, VulkanRenderpass* renderpass, Pipeline* out_pipeline, VkShaderModule vertex_shader_module,
 	VkShaderModule fragment_shader_module, u32 binding_description_count, VkVertexInputBindingDescription* binding_descriptions, u32 attribute_description_count, VkVertexInputAttributeDescription* attribute_descriptions, VkPipelineLayout pipeline_layout)
 {
 	VkPipelineShaderStageCreateInfo vert_create_info{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
@@ -314,7 +314,7 @@ b8 vulkan_graphics_pipeline_create(VulkanContext* pContext, VulkanRenderpass* re
 	return true;
 }
 
-void vulkan_pipeline_destroy(VulkanContext* pContext, VulkanPipeline* pipeline)
+void vulkan_pipeline_destroy(VulkanContext* pContext, Pipeline* pipeline)
 {
 	//vkQueueWaitIdle(pContext->device_context.graphics_queue);
 
@@ -329,7 +329,7 @@ void vulkan_pipeline_destroy(VulkanContext* pContext, VulkanPipeline* pipeline)
 	}
 }
 
-void vulkan_pipeline_bind(Command* command_buffer,VkPipelineBindPoint bind_point ,VulkanPipeline* pipeline) {
+void vulkan_pipeline_bind(Command* command_buffer,VkPipelineBindPoint bind_point ,Pipeline* pipeline) {
 	//TODO: command buffer
 	vkCmdBindPipeline(command_buffer->buffer, bind_point, pipeline->handle);
 }

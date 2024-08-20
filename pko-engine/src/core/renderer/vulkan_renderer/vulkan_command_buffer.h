@@ -6,11 +6,17 @@
 struct VulkanContext;
 struct Command;
 
-void vulkan_command_pool_create(VulkanContext* pContext, Command* command, u32 queue_family_index);
-void vulkan_command_pool_destroy(VulkanContext* pContext, Command* command);
+void vulkan_command_pool_create(VulkanContext* pContext, Command* pCmd, QueueType queueType);
+void vulkan_command_pool_destroy(VulkanContext* pContext, Command* pCmd);
 
-void vulkan_command_buffer_allocate(VulkanContext* pContext, Command* command, b8 is_primary);
-void vulkan_command_buffer_begin(Command* command, VkCommandBufferUsageFlags buffer_usage);
-void vulkan_command_buffer_end(Command* command);
+void vulkan_command_buffer_allocate(VulkanContext* pContext, Command* pCmd, b8 is_primary);
+void vulkan_command_buffer_begin(Command* pCmd, VkCommandBufferUsageFlags buffer_usage);
+void vulkan_command_buffer_end(Command* pCmd);
+
+void vulkan_command_resource_barrier(Command* pCmd,
+	BufferBarrier** ppBufferBarriers, u32 buffBarrierCount,
+	TextureBarrier** ppTextureBarriers, u32 textureBarrierCount,
+	RenderTargetBarrier** ppRenderTargetBarriers, u32 renderTargetBarrierCount
+);
 
 #endif // !VULKAN_COMMAND_BUFFER_H

@@ -18,7 +18,6 @@
     <ClInclude Include="src\core\input.h" />
     <ClInclude Include="src\core\renderer\camera.h" />
     <ClInclude Include="src\core\renderer\renderer.h" />
-    <ClInclude Include="src\core\renderer\renderer_defines.h" />
     <ClInclude Include="src\core\renderer\SPIRV-Reflect\include\spirv\unified1\spirv.h" />
     <ClInclude Include="src\core\renderer\SPIRV-Reflect\spirv_reflect.h" />
     <ClInclude Include="src\core\renderer\spirv_helper.h" />

@@ -120,9 +120,6 @@
     <ClInclude Include="vendor\imgui\backends\imgui_impl_win32.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\core\renderer\renderer_defines.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="vendor\mmgr\mmgr.h">
       <Filter>Header Files</Filter>
     </ClInclude>

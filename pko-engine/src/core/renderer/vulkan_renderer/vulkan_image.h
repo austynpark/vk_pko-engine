@@ -13,6 +13,7 @@ VkSampleCountFlagBits to_vulkan_sample_count(u32 sampleCount);
 VkImageUsageFlags descriptor_type_to_vulkan_image_usage(DescriptorType type);
 VkImageUsageFlags resource_state_to_vulkan_image_usage(ResourceState state);
 VkImageAspectFlags format_to_vulkan_image_aspect(VkFormat format);
+VkImageLayout resource_state_to_vulkan_image_layout(ResourceState state);
 
 b8 vulkan_texture_create(
 	VulkanContext* pContext,
@@ -35,16 +36,6 @@ void vulkan_swapchain_get_support_info(VulkanContext* pContext, VulkanSwapchainS
 
 void vulkan_framebuffer_create(VulkanContext* pContext, VulkanRenderpass* renderpass, u32 attachment_count, VkImageView* image_view, VkFramebuffer* out_framebuffer);
 void vulkan_framebuffer_destroy(VulkanContext* pContext, VkFramebuffer* framebuffer);
-
-void vulkan_image_layout_transition(VulkanImage* image, 
-	Command* command,
-	VkImageLayout old_layout,
-	VkImageLayout new_layout,
-	VkAccessFlags src_access_mask,
-	VkAccessFlags dst_access_mask,
-	VkPipelineStageFlags src_stage_flags,
-	VkPipelineStageFlags dst_stage_flags
-	);
 
 b8 load_image_from_file(VulkanContext* pContext, const char* pFile, Texture* pTexture);
 

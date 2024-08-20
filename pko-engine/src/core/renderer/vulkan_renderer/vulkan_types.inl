@@ -35,6 +35,14 @@ typedef union ClearValue
 	};
 }ClearValue;
 
+typedef enum QueueType
+{
+	QUEUE_TYPE_GRAPHICS,
+	QUEUE_TYPE_PRESENT,
+	QUEUE_TYPE_TRANSFER,
+	QUEUE_TYPE_COMPUTE
+}QueueType;
+
 typedef struct QueueFamily {
 	u32 index = -1;
 	u32 count;
@@ -64,11 +72,13 @@ typedef struct DeviceContext {
 typedef struct Command {
 	VkCommandPool pool;
 	VkCommandBuffer buffer;
+	QueueType type;
 }Command;
 
 // Samplers should be managed by the texture system / as dynamic storage
 VkSampler sampler;
 
+// This part of code is from https://github.com/ConfettiFX/The-Forge.
 typedef enum ResourceState
 {
 	RESOURCE_STATE_UNDEFINED = 0x0,
@@ -157,6 +167,24 @@ typedef __declspec(align(64)) struct RenderTarget
 
 }RenderTarget;
 
+typedef struct RenderTargetBarrier {
+	RenderTarget* pRenderTarget;
+	ResourceState currentState;
+	ResourceState newState;
+}RenderTargetBarrier;
+
+typedef struct TextureBarrier {
+	Texture* pTexture;
+	ResourceState currentState;
+	ResourceState newState;
+}TextureBarrier;
+
+typedef struct BufferBarrier {
+	Buffer* pBuffer;
+	ResourceState currentState;
+	ResourceState newState;
+}BufferBarrier;
+
 typedef struct VulkanSwapchainSupportInfo {
 	VkSurfaceCapabilitiesKHR surface_capabilites;
 	std::vector<VkSurfaceFormatKHR> surface_formats;
@@ -193,15 +221,15 @@ typedef struct VulkanRenderpass {
 	u32 height;
 }VulkanRenderpass;
 
-typedef struct VulkanBuffer {
+typedef struct Buffer {
 	VkBuffer handle;
 	VmaAllocation allocation;
-}VulkanBuffer;
+}Buffer;
 
-typedef struct VulkanPipeline {
+typedef struct Pipeline {
 	VkPipeline handle;
 	VkPipelineLayout layout;
-}VulkanPipeline;
+}Pipeline;
 
 class DescriptorAllocator {
 public:
