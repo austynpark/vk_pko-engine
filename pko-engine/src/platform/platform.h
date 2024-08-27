@@ -5,8 +5,7 @@
 
 #ifdef _WIN32
 
-#include <Windows.h>
-#include <windowsx.h>
+#include <windows.h>
 
 typedef HMODULE vulkan_library;
 
@@ -14,13 +13,6 @@ typedef struct InternalState {
     HINSTANCE instance;
     HWND      handle;
 } InternalState;
-
-typedef enum ReloadType {
-    RELOAD_TYPE_RESIZE = 0x1,
-    //RELOAD TYPE SHADER 
-    RELOAD_TYPE_ALL = UINT32_MAX,
-    RELOAD_TYPE_COUNT = 1
-} ReloadType;
 
 #endif
 

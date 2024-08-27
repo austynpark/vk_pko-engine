@@ -198,19 +198,19 @@ mesh vulkan_render_object::process_mesh(aiMesh* mesh_, const aiScene* scene_)
 std::vector<Texture> vulkan_render_object::load_material_textures(aiMaterial* mat, aiTextureType type, std::string typeName)
 {
 	std::vector<Texture> textures;
-	for (unsigned int i = 0; i < mat->GetTextureCount(type); i++)
-	{
-		aiString str;
-		mat->GetTexture(type, i, &str);
-		VulkanImage image;
-		std::string directory = "model/";
-		directory.append(str.C_Str());
-		load_image_from_file(pContext, directory.c_str(), &image);
+	//for (unsigned int i = 0; i < mat->GetTextureCount(type); i++)
+	//{
+	//	aiString str;
+	//	mat->GetTexture(type, i, &str);
+	//	Texture image;
+	//	std::string directory = "model/";
+	//	directory.append(str.C_Str());
+	//	load_image_from_file(pContext, directory.c_str(), &image);
 
-		Texture texture_;
-		vulkan_texture_create(pContext, &texture_, image, VK_FILTER_LINEAR);
-		textures.push_back(texture_);
-	}
+	//	Texture texture_;
+	//	vulkan_texture_create(pContext, &texture_, image, VK_FILTER_LINEAR);
+	//	textures.push_back(texture_);
+	//}
 	return textures;
 }
 

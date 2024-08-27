@@ -123,7 +123,7 @@ void vulkan_command_pool_create(VulkanContext* pContext, Command* pCmd, QueueTyp
 	VkCommandPoolCreateInfo create_info{ VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
 	create_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 	create_info.queueFamilyIndex = get_queue_family_index(&pContext->device_context, queueType);
-	pCmd->type = queueType;
+	pCmd->mType = queueType;
 
 	VK_CHECK(vkCreateCommandPool(pContext->device_context.handle, &create_info, pContext->allocator, &pCmd->pool));
 }
@@ -151,23 +151,31 @@ void vulkan_command_buffer_allocate(VulkanContext* pContext, Command* pCmd, b8 i
 
 void vulkan_command_buffer_begin(Command* pCmd, VkCommandBufferUsageFlags buffer_usage)
 {
-	if (pCmd == nullptr)
+	if (pCmd == NULL)
 		return;
 
 	VkCommandBufferBeginInfo begin_info{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
 	begin_info.flags = buffer_usage;
 	//TODO: for secondary command buffer
-	begin_info.pInheritanceInfo = nullptr;
+	begin_info.pInheritanceInfo = NULL;
 
 	VK_CHECK(vkBeginCommandBuffer(pCmd->buffer, &begin_info));
 }
 
 void vulkan_command_buffer_end(Command* pCmd)
 {
-	if (pCmd == nullptr)
+	if (pCmd == NULL)
 		return;
 
 	VK_CHECK(vkEndCommandBuffer(pCmd->buffer));
+}
+
+void vulkan_command_pool_reset(Command* pCmd)
+{
+	if (pCmd == NULL)
+		return;
+
+	VK_CHECK(vkResetCommandBuffer(pCmd->buffer, 0));
 }
 
 void vulkan_command_resource_barrier(Command* pCmd, BufferBarrier* pBufferBarriers, u32 buffBarrierCount, TextureBarrier* pTextureBarriers, u32 textureBarrierCount, RenderTargetBarrier* pRenderTargetBarriers, u32 renderTargetBarrierCount)
@@ -187,15 +195,15 @@ void vulkan_command_resource_barrier(Command* pCmd, BufferBarrier* pBufferBarrie
 	{
 		BufferBarrier* buffBarrier = &pBufferBarriers[i];
 
-		if (buffBarrier->currentState == RESOURCE_STATE_UNORDERED_ACCESS && buffBarrier->newState == RESOURCE_STATE_UNORDERED_ACCESS)
+		if (buffBarrier->mCurrentState == RESOURCE_STATE_UNORDERED_ACCESS && buffBarrier->mNewState == RESOURCE_STATE_UNORDERED_ACCESS)
 		{
 			memoryBarrier.srcAccessMask |= VK_ACCESS_SHADER_WRITE_BIT;
 			memoryBarrier.dstAccessMask |= VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT;
 		}
 		else
 		{
-			memoryBarrier.srcAccessMask |= resource_state_to_access_flags(buffBarrier->currentState);
-			memoryBarrier.dstAccessMask |= resource_state_to_access_flags(buffBarrier->newState);
+			memoryBarrier.srcAccessMask |= resource_state_to_access_flags(buffBarrier->mCurrentState);
+			memoryBarrier.dstAccessMask |= resource_state_to_access_flags(buffBarrier->mNewState);
 		}
 
 		srcAccessMask |= memoryBarrier.srcAccessMask;
@@ -213,24 +221,24 @@ void vulkan_command_resource_barrier(Command* pCmd, BufferBarrier* pBufferBarrie
 		{
 			pImageMemoryBarrier->sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 
-			if (pTextureBarrier->currentState == RESOURCE_STATE_UNORDERED_ACCESS && pTextureBarrier->newState == RESOURCE_STATE_UNORDERED_ACCESS)
+			if (pTextureBarrier->mCurrentState == RESOURCE_STATE_UNORDERED_ACCESS && pTextureBarrier->mNewState == RESOURCE_STATE_UNORDERED_ACCESS)
 			{
 				pImageMemoryBarrier->srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
 				pImageMemoryBarrier->dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
 			}
 			else
 			{
-				pImageMemoryBarrier->srcAccessMask = resource_state_to_access_flags(pTextureBarrier->currentState);
-				pImageMemoryBarrier->dstAccessMask = resource_state_to_access_flags(pTextureBarrier->newState);
+				pImageMemoryBarrier->srcAccessMask = resource_state_to_access_flags(pTextureBarrier->mCurrentState);
+				pImageMemoryBarrier->dstAccessMask = resource_state_to_access_flags(pTextureBarrier->mNewState);
 			}
 
-			pImageMemoryBarrier->oldLayout = resource_state_to_vulkan_image_layout(pTextureBarrier->currentState);
-			pImageMemoryBarrier->newLayout = resource_state_to_vulkan_image_layout(pTextureBarrier->newState);
+			pImageMemoryBarrier->oldLayout = resource_state_to_vulkan_image_layout(pTextureBarrier->mCurrentState);
+			pImageMemoryBarrier->newLayout = resource_state_to_vulkan_image_layout(pTextureBarrier->mNewState);
 			pImageMemoryBarrier->srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 			pImageMemoryBarrier->dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 			pImageMemoryBarrier->image = pTexture->pImage;
 
-			pImageMemoryBarrier->subresourceRange.aspectMask = pTexture->aspectMask;;
+			pImageMemoryBarrier->subresourceRange.aspectMask = pTexture->mAspectMask;;
 			pImageMemoryBarrier->subresourceRange.baseMipLevel = 0;
 			pImageMemoryBarrier->subresourceRange.levelCount = 1;
 			pImageMemoryBarrier->subresourceRange.baseArrayLayer = 0;
@@ -252,24 +260,24 @@ void vulkan_command_resource_barrier(Command* pCmd, BufferBarrier* pBufferBarrie
 		{
 			pImageMemoryBarrier->sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 
-			if (pRenderTargetBarrier->currentState == RESOURCE_STATE_UNORDERED_ACCESS && pRenderTargetBarrier->newState == RESOURCE_STATE_UNORDERED_ACCESS)
+			if (pRenderTargetBarrier->mCurrentState == RESOURCE_STATE_UNORDERED_ACCESS && pRenderTargetBarrier->mNewState == RESOURCE_STATE_UNORDERED_ACCESS)
 			{
 				pImageMemoryBarrier->srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
 				pImageMemoryBarrier->dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
 			}
 			else
 			{
-				pImageMemoryBarrier->srcAccessMask = resource_state_to_access_flags(pRenderTargetBarrier->currentState);
-				pImageMemoryBarrier->dstAccessMask = resource_state_to_access_flags(pRenderTargetBarrier->newState);
+				pImageMemoryBarrier->srcAccessMask = resource_state_to_access_flags(pRenderTargetBarrier->mCurrentState);
+				pImageMemoryBarrier->dstAccessMask = resource_state_to_access_flags(pRenderTargetBarrier->mNewState);
 			}
 
-			pImageMemoryBarrier->oldLayout = resource_state_to_vulkan_image_layout(pRenderTargetBarrier->currentState);
-			pImageMemoryBarrier->newLayout = resource_state_to_vulkan_image_layout(pRenderTargetBarrier->newState);
+			pImageMemoryBarrier->oldLayout = resource_state_to_vulkan_image_layout(pRenderTargetBarrier->mCurrentState);
+			pImageMemoryBarrier->newLayout = resource_state_to_vulkan_image_layout(pRenderTargetBarrier->mNewState);
 			pImageMemoryBarrier->srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 			pImageMemoryBarrier->dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 			pImageMemoryBarrier->image = pTexture->pImage;
 
-			pImageMemoryBarrier->subresourceRange.aspectMask = pTexture->aspectMask;
+			pImageMemoryBarrier->subresourceRange.aspectMask = pTexture->mAspectMask;
 			pImageMemoryBarrier->subresourceRange.baseMipLevel = 0;
 			pImageMemoryBarrier->subresourceRange.levelCount = 1;
 			pImageMemoryBarrier->subresourceRange.baseArrayLayer = 0;
@@ -280,12 +288,18 @@ void vulkan_command_resource_barrier(Command* pCmd, BufferBarrier* pBufferBarrie
 		}
 	}
 
-	VkPipelineStageFlags srcStageMask = get_pipeline_stage_flags(srcAccessMask, pCmd->type);
-	VkPipelineStageFlags dstStageMask = get_pipeline_stage_flags(dstAccessMask, pCmd->type);
+	VkPipelineStageFlags srcStageMask = get_pipeline_stage_flags(srcAccessMask, pCmd->mType);
+	VkPipelineStageFlags dstStageMask = get_pipeline_stage_flags(dstAccessMask, pCmd->mType);
 
 	if (srcAccessMask != 0 || dstAccessMask != 0)
 	{
 		vkCmdPipelineBarrier(pCmd->buffer, srcStageMask, dstStageMask, 0, 1, &memoryBarrier, 0, nullptr, imageMemoryBarrierCount, pImageMemoryBarriers);
+	}
+
+	if (pImageMemoryBarriers != NULL)
+	{
+		free(pImageMemoryBarriers);
+		pImageMemoryBarriers = NULL;
 	}
 }
 

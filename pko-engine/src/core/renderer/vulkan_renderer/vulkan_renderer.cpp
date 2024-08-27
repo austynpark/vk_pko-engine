@@ -6,10 +6,7 @@
 #include "core/application.h"
 #include "core/input.h"
 #include "core/event.h"
-#include "core/renderer/spirv_helper.h"
 #include "core/renderer/camera.h"
-
-#include "platform/platform.h"
 
 #include "vulkan_device.h"
 #include "vulkan_memory_allocate.h"
@@ -21,25 +18,31 @@
 #include "vulkan_buffer.h"
 #include "vulkan_shader.h"
 
+#include "vendor/mmgr/mmgr.h"
+
 #include "imgui/imgui.h"
 #include "imgui/backends/imgui_impl_win32.h"
 #include "imgui/backends/imgui_impl_vulkan.h"
+
+#include "platform/platform.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <iostream>
 
-static u32 MAX_FRAME = 3;
-
 static vulkan_library vulkan_library_loader;
-static VulkanContext pContext;
+static VulkanContext context;
 
-const u32 max_frames_in_flight;
+Command cmds[MAX_FRAME];
 
-VulkanSwapchain* pSwapchain = nullptr;
+VulkanSwapchain* pSwapchain = NULL;
 VkSemaphore ready_to_render_semaphores[MAX_FRAME];
 VkSemaphore image_available_semaphores[MAX_FRAME];
 VkFence render_fences[MAX_FRAME];
+
+RenderTarget* pDepthRT = NULL;
+
+void drawImgui();
 
 static VKAPI_ATTR VkBool32 debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT           messageSeverity,
@@ -69,13 +72,12 @@ b8 load_global_level_function();
 b8 load_instance_level_function();
 b8 load_device_level_function();
 
-VulkanRenderer::VulkanRenderer(PlatformState* platform_internal_state) : Renderer(platform_internal_state)
+VulkanRenderer::VulkanRenderer(AppState* state) : Renderer(state)
 {
 }
 
 VulkanRenderer::~VulkanRenderer()
 {
-    Shutdown();
 #if defined _WIN32
     FreeLibrary(vulkan_library_loader);
 #elif defined _linux
@@ -86,7 +88,9 @@ VulkanRenderer::~VulkanRenderer()
 
 b8 VulkanRenderer::Init()
 {
-    assert(platform_state);
+    assert(pAppState);
+
+    context = {};
 
 #if defined(_WIN32)
 	vulkan_library_loader = LoadLibrary("vulkan-1.dll");
@@ -116,7 +120,7 @@ b8 VulkanRenderer::Init()
         return false;
     }
 
-    if (!vulkan_device_create(&pContext, &pContext.device_context)) {
+    if (!vulkan_device_create(&context, &context.device_context)) {
         std::cout << "create device failed" << std::endl;
         return false;
     }
@@ -124,9 +128,9 @@ b8 VulkanRenderer::Init()
     if (!load_device_level_function())
         return false;
 
-    vulkan_memory_allocator_create(&pContext);
+    vulkan_memory_allocator_create(&context);
 
-    vulkan_get_device_queue(&pContext.device_context);
+    vulkan_get_device_queue(&context.device_context);
 
 	    //validation debug logger create
 #if defined(_DEBUG)
@@ -134,32 +138,43 @@ b8 VulkanRenderer::Init()
 #endif 
 
     SwapchainDesc swapchainDesc = {};
-    swapchainDesc.width = platform_state->width;
-    swapchainDesc.height = platform_state->height;
-    swapchainDesc.phWnd = ((InternalState*)platform_state->state)->handle;
+    swapchainDesc.mWidth = pAppState->width;
+    swapchainDesc.mHeight = pAppState->height;
+    swapchainDesc.phWnd = ((InternalState*)(pAppState->pPlatform->state))->handle;
     
-    if (!vulkan_swapchain_create(&pContext, &swapchainDesc, &pSwapchain)) {
+    if (!vulkan_swapchain_create(&context, &swapchainDesc, &pSwapchain)) {
         std::cout << "create swapchain failed" << std::endl;
         return false;
     }
     
     initImgui();
 
-    for (u32 i = 0; i < pSwapchain->max_frames_in_flight; ++i) {
+    for (u32 i = 0; i < MAX_FRAME; ++i) {
         VkSemaphoreCreateInfo semaphore_create_info{ VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-        VK_CHECK(vkCreateSemaphore(pContext.device_context.handle, &semaphore_create_info, pContext.allocator, &pContext.image_available_semaphores.at(i)));
-        VK_CHECK(vkCreateSemaphore(pContext.device_context.handle, &semaphore_create_info, pContext.allocator, &pContext.ready_to_render_semaphores.at(i)));
+        VK_CHECK(vkCreateSemaphore(context.device_context.handle, &semaphore_create_info, context.allocator, &image_available_semaphores[i]));
+        VK_CHECK(vkCreateSemaphore(context.device_context.handle, &semaphore_create_info, context.allocator, &ready_to_render_semaphores[i]));
         VkFenceCreateInfo fence_create_info{ VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
         fence_create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-        vkCreateFence(pContext.device_context.handle, &fence_create_info, pContext.allocator, &render_fences[i]);
+        vkCreateFence(context.device_context.handle, &fence_create_info, context.allocator, &render_fences[i]);
     }
     std::cout << "sync objects created" << std::endl;
 
 	// descriptor allocator init
-    pContext.dynamic_descriptor_allocators.resize(MAX_FRAME);
-    for (auto& desc_alloc : pContext.dynamic_descriptor_allocators) {
-        desc_alloc.init(pContext.device_context.handle);
+    context.pDynamicDescriptorAllocators = (DescriptorAllocator*)malloc(sizeof(DescriptorAllocator) * MAX_FRAME);
+
+    context.pDynamicDescriptorAllocators[MAX_FRAME];
+    for (u32 i = 0; i < MAX_FRAME; ++i) {
+        context.pDynamicDescriptorAllocators[i].init(context.device_context.handle);
     }
+
+    for (u32 i = 0; i < MAX_FRAME; ++i) {
+        vulkan_command_pool_create(&context, &cmds[i], QUEUE_TYPE_GRAPHICS);
+        vulkan_command_buffer_allocate(&context, &cmds[i], true);
+    }
+
+
+    vulkan_spirv_helper_initialize();
+
 
     /*
     * global descriptor initialize
@@ -228,9 +243,9 @@ b8 VulkanRenderer::Init()
 	return true;
 }
 
-void VulkanRenderer::Load(ReloadDesc* desc)
+void VulkanRenderer::Load(ReloadDesc* pDesc)
 {
-    ReloadType reload_type = desc->type;
+    ReloadType reload_type = pDesc->mType;
 
     if (reload_type & RELOAD_TYPE_RESIZE)
     {
@@ -238,7 +253,7 @@ void VulkanRenderer::Load(ReloadDesc* desc)
     }
 }
 
-void VulkanRenderer::UnLoad()
+void VulkanRenderer::UnLoad(ReloadDesc* pDesc)
 {
 
 }
@@ -250,46 +265,30 @@ void VulkanRenderer::Update(float deltaTime)
 
 void VulkanRenderer::Draw()
 {
-
-}
-
-b8 VulkanRenderer::begin_frame(f32 dt)
-{
-    pContext.current_frame = frame_number % pContext.swapchain.max_frames_in_flight;
-
-	VK_CHECK(vkWaitForFences(pContext.device_context.handle, 1, &pContext.render_fences.at(pContext.current_frame), true, UINT64_MAX));
-    VK_CHECK(vkResetFences(pContext.device_context.handle, 1, &pContext.render_fences.at(pContext.current_frame)));
+    context.current_frame = frame_number % MAX_FRAME;
+    VK_CHECK(vkWaitForFences(context.device_context.handle, 1, &render_fences[context.current_frame], true, UINT64_MAX));
+    VK_CHECK(vkResetFences(context.device_context.handle, 1, &render_fences[context.current_frame]));
 
     if (!acquire_next_image_index_swapchain(
-        &pContext,
-        &pContext.swapchain,
+        &context,
+        pSwapchain,
         UINT64_MAX,
-        pContext.image_available_semaphores.at(pContext.current_frame),
+        image_available_semaphores[context.current_frame],
         0,
-        &scene[scene_index]->image_index))
+        &context.image_index))
     {
         std::cout << "image acquire failed" << std::endl;
-        return false;
+        return;
     }
 
-    //TODO: multiple command buffers
-    VkCommandBuffer command_buffer = scene[scene_index]->graphics_commands.at(pContext.current_frame).buffer;
+    Command* pCmd = &cmds[context.current_frame];
 
-    VK_CHECK(vkResetCommandBuffer(command_buffer, 0));
-    VkCommandBufferBeginInfo cmd_begin_info{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-    cmd_begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    vulkan_command_pool_reset(pCmd);
+    vulkan_command_buffer_begin(pCmd, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-    VK_CHECK(vkBeginCommandBuffer(command_buffer, &cmd_begin_info));
-
-    return scene[scene_index]->begin_frame(dt);
-}
-
-b8 VulkanRenderer::end_frame()
-{
-	//TODO: multiple command buffers
-    VkCommandBuffer command_buffer = scene[scene_index]->graphics_commands.at(pContext.current_frame).buffer;
-
-    VK_CHECK(vkEndCommandBuffer(command_buffer));
+    drawImgui();
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), pCmd->buffer);
+    vulkan_command_buffer_end(pCmd);
 
     VkPipelineStageFlags wait_stages = {
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
@@ -297,120 +296,106 @@ b8 VulkanRenderer::end_frame()
 
     VkSubmitInfo submit_info{ VK_STRUCTURE_TYPE_SUBMIT_INFO };
     submit_info.waitSemaphoreCount = 1;
-    submit_info.pWaitSemaphores = &pContext.image_available_semaphores.at(pContext.current_frame);
+    submit_info.pWaitSemaphores = &image_available_semaphores[context.current_frame];
     submit_info.pWaitDstStageMask = &wait_stages;
 
     submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &command_buffer;
+    submit_info.pCommandBuffers = &pCmd->buffer;
     submit_info.signalSemaphoreCount = 1;
-    submit_info.pSignalSemaphores = &pContext.ready_to_render_semaphores.at(pContext.current_frame);
+    submit_info.pSignalSemaphores = &ready_to_render_semaphores[context.current_frame];
 
-    VK_CHECK(vkQueueSubmit(pContext.device_context.graphics_queue, 1, &submit_info, pContext.render_fences.at(pContext.current_frame)));
+    VK_CHECK(vkQueueSubmit(context.device_context.mGraphicsQueue, 1, &submit_info, render_fences[context.current_frame]));
 
-    /*
-    VkPresentInfoKHR present_info{ VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
-    present_info.waitSemaphoreCount = 1;
-    present_info.pWaitSemaphores = &pContext.ready_to_render_semaphores.at(0);
-    present_info.swapchainCount = 1;
-    present_info.pSwapchains = &pContext.swapchain.handle;
-    present_info.pImageIndices = &pContext.image_index;
-
-    VK_CHECK(vkQueuePresentKHR(pContext.device_context.graphics_queue, &present_info));
-    */
-    if (!present_image_swapchain(&pContext,
-        &pContext.swapchain,
-        pContext.device_context.present_queue,
-        pContext.ready_to_render_semaphores.at(pContext.current_frame),
-        scene[scene_index]->image_index)) {
+    if (!present_image_swapchain(&context,
+        pSwapchain,
+        context.device_context.mPresentQueue,
+        ready_to_render_semaphores[context.current_frame],
+        context.image_index)) {
 
         /*
-        get_app_framebuffer_size(&pContext.framebuffer_width, &pContext.framebuffer_height);
         vulkan_swapchain_recreate(&pContext, pContext.framebuffer_width, pContext.framebuffer_height);
         regenerate_framebuffer();
         */
     }
 
-
-    return scene[scene_index]->end_frame();
 }
 
-void VulkanRenderer::Draw()
+void drawImgui()
 {
-    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), command.buffer);
-}
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplWin32_NewFrame();
+    ImGui::NewFrame();
 
-//b8 VulkanRenderer::drawImgui()
-//{
-//    ImGui_ImplVulkan_NewFrame();
-//    ImGui_ImplWin32_NewFrame();
-//    ImGui::NewFrame();
-//
-//    bool demo = true;
-//    ImGui::ShowDemoWindow(&demo);
-//    ImGuiIO& io = ImGui::GetIO();
-//    ImGui::Render();
-//
-//
-//    return true;
-//}
+    bool demo = true;
+    ImGui::ShowDemoWindow(&demo);
+    ImGuiIO& io = ImGui::GetIO();
+    ImGui::Render();
+}
 
 void VulkanRenderer::Shutdown()
 {
-    vkQueueWaitIdle(pContext.device_context.graphics_queue);
+    vkQueueWaitIdle(context.device_context.mGraphicsQueue);
 
-    for (u32 i = 0; i < pContext.swapchain.max_frames_in_flight; ++i) {
-        vkDestroySemaphore(pContext.device_context.handle, pContext.image_available_semaphores.at(i), pContext.allocator);
-        vkDestroySemaphore(pContext.device_context.handle, pContext.ready_to_render_semaphores.at(i), pContext.allocator);
-        vkDestroyFence(pContext.device_context.handle, pContext.render_fences.at(i), pContext.allocator);
-
-        pContext.image_available_semaphores.at(i) = VK_NULL_HANDLE;
-        pContext.ready_to_render_semaphores.at(i) = VK_NULL_HANDLE;
-        pContext.render_fences.at(i) = VK_NULL_HANDLE;
+    for (u32 i = 0; i < MAX_FRAME; ++i) {
+        vkDestroySemaphore(context.device_context.handle, image_available_semaphores[i], context.allocator);
+        vkDestroySemaphore(context.device_context.handle, ready_to_render_semaphores[i], context.allocator);
+        vkDestroyFence(context.device_context.handle, render_fences[i], context.allocator);
+        
+        image_available_semaphores[i] = VK_NULL_HANDLE;
+        ready_to_render_semaphores[i] = VK_NULL_HANDLE;
+        render_fences[i] = VK_NULL_HANDLE;
     }
 
-    vulkan_global_data_destroy(&pContext);
-	vulkan_renderpass_destroy(&pContext, &pContext.main_renderpass);
+    vulkan_global_data_destroy(&context);
+	vulkan_renderpass_destroy(&context, &context.main_renderpass);
 
-    vulkan_swapchain_destroy(&pContext, &pContext.swapchain);
+    vulkan_swapchain_destroy(&context, pSwapchain);
 
     // destroy imgui related objects
-	vkDestroyDescriptorPool(pContext.device_context.handle, pContext.imgui_pool, pContext.allocator);
+	vkDestroyDescriptorPool(context.device_context.handle, context.imgui_pool, context.allocator);
 	//clear font textures from cpu data
 	ImGui_ImplVulkan_DestroyFontUploadObjects();
 	ImGui_ImplVulkan_Shutdown();
 
-    vulkan_memory_allocator_destroy(&pContext);
-    vulkan_device_destroy(&pContext, &pContext.device_context);
-    vkDestroySurfaceKHR(pContext.instance, pContext.surface, pContext.allocator);
-    vkDestroyDebugUtilsMessengerEXT(pContext.instance, pContext.debug_messenger, pContext.allocator);
-    vkDestroyInstance(pContext.instance, pContext.allocator);
-
-    SpirvHelper::Finalize();
-}
-
-b8 VulkanRenderer::OnResize(u32 w, u32 h)
-{
-    if (pContext.device_context.handle != nullptr) {
-        vkDeviceWaitIdle(pContext.device_context.handle);
-
-		//get_app_framebuffer_size(&pContext.framebuffer_width, &pContext.framebuffer_height);
-        pContext.framebuffer_width = w;
-        pContext.framebuffer_height = h;
-
-        if (!vulkan_swapchain_recreate(&pContext, pContext.framebuffer_width, pContext.framebuffer_height))
-            return false;
-
-        return true;
+    for (u32 i = 0; i < MAX_FRAME; ++i)
+    {
+        vulkan_command_pool_destroy(&context, &cmds[i]);
+        context.pDynamicDescriptorAllocators[i].cleanup();
     }
 
-	return false;
+    vulkan_spirv_helper_destroy();
+    vulkan_memory_allocator_destroy(&context);
+    vulkan_device_destroy(&context, &context.device_context);
+    vkDestroySurfaceKHR(context.instance, context.surface, context.allocator);
+    vkDestroyDebugUtilsMessengerEXT(context.instance, context.debug_messenger, context.allocator);
+    vkDestroyInstance(context.instance, context.allocator);
+
+    SAFE_FREE(context.pDynamicDescriptorAllocators);
 }
+
+//b8 VulkanRenderer::OnResize(u32 w, u32 h)
+//{
+//    if (pContext.device_context.handle != nullptr) {
+//        vkDeviceWaitIdle(pContext.device_context.handle);
+//
+//		//get_app_framebuffer_size(&pContext.framebuffer_width, &pContext.framebuffer_height);
+//        pContext.framebuffer_width = w;
+//        pContext.framebuffer_height = h;
+//
+//        if (!vulkan_swapchain_recreate(&pContext, pContext.framebuffer_width, pContext.framebuffer_height))
+//            return false;
+//
+//        return true;
+//    }
+//
+//	return false;
+//}
 
 b8 VulkanRenderer::createInstance()
 {
     std::cout << "create instance" << std::endl;
     //TODO: custom allocator (for future use)
-    pContext.allocator = nullptr;
+    context.allocator = nullptr;
    
     VkApplicationInfo app_info = { VK_STRUCTURE_TYPE_APPLICATION_INFO };
     app_info.pApplicationName = "pko-engine";
@@ -476,7 +461,7 @@ b8 VulkanRenderer::createInstance()
     inst_create_info.enabledExtensionCount = (u32)(sizeof(required_extension_names) / sizeof(const char*));
     inst_create_info.ppEnabledExtensionNames = required_extension_names;
 
-    VK_CHECK(vkCreateInstance(&inst_create_info, pContext.allocator, &pContext.instance));
+    VK_CHECK(vkCreateInstance(&inst_create_info, context.allocator, &context.instance));
 
     return true;
 
@@ -492,7 +477,7 @@ void VulkanRenderer::createDebugUtilMessage()
     debugCreateInfo.pfnUserCallback = (PFN_vkDebugUtilsMessengerCallbackEXT)debugCallback;
     debugCreateInfo.pUserData = 0;
 
-    VK_CHECK(vkCreateDebugUtilsMessengerEXT(pContext.instance, &debugCreateInfo, nullptr, &pContext.debug_messenger));
+    VK_CHECK(vkCreateDebugUtilsMessengerEXT(context.instance, &debugCreateInfo, nullptr, &context.debug_messenger));
 }
 
 b8 VulkanRenderer::createSurface()
@@ -500,14 +485,13 @@ b8 VulkanRenderer::createSurface()
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
     VkWin32SurfaceCreateInfoKHR createInfo{ VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR };
     
+    const InternalState* pInternalState = (InternalState*)pAppState->pPlatform->state;
+    assert(pInternalState);
 
-    const InternalState* internal_state = (InternalState*)((PlatformState*)platform_state)->state;
-    assert(internal_state);
+    createInfo.hinstance = pInternalState->instance;
+    createInfo.hwnd = pInternalState->handle;
 
-    createInfo.hinstance = internal_state->instance;
-    createInfo.hwnd = ((InternalState*)platform_state)->handle;
-
-    VK_CHECK(vkCreateWin32SurfaceKHR(pContext.instance, &createInfo, pContext.allocator, &pContext.surface));
+    VK_CHECK(vkCreateWin32SurfaceKHR(context.instance, &createInfo, context.allocator, &context.surface));
     return true;
 #endif
     return false;
@@ -539,7 +523,7 @@ void VulkanRenderer::initImgui()
     pool_info.poolSizeCount = std::size(pool_sizes);
     pool_info.pPoolSizes = pool_sizes;
 
-    VK_CHECK(vkCreateDescriptorPool(pContext.device_context.handle, &pool_info, nullptr, &pContext.imgui_pool));
+    VK_CHECK(vkCreateDescriptorPool(context.device_context.handle, &pool_info, nullptr, &context.imgui_pool));
 
 
     // 2: initialize imgui library
@@ -547,40 +531,40 @@ void VulkanRenderer::initImgui()
     //this initializes the core structures of imgui
     ImGui::CreateContext();
 
-    InternalState* state = (InternalState*)platform_state;
+    InternalState* state = (InternalState*)pAppState->pPlatform->state;
 
     //this initializes imgui for SDL
-    ImGui_ImplVulkan_LoadFunctions([](const char* function_name, void*) { return vkGetInstanceProcAddr(pContext.instance, function_name); });
+    ImGui_ImplVulkan_LoadFunctions([](const char* function_name, void*) { return vkGetInstanceProcAddr(context.instance, function_name); });
     ImGui_ImplWin32_Init(state->handle);
 
     //this initializes imgui for Vulkan
     ImGui_ImplVulkan_InitInfo init_info = {};
-    init_info.Instance = pContext.instance;
-    init_info.PhysicalDevice = pContext.device_context.physical_device;
-    init_info.Device = pContext.device_context.handle;
-    init_info.Queue = pContext.device_context.graphics_queue;
-    init_info.DescriptorPool = pContext.imgui_pool;
+    init_info.Instance = context.instance;
+    init_info.PhysicalDevice = context.device_context.physical_device;
+    init_info.Device = context.device_context.handle;
+    init_info.Queue = context.device_context.mGraphicsQueue;
+    init_info.DescriptorPool = context.imgui_pool;
     init_info.MinImageCount = 3;
     init_info.ImageCount = 3;
     init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
-    ImGui_ImplVulkan_Init(&init_info, pContext.main_renderpass.handle);
+    ImGui_ImplVulkan_Init(&init_info, context.main_renderpass.handle);
 
     //execute a gpu command to upload imgui font textures
 
     // Begin Command
-    Command command = scene[scene_index]->graphics_commands.at(pContext.current_frame);
+    Command *pCmd = &cmds[context.current_frame];
 
-    vulkan_command_buffer_begin(&command, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-	ImGui_ImplVulkan_CreateFontsTexture(command.buffer);
-    vulkan_command_buffer_end(&command);
+    vulkan_command_buffer_begin(pCmd, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+	ImGui_ImplVulkan_CreateFontsTexture(pCmd->buffer);
+    vulkan_command_buffer_end(pCmd);
 
     VkSubmitInfo submit_info{ VK_STRUCTURE_TYPE_SUBMIT_INFO };
     submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &command.buffer;
+    submit_info.pCommandBuffers = &pCmd->buffer;
 
-    VK_CHECK(vkQueueSubmit(pContext.device_context.graphics_queue, 1, &submit_info, VK_NULL_HANDLE)); 
-	vkQueueWaitIdle(pContext.device_context.graphics_queue);
+    VK_CHECK(vkQueueSubmit(context.device_context.mGraphicsQueue, 1, &submit_info, VK_NULL_HANDLE)); 
+	vkQueueWaitIdle(context.device_context.mGraphicsQueue);
 
 }
 
@@ -616,7 +600,7 @@ b8 load_global_level_function() {
 
 b8 load_instance_level_function() {
 #define VK_INSTANCE_LEVEL_FUNCTION( fun )                                                   \
-    if( !(fun = (PFN_##fun)vkGetInstanceProcAddr( pContext.instance, #fun )) ) {                    \
+    if( !(fun = (PFN_##fun)vkGetInstanceProcAddr( context.instance, #fun )) ) {                    \
       std::cout << "Could not load global level function: " << #fun << "!" << std::endl;  \
       return false;                                                                       \
     }
@@ -628,7 +612,7 @@ b8 load_instance_level_function() {
 
 b8 load_device_level_function() {
 #define VK_DEVICE_LEVEL_FUNCTION( fun )                                                   \
-    if( !(fun = (PFN_##fun)vkGetDeviceProcAddr( pContext.device_context.handle, #fun )) ) {                    \
+    if( !(fun = (PFN_##fun)vkGetDeviceProcAddr( context.device_context.handle, #fun )) ) {                    \
       std::cout << "Could not load Device level function: " << #fun << "!" << std::endl;  \
       return false;                                                                       \
     }

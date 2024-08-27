@@ -18,50 +18,115 @@ b8 vulkan_rendertarget_create(VulkanContext* pContext, RenderTargetDesc* pRender
     assert(pRenderTargetDesc);
     assert(ppRenderTarget);
 
-    RenderTarget* pRenderTarget = (RenderTarget*)alloc_aligned_memory(sizeof(RenderTarget) + pRenderTargetDesc->descriptorType & DESCRIPTOR_TYPE_RW_TEXTURE ? sizeof(VkImageView) * pRenderTargetDesc->mipLevels : 0, 16);
+    RenderTarget* pRenderTarget = (RenderTarget*)alloc_aligned_memory(sizeof(RenderTarget) + pRenderTargetDesc->mDescriptorType & DESCRIPTOR_TYPE_RW_TEXTURE ? sizeof(VkImageView) * pRenderTargetDesc->mMipLevels : 0, 16);
     pRenderTarget->pArrayDescriptors = (VkImageView*)(pRenderTarget + 1);
 
-    const bool isDepth = is_image_format_depth_only(pRenderTargetDesc->format) || is_image_format_depth_stencil(pRenderTargetDesc->format);
+    const bool isDepth = is_image_format_depth_only(pRenderTargetDesc->mFormat) || is_image_format_depth_stencil(pRenderTargetDesc->mFormat);
     assert(pRenderTarget);
 
     TextureDesc textureDesc = {};
-    textureDesc.width = pRenderTargetDesc->width;
-    textureDesc.height = pRenderTargetDesc->height;
-    textureDesc.mipLevels = pRenderTargetDesc->mipLevels;
-    textureDesc.sampleCount = 1;
-    textureDesc.startState = !isDepth ? RESOURCE_STATE_RENDER_TARGET : RESOURCE_STATE_DEPTH_WRITE;
-    textureDesc.type = DESCRIPTOR_TYPE_TEXTURE;
-    textureDesc.format = pRenderTargetDesc->format;
-    textureDesc.clearValue = pRenderTargetDesc->clearValue;
-    textureDesc.type = pRenderTargetDesc->descriptorType | DESCRIPTOR_TYPE_TEXTURE;
+    textureDesc.mWidth = pRenderTargetDesc->mWidth;
+    textureDesc.mHeight = pRenderTargetDesc->mHeight;
+    textureDesc.mMipLevels = pRenderTargetDesc->mMipLevels;
+    textureDesc.mSampleCount = 1;
+    textureDesc.mStartState = !isDepth ? RESOURCE_STATE_RENDER_TARGET : RESOURCE_STATE_DEPTH_WRITE;
+    textureDesc.mType = DESCRIPTOR_TYPE_TEXTURE;
+    textureDesc.mFormat = pRenderTargetDesc->mFormat;
+    textureDesc.mClearValue = pRenderTargetDesc->mClearValue;
+    textureDesc.mType = pRenderTargetDesc->mDescriptorType | DESCRIPTOR_TYPE_TEXTURE;
+    textureDesc.pNativeHandle = pRenderTargetDesc->pNativeHandle;
+
     vulkan_texture_create(pContext, &textureDesc, &pRenderTarget->pTexture);
 
-    
+    pRenderTarget->mWidth = pRenderTargetDesc->mWidth;
+    pRenderTarget->mHeight = pRenderTargetDesc->mHeight;
+    pRenderTarget->mMipLevels = pRenderTargetDesc->mMipLevels;
+    pRenderTarget->mFormat = pRenderTargetDesc->mFormat;
+    pRenderTarget->mDescriptors = pRenderTargetDesc->mDescriptorType;
+    pRenderTarget->mClearValue = pRenderTargetDesc->mClearValue;
 
+    //TODO(FUTURE)
+    pRenderTarget->mArraySize = 1;
+    pRenderTarget->mDepth = 1;
+    pRenderTarget->mSampleCount = VK_SAMPLE_COUNT_1_BIT;
+    pRenderTarget->mSampleQuality = 0;
+
+    // srv
+    VkImageViewCreateInfo imgViewCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+    imgViewCreateInfo.flags = 0;
+    imgViewCreateInfo.image = pRenderTarget->pTexture->pImage;
+    imgViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    imgViewCreateInfo.format = pRenderTarget->mFormat;
+    imgViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_R;
+    imgViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_G;
+    imgViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_B;
+    imgViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_A;
+    imgViewCreateInfo.subresourceRange.aspectMask;
+    imgViewCreateInfo.subresourceRange.baseMipLevel = 0;
+    imgViewCreateInfo.subresourceRange.levelCount = 1;
+    imgViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+    imgViewCreateInfo.subresourceRange.layerCount = 1;
+
+    VK_CHECK(vkCreateImageView(pContext->device_context.handle, &imgViewCreateInfo, pContext->allocator, &pRenderTarget->pDescriptor));
+
+    if (pRenderTarget->mMipLevels > 1)
+    {
+        for (u32 i = 0; i < pRenderTarget->mMipLevels; ++i)
+        {
+            imgViewCreateInfo.subresourceRange.baseMipLevel = i;
+            VK_CHECK(vkCreateImageView(pContext->device_context.handle, &imgViewCreateInfo, pContext->allocator, &pRenderTarget->pArrayDescriptors[i]));
+        }
+    }
+    
+    Command oneTimeSubmit;
+    vulkan_command_pool_create(pContext, &oneTimeSubmit, QUEUE_TYPE_GRAPHICS);
+    vulkan_command_buffer_allocate(pContext, &oneTimeSubmit, true);
+    vulkan_command_buffer_begin(&oneTimeSubmit, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+    TextureBarrier textureBarrier;
+    textureBarrier.mCurrentState = RESOURCE_STATE_UNDEFINED;
+    textureBarrier.mNewState = pRenderTargetDesc->mStartState;
+    vulkan_command_resource_barrier(&oneTimeSubmit, NULL, 0, &textureBarrier, 1, NULL, 0);
+
+    vulkan_command_buffer_end(&oneTimeSubmit);
 
     return true;
 }
 
 void vulkan_rendertarget_destroy(VulkanContext* pContext, RenderTarget* pRenderTarget)
 {
-    //TODO: destroy texture, deallocate pRenderTarget
+    vulkan_texture_destroy(pContext, pRenderTarget->pTexture);
+
+    if (pRenderTarget->pDescriptor!= VK_NULL_HANDLE)
+    {
+        vkDestroyImageView(pContext->device_context.handle, pRenderTarget->pDescriptor, pContext->allocator);
+    }
+
+    if (pRenderTarget->pArrayDescriptors)
+    {
+        for (u32 i = 0; i < pRenderTarget->mMipLevels; ++i)
+        {
+            vkDestroyImageView(pContext->device_context.handle, pRenderTarget->pArrayDescriptors[i], pContext->allocator);
+        }
+    }
+
     SAFE_FREE(pRenderTarget);
 }
 
-b8 vulkan_swapchain_create(VulkanContext* pContext, const SwapchainDesc* desc, VulkanSwapchain** pp_out_swapchain)
+b8 vulkan_swapchain_create(VulkanContext* pContext, const SwapchainDesc* pDesc, VulkanSwapchain** ppSwapchain)
 {
     assert(pContext);
-    assert(desc);
-    assert(pp_out_swapchain);
+    assert(pDesc);
+    assert(ppSwapchain);
 
-    VulkanSwapchain* pSwapchain = (VulkanSwapchain*)alloc_aligned_memory(sizeof(VulkanSwapchain) + sizeof(RenderTarget*) * desc->image_count + sizeof(SwapchainDesc), 16);
+    VulkanSwapchain* pSwapchain = (VulkanSwapchain*)alloc_aligned_memory(sizeof(VulkanSwapchain) + sizeof(RenderTarget*) * pDesc->mImageCount + sizeof(SwapchainDesc), 16);
     pSwapchain->ppRenderTargets = (RenderTarget**)(pSwapchain + 1);
-    pSwapchain->pDesc = (SwapchainDesc*)(pSwapchain->ppRenderTargets + desc->image_count);
+    pSwapchain->pDesc = (SwapchainDesc*)(pSwapchain->ppRenderTargets + pDesc->mImageCount);
     assert(pSwapchain);
 
-    uint32_t width = desc->width;
-    uint32_t height = desc->height;
-    uint32_t number_of_images = desc->image_count;
+    uint32_t width = pDesc->mWidth;
+    uint32_t height = pDesc->mHeight;
+    uint32_t number_of_images = pDesc->mImageCount;
 
     VkExtent2D extent{ width, height };
 
@@ -75,9 +140,9 @@ b8 vulkan_swapchain_create(VulkanContext* pContext, const SwapchainDesc* desc, V
         VkSurfaceFormatKHR surface_format = pContext->swapchain_support_info.surface_formats[i];
 
         if ((surface_format.colorSpace == VK_COLORSPACE_SRGB_NONLINEAR_KHR) &&
-            (surface_format.format == VkFormat::VK_FORMAT_B8G8R8A8_UNORM))
+            (surface_format.format == VkFormat::VK_FORMAT_B8G8R8A8_SRGB))
         {
-            pSwapchain->image_format = surface_format;
+            pSwapchain->mSurfaceFormat = surface_format;
             is_found = true;
             break;
         }
@@ -127,8 +192,8 @@ b8 vulkan_swapchain_create(VulkanContext* pContext, const SwapchainDesc* desc, V
 	VkSwapchainCreateInfoKHR swapchain_create_info{ VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
     swapchain_create_info.surface = pContext->surface;
     swapchain_create_info.minImageCount = number_of_images;
-    swapchain_create_info.imageFormat = pSwapchain->image_format.format;
-    swapchain_create_info.imageColorSpace = pSwapchain->image_format.colorSpace;
+    swapchain_create_info.imageFormat = pSwapchain->mSurfaceFormat.format;
+    swapchain_create_info.imageColorSpace = pSwapchain->mSurfaceFormat.colorSpace;
     swapchain_create_info.imageExtent = extent;
     swapchain_create_info.imageArrayLayers = 1;
     swapchain_create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
@@ -159,45 +224,37 @@ b8 vulkan_swapchain_create(VulkanContext* pContext, const SwapchainDesc* desc, V
 
 	VK_CHECK(vkCreateSwapchainKHR(pContext->device_context.handle, &swapchain_create_info, pContext->allocator, &pSwapchain->handle));
 
-    pSwapchain->image_count = 0;
-    vkGetSwapchainImagesKHR(pContext->device_context.handle, pSwapchain->handle, &pSwapchain->image_count, 0);
+    pSwapchain->mImageCount = 0;
+    vkGetSwapchainImagesKHR(pContext->device_context.handle, pSwapchain->handle, &pSwapchain->mImageCount, 0);
+
+    VkImage* pImages = (VkImage*)malloc(sizeof(VkImage) * pSwapchain->mImageCount);
+
+    if (pSwapchain->mImageCount != 0)
+    {
+        vkGetSwapchainImagesKHR(pContext->device_context.handle, pSwapchain->handle, &pSwapchain->mImageCount, pImages);
+    }
+        
+    RenderTargetDesc renderTargetDesc = {};
+    renderTargetDesc.mClearValue = { {0.f, 0.f, 0.f, 0.f} };
+    renderTargetDesc.mWidth = pDesc->mWidth;
+    renderTargetDesc.mHeight = pDesc->mHeight;
+    renderTargetDesc.mFormat = pSwapchain->mSurfaceFormat.format;
+    renderTargetDesc.mMipLevels = 1;
+    renderTargetDesc.mSampleCount = 1;
+    renderTargetDesc.mStartState = RESOURCE_STATE_PRESENT;
 
     for (uint32_t rt = 0; rt < number_of_images; ++rt)
     {
-        RenderTarget* pRenderTarget = pSwapchain->ppRenderTargets[rt];
-
+        renderTargetDesc.pNativeHandle = (void*)pImages[rt]; // VkImage
+        vulkan_rendertarget_create(pContext, &renderTargetDesc, &pSwapchain->ppRenderTargets[rt]);
     }
 
+    SAFE_FREE(pImages);
 
-    if (pSwapchain->image_count != 0)
-    {
-        //images.resize(pSwapchain->image_count);
-        //pSwapchain->image_views.resize(pSwapchain->image_count);
-    }
-      
-    //vkGetSwapchainImagesKHR(pContext->device_context.handle, pSwapchain->handle, &pSwapchain->image_count, pSwapchain->images.data());
-    
-
-    //for (u32 i = 0; i < pSwapchain->image_count; ++i) {
-
-    //    VkImageViewCreateInfo create_info{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-    //    create_info.image = pSwapchain->images.at(i);
-    //    create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    //    create_info.format = swapchain->image_format.format;
-    //    create_info.components = { VK_COMPONENT_SWIZZLE_IDENTITY };
-    //    create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    //    create_info.subresourceRange.baseArrayLayer = 0;
-    //    create_info.subresourceRange.baseMipLevel = 0;
-    //    create_info.subresourceRange.layerCount = 1;
-    //    create_info.subresourceRange.levelCount = 1;
-
-    //    VK_CHECK(vkCreateImageView(pContext->device_context.handle, &create_info, pContext->allocator, &swapchain->image_views.at(i)));
+    //if (!vulkan_device_detect_depth_format(&pContext->device_context)) {
+    //    std::cout << "depth format not detected" << std::endl;
+    //    return false;
     //}
-
-    if (!vulkan_device_detect_depth_format(&pContext->device_context)) {
-        std::cout << "depth format not detected" << std::endl;
-        return false;
-    }
 
     //vulkan_image_create(
     //    pContext,
@@ -218,41 +275,42 @@ b8 vulkan_swapchain_create(VulkanContext* pContext, const SwapchainDesc* desc, V
 	return true;
 }
 
-b8 vulkan_swapchain_destroy(VulkanContext* pContext, VulkanSwapchain* swapchain)
+b8 vulkan_swapchain_destroy(VulkanContext* pContext, VulkanSwapchain* pSwapchain)
 {
-    //if (pContext->render_fences.at(pContext->current_frame) != VK_NULL_HANDLE)
-    //    VK_CHECK(vkWaitForFences(pContext->device_context.handle, 1, &pContext->render_fences.at(pContext->current_frame), true, UINT64_MAX));
+    for (u32 i = 0; i < pSwapchain->mImageCount; ++i)
+    {
+        vulkan_rendertarget_destroy(pContext, pSwapchain->ppRenderTargets[i]);
+    }
 
-    //vulkan_image_destroy(pContext, &swapchain->depth_attachment);
-   
-    //for (u32 i = 0; i < swapchain->image_count; ++i) {
-    //    vkDestroyImageView(pContext->device_context.handle, swapchain->image_views.at(i), pContext->allocator);
-    //}
+    vkDestroySwapchainKHR(pContext->device_context.handle, pSwapchain->handle, pContext->allocator);
 
-    vkDestroySwapchainKHR(pContext->device_context.handle, swapchain->handle, pContext->allocator);
-
-    swapchain->handle = nullptr;
+    pSwapchain->handle = NULL;
+    SAFE_FREE(pSwapchain);
 
 	return true;
 }
 
-b8 vulkan_swapchain_recreate(VulkanContext* pContext, i32 width, i32 height)
+b8 vulkan_swapchain_recreate(VulkanContext* pContext, VulkanSwapchain** ppSwapchain, i32 width, i32 height)
 {
-    VulkanSwapchain out_swapchain{};
-	
-    //if (!vulkan_swapchain_create(pContext, width, height, &out_swapchain))
-    //    return false;
+    assert(ppSwapchain);
+
+    VulkanSwapchain* pSwapchain = *ppSwapchain;
+    pSwapchain->pDesc->mWidth = width;
+    pSwapchain->pDesc->mHeight = height;
+
+    if (!vulkan_swapchain_create(pContext, pSwapchain->pDesc, &pSwapchain))
+        return false;
 
 
-	//vulkan_swapchain_destroy(pContext, &pContext->swapchain);
+    //vulkan_swapchain_destroy(pContext, &pContext->swapchain);
 
-	//if(pContext->swapchain.handle != nullptr) {
+    //if(pContext->swapchain.handle != nullptr) {
     //    vkDestroySwapchainKHR(pContext->device_context.handle, pContext->swapchain.handle, pContext->allocator);
     //}
 
     //pContext->swapchain = out_swapchain;
 
-	return true;
+    return true;
 }
 
 void vulkan_swapchain_get_support_info(VulkanContext* pContext, VulkanSwapchainSupportInfo* out_support_info)
@@ -280,7 +338,8 @@ b8 acquire_next_image_index_swapchain(
 
     switch (result) {
     case VK_ERROR_OUT_OF_DATE_KHR:
-        vulkan_swapchain_recreate(pContext, pContext->framebuffer_width, pContext->framebuffer_width);
+        //TODO
+        //vulkan_swapchain_recreate(pContext, pContext->framebuffer_width, pContext->framebuffer_width);
         return false;
     case VK_SUBOPTIMAL_KHR:
         break;
@@ -294,7 +353,7 @@ b8 acquire_next_image_index_swapchain(
 b8 present_image_swapchain(
     VulkanContext* pContext,
     VulkanSwapchain* swapchain,
-    VkQueue present_queue,
+    VkQueue mPresentQueue,
     VkSemaphore render_complete_semaphore,
     u32 current_image_index
 ) 
@@ -306,7 +365,7 @@ b8 present_image_swapchain(
     present_info.pSwapchains = &swapchain->handle;
     present_info.pImageIndices = &current_image_index;
 
-    VkResult result = vkQueuePresentKHR(present_queue, &present_info);
+    VkResult result = vkQueuePresentKHR(mPresentQueue, &present_info);
 
     switch (result) {
     case VK_ERROR_OUT_OF_DATE_KHR:
@@ -471,33 +530,33 @@ VkImageLayout resource_state_to_vulkan_image_layout(ResourceState state)
     return result;
 }
 
-b8 vulkan_texture_create(VulkanContext* pContext, TextureDesc* pDesc, Texture** ppTexture)
+void vulkan_texture_create(VulkanContext* pContext, TextureDesc* pDesc, Texture** ppTexture)
 {
     assert(pContext);
     assert(pDesc);
     assert(ppTexture);
 
-    Texture* pTexture = (Texture*)alloc_aligned_memory(sizeof(Texture) + pDesc->type & DESCRIPTOR_TYPE_RW_TEXTURE ? sizeof(VkImageView) * pDesc->mipLevels : 0, 16);
-    memset(pTexture, 0, sizeof(sizeof(Texture) + pDesc->type & DESCRIPTOR_TYPE_RW_TEXTURE ? sizeof(VkImageView) * pDesc->mipLevels : 0));
+    Texture* pTexture = (Texture*)alloc_aligned_memory(sizeof(Texture) + pDesc->mType & DESCRIPTOR_TYPE_RW_TEXTURE ? sizeof(VkImageView) * pDesc->mMipLevels : 0, 16);
+    memset(pTexture, 0, sizeof(sizeof(Texture) + pDesc->mType & DESCRIPTOR_TYPE_RW_TEXTURE ? sizeof(VkImageView) * pDesc->mMipLevels : 0));
 
-    if (pDesc->type & DESCRIPTOR_TYPE_RW_TEXTURE)
+    if (pDesc->mType & DESCRIPTOR_TYPE_RW_TEXTURE)
         pTexture->pUAVDescriptors = (VkImageView*)(pTexture + 1);
 
     if (pDesc->pNativeHandle == NULL)
     {
-        pTexture->ownsImage = true;
+        pTexture->bOwnsImage = true;
     }
     else
     {
-        pTexture->ownsImage = false;
+        pTexture->bOwnsImage = false;
         pTexture->pImage = (VkImage)pDesc->pNativeHandle;
     }
     
-    pTexture->width = pDesc->width;
-    pTexture->height = pDesc->height;
-    pTexture->format = pDesc->format;
-    pTexture->sampleCount = pDesc->sampleCount;
-    pTexture->mipLevels = pDesc->mipLevels;
+    pTexture->mWidth = pDesc->mWidth;
+    pTexture->mHeight = pDesc->mHeight;
+    pTexture->mFormat = pDesc->mFormat;
+    pTexture->mSampleCount = pDesc->mSampleCount;
+    pTexture->mMipLevels = pDesc->mMipLevels;
 
     if (pTexture->pImage == VK_NULL_HANDLE)
     {
@@ -505,15 +564,15 @@ b8 vulkan_texture_create(VulkanContext* pContext, TextureDesc* pDesc, Texture** 
         imgCreateInfo.pNext = NULL;
         imgCreateInfo.flags = 0;
         imgCreateInfo.imageType = VK_IMAGE_TYPE_2D;
-        imgCreateInfo.format = pDesc->format;
-        imgCreateInfo.extent.width = pDesc->width;
-        imgCreateInfo.extent.height = pDesc->height;
+        imgCreateInfo.format = pDesc->mFormat;
+        imgCreateInfo.extent.width = pDesc->mWidth;
+        imgCreateInfo.extent.height = pDesc->mHeight;
         imgCreateInfo.extent.depth = 1;
-        imgCreateInfo.mipLevels = pDesc->mipLevels;
+        imgCreateInfo.mipLevels = pDesc->mMipLevels;
         imgCreateInfo.arrayLayers = 1;
-        imgCreateInfo.samples = to_vulkan_sample_count(pDesc->sampleCount);
+        imgCreateInfo.samples = to_vulkan_sample_count(pDesc->mSampleCount);
         imgCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-        imgCreateInfo.usage = descriptor_type_to_vulkan_image_usage(pDesc->type) | resource_state_to_vulkan_image_usage(pDesc->startState);
+        imgCreateInfo.usage = descriptor_type_to_vulkan_image_usage(pDesc->mType) | resource_state_to_vulkan_image_usage(pDesc->mStartState);
         imgCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
         imgCreateInfo.queueFamilyIndexCount = 0;
         imgCreateInfo.pQueueFamilyIndices = nullptr;
@@ -524,7 +583,7 @@ b8 vulkan_texture_create(VulkanContext* pContext, TextureDesc* pDesc, Texture** 
         allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
         allocCreateInfo.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
 
-        VK_CHECK(vmaCreateImage(pContext->vma_allocator, &imgCreateInfo, &allocCreateInfo, &pTexture->pImage, &pTexture->allocation, nullptr));
+        VK_CHECK(vmaCreateImage(pContext->vma_allocator, &imgCreateInfo, &allocCreateInfo, &pTexture->pImage, &pTexture->pAlloc, nullptr));
     }
     
     // SRV
@@ -533,7 +592,7 @@ b8 vulkan_texture_create(VulkanContext* pContext, TextureDesc* pDesc, Texture** 
     viewCreateInfo.flags = 0;
     viewCreateInfo.image = pTexture->pImage;
     viewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    viewCreateInfo.format = pDesc->format;
+    viewCreateInfo.format = pDesc->mFormat;
     viewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_R;
     viewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_G;
     viewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_B;
@@ -541,19 +600,19 @@ b8 vulkan_texture_create(VulkanContext* pContext, TextureDesc* pDesc, Texture** 
     viewCreateInfo.subresourceRange.baseArrayLayer = 0;
     viewCreateInfo.subresourceRange.layerCount = 1;
     viewCreateInfo.subresourceRange.baseMipLevel = 0;
-    viewCreateInfo.subresourceRange.levelCount = pDesc->mipLevels;
-    viewCreateInfo.subresourceRange.aspectMask = format_to_vulkan_image_aspect(pDesc->format);
-    pTexture->aspectMask = format_to_vulkan_image_aspect(pDesc->format);
+    viewCreateInfo.subresourceRange.levelCount = pDesc->mMipLevels;
+    viewCreateInfo.subresourceRange.aspectMask = format_to_vulkan_image_aspect(pDesc->mFormat);
+    pTexture->mAspectMask = format_to_vulkan_image_aspect(pDesc->mFormat);
 
-    if (pDesc->type & DESCRIPTOR_TYPE_TEXTURE)
+    if (pDesc->mType & DESCRIPTOR_TYPE_TEXTURE)
     {
         VK_CHECK(vkCreateImageView(pContext->device_context.handle, &viewCreateInfo, pContext->allocator, &pTexture->pSRVDescriptor));
     }
 
-    if (pDesc->type & DESCRIPTOR_TYPE_RW_TEXTURE)
+    if (pDesc->mType & DESCRIPTOR_TYPE_RW_TEXTURE)
     {
         viewCreateInfo.subresourceRange.levelCount = 1;
-        for (u32 i = 0; i < pDesc->mipLevels; ++i)
+        for (u32 i = 0; i < pDesc->mMipLevels; ++i)
         {
             viewCreateInfo.subresourceRange.baseMipLevel = i;
             VK_CHECK(vkCreateImageView(pContext->device_context.handle, &viewCreateInfo, pContext->allocator, &pTexture->pUAVDescriptors[i]));
@@ -575,14 +634,14 @@ void vulkan_texture_destroy(VulkanContext* pContext, Texture* pTexture)
 
     if (pTexture->pUAVDescriptors)
     {
-        for (u32 i = 0; i < pTexture->mipLevels; ++i)
+        for (u32 i = 0; i < pTexture->mMipLevels; ++i)
         {
             vkDestroyImageView(pContext->device_context.handle, pTexture->pUAVDescriptors[i], pContext->allocator);
         }
     }
 
     if (pTexture->pImage != VK_NULL_HANDLE)
-        vmaDestroyImage(pContext->vma_allocator, pTexture->pImage, pTexture->allocation);
+        vmaDestroyImage(pContext->vma_allocator, pTexture->pImage, pTexture->pAlloc);
 }
 
 b8 load_image_from_file(VulkanContext* pContext, const char* file, Texture* pTexture)
@@ -604,17 +663,17 @@ b8 load_image_from_file(VulkanContext* pContext, const char* file, Texture* pTex
     vulkan_buffer_upload(pContext, &staging_buffer, pixel_ptr, staging_buffer_size);
     stbi_image_free(pixels);
 
-    vulkan_image_create(
-        pContext, VK_IMAGE_TYPE_2D,
-        tex_width, tex_height,
-        VK_FORMAT_R8G8B8A8_SRGB,
-        VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-        VMA_MEMORY_USAGE_GPU_ONLY,
-        true,
-        VK_IMAGE_ASPECT_COLOR_BIT,
-        out_image
-    );
+    //vulkan_image_create(
+    //    pContext, VK_IMAGE_TYPE_2D,
+    //    tex_width, tex_height,
+    //    VK_FORMAT_R8G8B8A8_SRGB,
+    //    VK_IMAGE_TILING_OPTIMAL,
+    //    VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+    //    VMA_MEMORY_USAGE_GPU_ONLY,
+    //    true,
+    //    VK_IMAGE_ASPECT_COLOR_BIT,
+    //    out_image
+    //);
 
     // create one time submit command buffer for image copy from staging buffer
     Command one_time_submit;
@@ -624,16 +683,16 @@ b8 load_image_from_file(VulkanContext* pContext, const char* file, Texture* pTex
 
     vulkan_command_buffer_begin(&one_time_submit, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-    vulkan_image_layout_transition(
-        out_image,
-        &one_time_submit,
-        VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        0,
-        VK_ACCESS_TRANSFER_WRITE_BIT,
-        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-        VK_PIPELINE_STAGE_TRANSFER_BIT
-    );
+    //vulkan_image_layout_transition(
+    //    out_image,
+    //    &one_time_submit,
+    //    VK_IMAGE_LAYOUT_UNDEFINED,
+    //    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    //    0,
+    //    VK_ACCESS_TRANSFER_WRITE_BIT,
+    //    VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+    //    VK_PIPELINE_STAGE_TRANSFER_BIT
+    //);
 
     VkBufferImageCopy copy_region = {};
     copy_region.bufferOffset = 0;
@@ -645,21 +704,21 @@ b8 load_image_from_file(VulkanContext* pContext, const char* file, Texture* pTex
     copy_region.imageSubresource.mipLevel = 0;
     copy_region.imageSubresource.baseArrayLayer = 0;
     copy_region.imageSubresource.layerCount = 1;
-    copy_region.imageExtent = { out_image->width, out_image->height, 1 };
+    copy_region.imageExtent = { pTexture->mWidth, pTexture->mHeight, 1 };
 
     //copy the buffer into the image
-    vkCmdCopyBufferToImage(one_time_submit.buffer, staging_buffer.handle, out_image->handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region);
+    vkCmdCopyBufferToImage(one_time_submit.buffer, staging_buffer.handle, pTexture->pImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region);
 
-    vulkan_image_layout_transition(
-        out_image,
-        &one_time_submit,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        VK_ACCESS_TRANSFER_WRITE_BIT,
-        VK_ACCESS_SHADER_READ_BIT,
-        VK_PIPELINE_STAGE_TRANSFER_BIT,
-        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
-    );
+    //vulkan_image_layout_transition(
+    //    out_image,
+    //    &one_time_submit,
+    //    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    //    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+    //    VK_ACCESS_TRANSFER_WRITE_BIT,
+    //    VK_ACCESS_SHADER_READ_BIT,
+    //    VK_PIPELINE_STAGE_TRANSFER_BIT,
+    //    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
+    //);
 
     vulkan_command_buffer_end(&one_time_submit);
 
@@ -668,8 +727,8 @@ b8 load_image_from_file(VulkanContext* pContext, const char* file, Texture* pTex
     submit_info.commandBufferCount = 1;
     submit_info.pCommandBuffers = &one_time_submit.buffer;
 
-    VK_CHECK(vkQueueSubmit(pContext->device_context.transfer_queue, 1, &submit_info, VK_NULL_HANDLE));
-    vkQueueWaitIdle(pContext->device_context.transfer_queue);
+    VK_CHECK(vkQueueSubmit(pContext->device_context.mTransferQueue, 1, &submit_info, VK_NULL_HANDLE));
+    vkQueueWaitIdle(pContext->device_context.mTransferQueue);
     vulkan_command_pool_destroy(pContext, &one_time_submit);
 
     vulkan_buffer_destroy(pContext, &staging_buffer);

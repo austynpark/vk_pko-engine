@@ -316,7 +316,7 @@ b8 vulkan_graphics_pipeline_create(VulkanContext* pContext, VulkanRenderpass* re
 
 void vulkan_pipeline_destroy(VulkanContext* pContext, Pipeline* pipeline)
 {
-	//vkQueueWaitIdle(pContext->device_context.graphics_queue);
+	//vkQueueWaitIdle(pContext->device_context.mGraphicsQueue);
 
 	if (pipeline->layout != VK_NULL_HANDLE) {
 		vkDestroyPipelineLayout(pContext->device_context.handle, pipeline->layout, pContext->allocator);

@@ -4,18 +4,18 @@
 
 #include <iostream>
 
-std::unique_ptr<input_system::input_state> input_system::state_ptr;
+std::unique_ptr<InputSystem::input_state> InputSystem::state_ptr;
 
-input_system::input_system()
+InputSystem::InputSystem()
 {
 	state_ptr = std::make_unique<input_state>();
 }
 
-input_system::~input_system()
+InputSystem::~InputSystem()
 {
 }
 
-void input_system::process_key(keys key_code, b8 is_pressed)
+void InputSystem::process_key(keys key_code, b8 is_pressed)
 {
     // Only handle this if the state actually changed.
     if (state_ptr && state_ptr->keyboard_current.keys[key_code] != is_pressed) {
@@ -37,7 +37,7 @@ void input_system::process_key(keys key_code, b8 is_pressed)
     }
 }
 
-void input_system::process_button(buttons button, b8 pressed) {
+void InputSystem::process_button(buttons button, b8 pressed) {
     // If the state changed, fire an event.
     if (state_ptr->mouse_current.buttons[button] != pressed) {
         state_ptr->mouse_current.buttons[button] = pressed;
@@ -49,7 +49,7 @@ void input_system::process_button(buttons button, b8 pressed) {
     }
 }
 
-void input_system::process_mouse_move(i16 x, i16 y) {
+void InputSystem::process_mouse_move(i16 x, i16 y) {
     // Only process if actually different
     if (state_ptr->mouse_current.x != x || state_ptr->mouse_current.y != y) {
         // NOTE: Enable this if debugging.
@@ -67,7 +67,7 @@ void input_system::process_mouse_move(i16 x, i16 y) {
     }
 }
 
-void input_system::process_mouse_wheel(i8 z_delta) {
+void InputSystem::process_mouse_wheel(i8 z_delta) {
     // NOTE: no internal state to update.
 
     // Fire the event.
@@ -76,28 +76,28 @@ void input_system::process_mouse_wheel(i8 z_delta) {
     event_system::fire_event(EVENT_CODE_MOUSE_WHEEL, context);
 }
 
-b8 input_system::is_key_down(keys key) {
+b8 InputSystem::is_key_down(keys key) {
     if (!state_ptr) {
         return false;
     }
     return state_ptr->keyboard_current.keys[key] == true;
 }
 
-b8 input_system::is_key_up(keys key) {
+b8 InputSystem::is_key_up(keys key) {
     if (!state_ptr) {
         return true;
     }
     return state_ptr->keyboard_current.keys[key] == false;
 }
 
-b8 input_system::was_key_down(keys key) {
+b8 InputSystem::was_key_down(keys key) {
     if (!state_ptr) {
         return false;
     }
     return state_ptr->keyboard_previous.keys[key] == true;
 }
 
-b8 input_system::was_key_up(keys key) {
+b8 InputSystem::was_key_up(keys key) {
     if (!state_ptr) {
         return true;
     }
@@ -105,35 +105,35 @@ b8 input_system::was_key_up(keys key) {
 }
 
 // mouse input
-b8 input_system::is_button_down(buttons button) {
+b8 InputSystem::is_button_down(buttons button) {
     if (!state_ptr) {
         return false;
     }
     return state_ptr->mouse_current.buttons[button] == true;
 }
 
-b8 input_system::is_button_up(buttons button) {
+b8 InputSystem::is_button_up(buttons button) {
     if (!state_ptr) {
         return true;
     }
     return state_ptr->mouse_current.buttons[button] == false;
 }
 
-b8 input_system::was_button_down(buttons button) {
+b8 InputSystem::was_button_down(buttons button) {
     if (!state_ptr) {
         return false;
     }
     return state_ptr->mouse_previous.buttons[button] == true;
 }
 
-b8 input_system::was_button_up(buttons button) {
+b8 InputSystem::was_button_up(buttons button) {
     if (!state_ptr) {
         return true;
     }
     return state_ptr->mouse_previous.buttons[button] == false;
 }
 
-void input_system::get_mouse_position(i32* x, i32* y) {
+void InputSystem::get_mouse_position(i32* x, i32* y) {
     if (!state_ptr) {
         *x = 0;
         *y = 0;
@@ -143,7 +143,7 @@ void input_system::get_mouse_position(i32* x, i32* y) {
     *y = state_ptr->mouse_current.y;
 }
 
-void input_system::get_previous_mouse_position(i32* x, i32* y) {
+void InputSystem::get_previous_mouse_position(i32* x, i32* y) {
     if (!state_ptr) {
         *x = 0;
         *y = 0;

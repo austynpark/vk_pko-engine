@@ -2,291 +2,640 @@
 #include "vulkan_buffer.h"
 #include "vulkan_pipeline.h"
 
-#include "core/renderer/spirv_helper.h"
-#include "core/renderer/SPIRV-Reflect/spirv_reflect.h"
 #include "core/object.h"
 
 #include "core/file_handle.h"
-#include "core/renderer/vulkan_renderer/vulkan_mesh.h"
+
+#include <mmgr/mmgr.h>
+#include <SPIRV-Cross/spirv_cross.hpp>
+
 #include <iostream>
 #include <fstream>
-#include <sstream>
 
-VkDescriptorPool vulkan_descriptor_pool_create(VulkanContext* pContext);
-VkDescriptorPool get_descriptor_pool(VulkanContext* pContext ,std::vector<VkDescriptorPool>& pools);
-//b8 alloc_descriptor_set(VulkanContext* pContext ,std::vector<VkDescriptorPool>& pools, VkDescriptorSetLayout* layouts, u32 layout_count);
 
-vulkan_shader::vulkan_shader(VulkanContext* vk_context, VulkanRenderpass* renderpass) : pContext(vk_context), renderpass(renderpass)
+const char* shaderPathName = "shader/";
+const char* spvExtension = ".spv";
+
+b8 vulkan_shader_module_create(VulkanContext* pContext, ShaderModule** ppOutModule, const char* fileName);
+
+b8 vulkan_shader_module_create(VulkanContext* pContext, ShaderModule** ppOutModule, const char* fileName)
 {
+    assert(pContext);
+    assert(ppOutModule);
+    assert(fileName);
+
+    ShaderModule* pShaderModule = (ShaderModule*)malloc(sizeof(ShaderModule));
+    memset(*ppOutModule, 0, sizeof(ShaderModule));
+
+    size_t len = strlen(fileName) + strlen(shaderPathName) + strlen(spvExtension) + 1;
+    char* fullPath = (char*)malloc(len * sizeof(char));
+
+    strcpy_s(fullPath, len, shaderPathName);
+    strcat_s(fullPath, len, fileName);
+    strcat_s(fullPath, len, spvExtension);
+
+    std::ifstream file(fullPath, std::ios::ate | std::ios::binary);
+
+    if (!file.is_open()) {
+        throw std::runtime_error("failed to open file!");
+        return false;
+    }
+
+    size_t fileSize = (size_t)file.tellg();
+    pShaderModule->pCode.resize(fileSize / sizeof(u32));
+    file.seekg(0);
+    file.read((char*)pShaderModule->pCode.data(), fileSize);
+    file.close();
+
+    pShaderModule->codeSize = pShaderModule->pCode.size() * sizeof(u32);
+
+    VkShaderModuleCreateInfo create_info{ VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
+    create_info.pCode = pShaderModule->pCode.data();
+    create_info.codeSize = pShaderModule->codeSize;
+
+    VK_CHECK(vkCreateShaderModule(pContext->device_context.handle, &create_info, pContext->allocator, &pShaderModule->mModule));
+
+    free(fullPath);
+    fullPath = nullptr;
+
+    *ppOutModule = pShaderModule;
+
+    return true;
 }
 
-vulkan_shader::~vulkan_shader()
+void vulkan_shader_reflect(ShaderReflection** ppOutShaderReflection, ShaderModule* pShaderModule)
 {
-	shutdown();
+    ShaderReflection* pShaderReflection = (ShaderReflection*)malloc(sizeof(ShaderReflection));
+    memset(pShaderReflection, 0, sizeof(ShaderReflection));
+    //pOut_ShaderReflection->mStageFlag = get_file_extension(shaderModule-)
+    spirv_cross::Compiler* compiler = new spirv_cross::Compiler(pShaderModule->pCode.data(), pShaderModule->codeSize / sizeof(u32));
+    auto active = compiler->get_active_interface_variables();
+
+    spirv_cross::ShaderResources shaderResources = compiler->get_shader_resources(active);
+    compiler->set_enabled_interface_variables(std::move(active));
+
+    u64 allResourceCount = 0;
+    // shader stage input / output
+    allResourceCount = shaderResources.stage_inputs.size();
+    allResourceCount += shaderResources.stage_outputs.size();
+    // shader buffers
+    allResourceCount += shaderResources.uniform_buffers.size();
+    allResourceCount += shaderResources.storage_buffers.size();
+    // shader textures
+    allResourceCount += shaderResources.separate_images.size();
+    // shader sampler
+    allResourceCount += shaderResources.separate_samplers.size();
+    // shader sampled images
+    allResourceCount += shaderResources.sampled_images.size();
+    // shader push constant
+    allResourceCount += shaderResources.push_constant_buffers.size();
+    //shaderResources.gl_plain_uniforms
+    allResourceCount += shaderResources.gl_plain_uniforms.size();
+
+    pShaderReflection->mResourceCount = 0;
+    pShaderReflection->pResources = (ShaderResource*)malloc(sizeof(ShaderResource) * allResourceCount);
+    memset(pShaderReflection->pResources, 0, sizeof(ShaderResource) * allResourceCount);
+    u32 resourceCount = 0;
+
+    //stage input/output
+    for (uint32_t i = 0; i < shaderResources.stage_inputs.size(); ++i)
+    {
+        ShaderResource& resource = pShaderReflection->pResources[pShaderReflection->mResourceCount];
+        resource.mIndex = pShaderReflection->mResourceCount++;
+        u32 name_size = shaderResources.stage_inputs[i].name.length();
+        resource.pName = new char[name_size + 1];
+        memcpy((char*)resource.pName, shaderResources.stage_inputs[i].name.data(), name_size);
+        ((char*)resource.pName)[name_size] = 0;
+        resource.mBinding = -1;
+        resource.mSet = -1;
+
+        spirv_cross::SPIRType type = compiler->get_type(shaderResources.stage_inputs[i].base_type_id);
+        // bit width * vecsize = size
+        resource.mSize = (type.width / 8) * type.vecsize;
+        resource.mMemberCount = type.member_types.size();
+        resource.mMembers = (resource.mMemberCount != 0) ? (ShaderVariable*)malloc(sizeof(ShaderVariable) * resource.mMemberCount) : nullptr;
+
+        if (resource.mMemberCount != 0)
+            memset(resource.mMembers, 0, sizeof(ShaderVariable) * resource.mMemberCount);
+
+        for (uint32_t m = 0; m < resource.mMemberCount; ++m)
+        {
+            resource.pName = new char[name_size + 1];
+            memcpy((char*)resource.pName, shaderResources.stage_inputs[i].name.data(), name_size);
+            ((char*)resource.pName)[name_size] = 0;
+
+            size_t member_size = compiler->get_declared_struct_member_size(type, m);
+            size_t offset = type.array.empty() > 1 ? compiler->type_struct_member_offset(type, m) : 0;
+
+            resource.mMembers[m].mSize = member_size;
+            resource.mMembers[m].mOffset = offset;
+            resource.mSize += member_size;
+
+            if (!type.array.empty())
+            {
+                size_t array_stride = compiler->type_struct_member_array_stride(type, m);
+            }
+
+            if (type.columns > 1)
+            {
+                // Get bytes stride between columns (if column major), for float4x4 -> 16 bytes.
+                size_t matrix_stride = compiler->type_struct_member_matrix_stride(type, m);
+            }
+
+            u32 member_name_size = compiler->get_member_name(type.self, m).length();
+            resource.mMembers[m].pName = new char[member_name_size + 1];
+            memcpy((char*)resource.mMembers[m].pName, compiler->get_member_name(type.self, m).data(), member_name_size);
+            ((char*)resource.mMembers[m].pName)[member_name_size] = 0;
+        }
+
+    }
+
+    for (uint32_t i = 0; i < shaderResources.stage_outputs.size(); ++i)
+    {
+        ShaderResource& resource = pShaderReflection->pResources[pShaderReflection->mResourceCount];
+        resource.mIndex = pShaderReflection->mResourceCount++;
+        u32 name_size = shaderResources.stage_outputs[i].name.length();
+        resource.pName = new char[name_size + 1];
+        memcpy((char*)resource.pName, shaderResources.stage_outputs[i].name.data(), name_size);
+        ((char*)resource.pName)[name_size] = 0;
+        resource.mBinding = -1;
+        resource.mSet = -1;
+
+        //spirv_cross::Resource resource = shaderResources.stage_inputs[resourceCount++];
+        spirv_cross::SPIRType type = compiler->get_type(shaderResources.stage_outputs[i].base_type_id);
+
+        // bit width * vecsize = size
+        resource.mSize = (type.width / 8) * type.vecsize;
+        resource.mMemberCount = type.member_types.size();
+        resource.mMembers = (resource.mMemberCount != 0) ? (ShaderVariable*)malloc(sizeof(ShaderVariable) * resource.mMemberCount) : nullptr;
+
+        if (resource.mMemberCount != 0)
+            memset(resource.mMembers, 0, sizeof(ShaderVariable) * resource.mMemberCount);
+
+        for (uint32_t m = 0; m < resource.mMemberCount; ++m)
+        {
+            spirv_cross::SPIRType member_type = compiler->get_type(shaderResources.stage_outputs[i].base_type_id);
+            size_t member_size = compiler->get_declared_struct_member_size(type, m);
+            size_t offset = member_type.array.empty() > 1 ? compiler->type_struct_member_offset(type, m) : 0;
+
+            resource.mMembers[m].mSize = member_size;
+            resource.mMembers[m].mOffset = offset;
+            resource.mSize += member_size;
+
+            if (!member_type.array.empty())
+            {
+                size_t array_stride = compiler->type_struct_member_array_stride(type, m);
+            }
+
+            if (member_type.columns > 1)
+            {
+                // Get bytes stride between columns (if column major), for float4x4 -> 16 bytes.
+                size_t matrix_stride = compiler->type_struct_member_matrix_stride(type, m);
+            }
+
+
+            u32 member_name_size = compiler->get_member_name(type.self, m).length();
+            resource.mMembers[m].pName = new char[member_name_size + 1];
+            memcpy((char*)resource.mMembers[m].pName, compiler->get_member_name(type.self, m).data(), member_name_size);
+            ((char*)resource.mMembers[m].pName)[member_name_size] = 0;
+        }
+    }
+
+
+    for (uint32_t i = 0; i < shaderResources.uniform_buffers.size(); ++i)
+    {
+        ShaderResource& resource = pShaderReflection->pResources[pShaderReflection->mResourceCount];
+        resource.mIndex = pShaderReflection->mResourceCount++;
+        u32 name_size = shaderResources.uniform_buffers[i].name.length();
+        resource.pName = new char[name_size + 1];
+        memcpy((char*)resource.pName, shaderResources.uniform_buffers[i].name.data(), name_size);
+        ((char*)resource.pName)[name_size] = 0;
+        resource.mBinding = compiler->get_decoration(shaderResources.uniform_buffers[i].id, spv::DecorationBinding);
+        resource.mSet = compiler->get_decoration(shaderResources.uniform_buffers[i].id, spv::DecorationDescriptorSet);
+
+        spirv_cross::SPIRType type = compiler->get_type(shaderResources.uniform_buffers[i].base_type_id);
+        // bit width * vecsize = size
+        resource.mMemberCount = type.member_types.size();
+        resource.mMembers = (resource.mMemberCount != 0) ? (ShaderVariable*)malloc(sizeof(ShaderVariable) * resource.mMemberCount) : nullptr;
+        resource.mType = DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        if (resource.mMemberCount != 0)
+            memset(resource.mMembers, 0, sizeof(ShaderVariable) * resource.mMemberCount);
+
+        for (uint32_t m = 0; m < resource.mMemberCount; ++m)
+        {
+            spirv_cross::SPIRType member_type = compiler->get_type(shaderResources.uniform_buffers[i].base_type_id);
+            size_t member_size = compiler->get_declared_struct_member_size(type, m);
+            size_t offset = member_type.array.empty() > 1 ? compiler->type_struct_member_offset(type, m) : 0;
+
+            resource.mMembers[m].mSize = member_size;
+            resource.mMembers[m].mOffset = offset;
+            resource.mSize += member_size;
+
+            if (!member_type.array.empty())
+            {
+                size_t array_stride = compiler->type_struct_member_array_stride(type, m);
+            }
+
+            if (member_type.columns > 1)
+            {
+                // Get bytes stride between columns (if column major), for float4x4 -> 16 bytes.
+                size_t matrix_stride = compiler->type_struct_member_matrix_stride(type, m);
+            }
+
+            u32 member_name_size = compiler->get_member_name(type.self, m).length();
+            resource.mMembers[m].pName = new char[member_name_size + 1];
+            memcpy((char*)resource.mMembers[m].pName, compiler->get_member_name(type.self, m).data(), member_name_size);
+            ((char*)resource.mMembers[m].pName)[member_name_size] = 0;
+        }
+    }
+
+    for (uint32_t i = 0; i < shaderResources.storage_buffers.size(); ++i)
+    {
+        ShaderResource& resource = pShaderReflection->pResources[pShaderReflection->mResourceCount];
+        resource.mIndex = pShaderReflection->mResourceCount++;
+        u32 name_size = shaderResources.storage_buffers[i].name.length();
+        resource.pName = new char[name_size + 1];
+        memcpy((char*)resource.pName, shaderResources.storage_buffers[i].name.data(), name_size);
+        ((char*)resource.pName)[name_size] = 0;
+        resource.mBinding = compiler->get_decoration(shaderResources.storage_buffers[i].id, spv::DecorationBinding);
+        resource.mSet = compiler->get_decoration(shaderResources.storage_buffers[i].id, spv::DecorationDescriptorSet);
+
+        //spirv_cross::Resource resource = shaderResources.storage_buffers[resourceCount++];
+        spirv_cross::SPIRType type = compiler->get_type(shaderResources.storage_buffers[i].base_type_id);
+        // bit width * vecsize = size
+        resource.mMemberCount = type.member_types.size();
+        resource.mMembers = (resource.mMemberCount != 0) ? (ShaderVariable*)malloc(sizeof(ShaderVariable) * resource.mMemberCount) : nullptr;
+        resource.mType = DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        for (uint32_t m = 0; m < resource.mMemberCount; ++m)
+        {
+            size_t member_size = compiler->get_declared_struct_member_size(type, m);
+            size_t offset = type.array.empty() > 1 ? compiler->type_struct_member_offset(type, m) : 0;
+
+            resource.mMembers[m].mSize = member_size;
+            resource.mMembers[m].mOffset = offset;
+            resource.mSize += member_size;
+
+            if (!type.array.empty())
+            {
+                size_t array_stride = compiler->type_struct_member_array_stride(type, m);
+            }
+
+            if (type.columns > 1)
+            {
+                // Get bytes stride between columns (if column major), for float4x4 -> 16 bytes.
+                size_t matrix_stride = compiler->type_struct_member_matrix_stride(type, m);
+            }
+
+            u32 member_name_size = compiler->get_member_name(type.self, m).length();
+            resource.mMembers[m].pName = new char[member_name_size + 1];
+            memcpy((char*)resource.mMembers[m].pName, compiler->get_member_name(type.self, m).data(), member_name_size);
+            ((char*)resource.mMembers[m].pName)[member_name_size] = 0;
+        }
+    }
+
+    for (uint32_t i = 0; i < shaderResources.separate_images.size(); ++i)
+    {
+        ShaderResource& resource = pShaderReflection->pResources[pShaderReflection->mResourceCount];
+        resource.mIndex = pShaderReflection->mResourceCount++;
+        u32 name_size = shaderResources.separate_images[i].name.length();
+        resource.pName = new char[name_size + 1];
+        memcpy((char*)resource.pName, shaderResources.separate_images[i].name.data(), name_size);
+        ((char*)resource.pName)[name_size] = 0;
+        resource.mBinding = compiler->get_decoration(shaderResources.separate_images[i].id, spv::DecorationBinding);
+        resource.mSet = compiler->get_decoration(shaderResources.separate_images[i].id, spv::DecorationDescriptorSet);
+
+        //spirv_cross::Resource resource = shaderResources.storage_buffers[resourceCount++];
+        spirv_cross::SPIRType type = compiler->get_type(shaderResources.separate_images[i].base_type_id);
+        // bit width * vecsize = size
+        resource.mMemberCount = type.member_types.size();
+        resource.mMembers = (resource.mMemberCount != 0) ? (ShaderVariable*)malloc(sizeof(ShaderVariable) * resource.mMemberCount) : nullptr;
+        resource.mType = DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+        for (uint32_t m = 0; m < resource.mMemberCount; ++m)
+        {
+            size_t member_size = compiler->get_declared_struct_member_size(type, m);
+            size_t offset = type.array.empty() > 1 ? compiler->type_struct_member_offset(type, m) : 0;
+
+            resource.mMembers[m].mSize = member_size;
+            resource.mMembers[m].mOffset = offset;
+            resource.mSize += member_size;
+
+            if (!type.array.empty())
+            {
+                size_t array_stride = compiler->type_struct_member_array_stride(type, m);
+            }
+
+            if (type.columns > 1)
+            {
+                // Get bytes stride between columns (if column major), for float4x4 -> 16 bytes.
+                size_t matrix_stride = compiler->type_struct_member_matrix_stride(type, m);
+            }
+
+            u32 member_name_size = compiler->get_member_name(type.self, m).length();
+            resource.mMembers[m].pName = new char[member_name_size + 1];
+            memcpy((char*)resource.mMembers[m].pName, compiler->get_member_name(type.self, m).data(), member_name_size);
+            ((char*)resource.mMembers[m].pName)[member_name_size] = 0;
+        }
+    }
+
+    for (uint32_t i = 0; i < shaderResources.separate_samplers.size(); ++i)
+    {
+        ShaderResource& resource = pShaderReflection->pResources[pShaderReflection->mResourceCount];
+        resource.mIndex = pShaderReflection->mResourceCount++;
+        u32 name_size = shaderResources.separate_samplers[i].name.length();
+        resource.pName = new char[name_size + 1];
+        memcpy((char*)resource.pName, shaderResources.separate_samplers[i].name.data(), name_size);
+        ((char*)resource.pName)[name_size] = 0;
+        resource.mBinding = compiler->get_decoration(shaderResources.separate_samplers[i].id, spv::DecorationBinding);
+        resource.mSet = compiler->get_decoration(shaderResources.separate_samplers[i].id, spv::DecorationDescriptorSet);
+
+        //spirv_cross::Resource resource = shaderResources.storage_buffers[resourceCount++];
+        spirv_cross::SPIRType type = compiler->get_type(shaderResources.separate_samplers[i].base_type_id);
+        // bit width * vecsize = size
+        resource.mMemberCount = type.member_types.size();
+        resource.mMembers = (resource.mMemberCount != 0) ? (ShaderVariable*)malloc(sizeof(ShaderVariable) * resource.mMemberCount) : nullptr;
+        resource.mType = DESCRIPTOR_TYPE_SAMPLER;
+        for (uint32_t m = 0; m < resource.mMemberCount; ++m)
+        {
+            size_t member_size = compiler->get_declared_struct_member_size(type, m);
+            size_t offset = type.array.empty() > 1 ? compiler->type_struct_member_offset(type, m) : 0;
+
+            resource.mMembers[m].mSize = member_size;
+            resource.mMembers[m].mOffset = offset;
+            resource.mSize += member_size;
+
+            if (!type.array.empty())
+            {
+                size_t array_stride = compiler->type_struct_member_array_stride(type, m);
+            }
+
+            if (type.columns > 1)
+            {
+                // Get bytes stride between columns (if column major), for float4x4 -> 16 bytes.
+                size_t matrix_stride = compiler->type_struct_member_matrix_stride(type, m);
+            }
+
+            u32 member_name_size = compiler->get_member_name(type.self, m).length();
+            resource.mMembers[m].pName = new char[member_name_size + 1];
+            memcpy((char*)resource.mMembers[m].pName, compiler->get_member_name(type.self, m).data(), member_name_size);
+            ((char*)resource.mMembers[m].pName)[member_name_size] = 0;
+        }
+    }
+
+    //for (uint32_t i = 0; i < shaderResources.sampled_images.size(); ++i)
+    //{
+    //    ShaderResource& resource = pShaderReflection->pResources[pShaderReflection->mResourceCount];
+    //    resource.mIndex = pShaderReflection->mResourceCount++;
+    //    u32 name_size = shaderResources.sampled_images[i].name.length();
+    //    resource.pName = new char[name_size + 1];
+    //    memcpy((char*)resource.pName, shaderResources.sampled_images[i].name.data(), name_size);
+    //    ((char*)resource.pName)[name_size] = 0;
+    //    resource.mBinding = compiler->get_decoration(shaderResources.sampled_images[i].id, spv::DecorationBinding);
+    //    resource.mSet = compiler->get_decoration(shaderResources.sampled_images[i].id, spv::DecorationDescriptorSet);
+
+    //    //spirv_cross::Resource resource = shaderResources.storage_buffers[resourceCount++];
+    //    spirv_cross::SPIRType type = compiler->get_type(shaderResources.sampled_images[i].base_type_id);
+    //    // bit width * vecsize = size
+    //    resource.mMemberCount = type.member_types.size();
+    //    resource.mMembers = (resource.mMemberCount != 0) ? (ShaderVariable*)malloc(sizeof(ShaderVariable) * resource.mMemberCount) : nullptr;
+
+    //    resource.mIsStruct = false;
+    //    resource.mType = DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+
+    //    for (uint32_t m = 0; m < resource.mMemberCount; ++m)
+    //    {
+    //        size_t member_size = compiler->get_declared_struct_member_size(type, m);
+    //        size_t offset = type.array.empty() > 1 ? compiler->type_struct_member_offset(type, m) : 0;
+
+    //        resource.mMembers[m].mSize = member_size;
+    //        resource.mMembers[m].mOffset = offset;
+    //        resource.mSize += member_size;
+
+    //        if (!type.array.empty())
+    //        {
+    //            size_t array_stride = compiler->type_struct_member_array_stride(type, m);
+    //        }
+
+    //        if (type.columns > 1)
+    //        {
+    //            // Get bytes stride between columns (if column major), for float4x4 -> 16 bytes.
+    //            size_t matrix_stride = compiler->type_struct_member_matrix_stride(type, m);
+    //        }
+
+    //        u32 member_name_size = compiler->get_member_name(type.self, m).length();
+    //        resource.mMembers[m].pName = new char[member_name_size + 1];
+    //        memcpy((char*)resource.mMembers[m].pName, compiler->get_member_name(type.self, m).data(), member_name_size);
+    //        ((char*)resource.mMembers[m].pName)[member_name_size] = 0;
+    //    }
+    //}
+
+    for (uint32_t i = 0; i < shaderResources.push_constant_buffers.size(); ++i)
+    {
+        ShaderResource& resource = pShaderReflection->pResources[pShaderReflection->mResourceCount];
+        resource.mIndex = pShaderReflection->mResourceCount++;
+        u32 name_size = shaderResources.push_constant_buffers[i].name.length();
+        resource.pName = new char[name_size + 1];
+        memcpy((char*)resource.pName, shaderResources.push_constant_buffers[i].name.data(), name_size);
+        ((char*)resource.pName)[name_size] = 0;
+        resource.mBinding = -1;
+        resource.mSet = -1;
+        resource.mType = DESCRIPTOR_TYPE_PUSH_CONSTANT;
+
+        //spirv_cross::Resource resource = shaderResources.storage_buffers[resourceCount++];
+        spirv_cross::SPIRType type = compiler->get_type(shaderResources.push_constant_buffers[i].base_type_id);
+        // bit width * vecsize = size
+        resource.mMemberCount = type.member_types.size();
+        resource.mMembers = (resource.mMemberCount != 0) ? (ShaderVariable*)malloc(sizeof(ShaderVariable) * resource.mMemberCount) : nullptr;
+
+        for (uint32_t m = 0; m < resource.mMemberCount; ++m)
+        {
+            size_t member_size = compiler->get_declared_struct_member_size(type, m);
+            size_t offset = type.array.empty() > 1 ? compiler->type_struct_member_offset(type, m) : 0;
+
+            resource.mMembers[m].mSize = member_size;
+            resource.mMembers[m].mOffset = offset;
+            resource.mSize += member_size;
+
+            if (!type.array.empty())
+            {
+                size_t array_stride = compiler->type_struct_member_array_stride(type, m);
+            }
+
+            if (type.columns > 1)
+            {
+                // Get bytes stride between columns (if column major), for float4x4 -> 16 bytes.
+                size_t matrix_stride = compiler->type_struct_member_matrix_stride(type, m);
+            }
+
+            u32 member_name_size = compiler->get_member_name(type.self, m).length();
+            resource.mMembers[m].pName = new char[member_name_size + 1];
+            memcpy((char*)resource.mMembers[m].pName, compiler->get_member_name(type.self, m).data(), member_name_size);
+            ((char*)resource.mMembers[m].pName)[member_name_size] = 0;
+        }
+    }
+
+    for (uint32_t i = 0; i < shaderResources.gl_plain_uniforms.size(); ++i)
+    {
+        ShaderResource& resource = pShaderReflection->pResources[pShaderReflection->mResourceCount];
+        resource.mIndex = pShaderReflection->mResourceCount++;
+        u32 name_size = shaderResources.gl_plain_uniforms[i].name.length();
+        resource.pName = new char[name_size + 1];
+        memcpy((char*)resource.pName, shaderResources.gl_plain_uniforms[i].name.data(), name_size);
+        ((char*)resource.pName)[name_size] = 0;
+        resource.mBinding = compiler->get_decoration(shaderResources.gl_plain_uniforms[i].id, spv::DecorationBinding);
+        resource.mSet = compiler->get_decoration(shaderResources.gl_plain_uniforms[i].id, spv::DecorationDescriptorSet);
+
+        //spirv_cross::Resource resource = shaderResources.storage_buffers[resourceCount++];
+        spirv_cross::SPIRType type = compiler->get_type(shaderResources.gl_plain_uniforms[i].base_type_id);
+        // bit width * vecsize = size
+        resource.mMemberCount = type.member_types.size();
+        resource.mMembers = (resource.mMemberCount != 0) ? (ShaderVariable*)malloc(sizeof(ShaderVariable) * resource.mMemberCount) : nullptr;
+
+        for (uint32_t m = 0; m < resource.mMemberCount; ++m)
+        {
+            size_t member_size = compiler->get_declared_struct_member_size(type, m);
+            size_t offset = type.array.empty() > 1 ? compiler->type_struct_member_offset(type, m) : 0;
+
+            resource.mMembers[m].mSize = member_size;
+            resource.mMembers[m].mOffset = offset;
+            resource.mSize += member_size;
+
+            if (!type.array.empty())
+            {
+                size_t array_stride = compiler->type_struct_member_array_stride(type, m);
+            }
+
+            if (type.columns > 1)
+            {
+                // Get bytes stride between columns (if column major), for float4x4 -> 16 bytes.
+                size_t matrix_stride = compiler->type_struct_member_matrix_stride(type, m);
+            }
+
+            u32 member_name_size = compiler->get_member_name(type.self, m).length();
+            resource.mMembers[m].pName = new char[member_name_size + 1];
+            memcpy((char*)resource.mMembers[m].pName, compiler->get_member_name(type.self, m).data(), member_name_size);
+            ((char*)resource.mMembers[m].pName)[member_name_size] = 0;
+        }
+    }
+
+    if (compiler != nullptr)
+        delete compiler;
+
+    *ppOutShaderReflection = pShaderReflection;
+
 }
 
-vulkan_shader& vulkan_shader::add_stage(const char* shader_name, VkShaderStageFlagBits stage_flag)
+void vulkan_shader_create(VulkanContext* pContext, Shader** ppOutShader, const ShaderLoadDesc* pLoadDesc)
 {
-	stage_infos.push_back({ shader_name, stage_flag });
-	return *this;
+    Shader* pShader = (Shader*)(calloc(1, sizeof(Shader)));
+    pShader->mVertStageIndex = (u32)(-1);
+    pShader->mFragStageIndex = (u32)(-1);
+    pShader->mCompStageIndex = (u32)(-1);
+
+    u32 shaderCount = 0;
+
+    for (u32 i = 0; i < MAX_SHADER_STAGE_COUNT; ++i)
+    {
+        if (!loadDesc->mNames || loadDesc->mNames[i] == 0)
+            continue;
+
+        const char* extension = get_file_extension(loadDesc->mNames[i]);
+
+        if (extension == "") {
+            std::cout << "Add shader failed: " << loadDesc->mNames[i] << " has no extension!" << std::endl;
+            return;
+        }
+
+        if (!strcmp(extension, "vert"))
+        {
+            if (pShader->mVertStageIndex != (u32)(-1)) {
+                std::cout << "Add shader failed: vertex stage already exists!" << std::endl;
+                return;
+            }
+
+            pShader->stageFlags |= VK_SHADER_STAGE_VERTEX_BIT;
+            pShader->mVertStageIndex = i;
+            pShader->mNames[i] = loadDesc->mNames[i];
+
+
+            if (!vulkan_shader_module_create(context, &pShader->pShaderModules[i], loadDesc->mNames[i]))
+                return;
+
+            vulkan_shader_reflect(&pShader->pShaderReflections[i], pShader->pShaderModules[i]);
+            pShader->pShaderReflections[i]->mStageFlag = VK_SHADER_STAGE_VERTEX_BIT;
+            shaderCount++;
+        }
+        else if (!strcmp(extension, "frag"))
+        {
+            if (pShader->mFragStageIndex != (u32)(-1)) {
+                std::cout << "Add shader failed: fragment stage already exists!" << std::endl;
+                return;
+            }
+
+            pShader->stageFlags |= VK_SHADER_STAGE_FRAGMENT_BIT;
+            pShader->mFragStageIndex = i;
+            pShader->mNames[i] = loadDesc->mNames[i];
+
+            if (!vulkan_shader_module_create(context, &pShader->pShaderModules[i], loadDesc->mNames[i]))
+                return;
+
+            vulkan_shader_reflect(&pShader->pShaderReflections[i], pShader->pShaderModules[i]);
+            pShader->pShaderReflections[i]->mStageFlag = VK_SHADER_STAGE_FRAGMENT_BIT;
+            shaderCount++;
+        }
+        else if (!strcmp(extension, "comp"))
+        {
+            if (pShader->mCompStageIndex != (u32)(-1)) {
+                std::cout << "Add shader failed: compute stage already exists!" << std::endl;
+                return;
+            }
+
+            pShader->stageFlags |= VK_SHADER_STAGE_COMPUTE_BIT;
+            pShader->mCompStageIndex = i;
+            pShader->mNames[i] = loadDesc->mNames[i];
+
+            if (!vulkan_shader_module_create(context, &pShader->pShaderModules[i], loadDesc->mNames[i]))
+                return;
+
+
+            vulkan_shader_reflect(&pShader->pShaderReflections[i], pShader->pShaderModules[i]);
+            pShader->pShaderReflections[i]->mStageFlag = VK_SHADER_STAGE_COMPUTE_BIT;
+            shaderCount++;
+        }
+    }
+
+    *ppOut_shader = pShader;
 }
 
-
-b8 vulkan_shader::init()
+void vulkan_shader_destroy(VulkanContext* pContext, Shader* pOutShader)
 {
-	if (reflect_layout(pContext->device_context.handle) != true)
-		return false;
-	
-	vertex_input_description input_description = vulkan_render_object::get_vertex_input_description();
+    for (u32 i = 0; i < MAX_SHADER_STAGE_COUNT; ++i)
+    {
+        if (!pOutShader->mNames[i] && pOutShader->pShaderReflections[i] != nullptr && pOutShader->pShaderModules[i] != nullptr)
+        {
+            for (u32 r = 0; r < pOutShader->pShaderReflections[i]->mResourceCount; ++r)
+            {
+                for (u32 m = 0; m < pOutShader->pShaderReflections[i]->pResources[r].mMemberCount; ++m)
+                {
+                    delete[] pOutShader->pShaderReflections[i]->pResources[r].mMembers[m].pName;
+                }
+                delete[] pOutShader->pShaderReflections[i]->pResources[r].pName;
+                delete[] pOutShader->pShaderReflections[i]->pResources[r].mMembers;
+            }
 
-	if (vulkan_graphics_pipeline_create(pContext, renderpass, &pipeline,
-		stage_infos[0].shader_module, stage_infos[1].shader_module,
-		input_description.bindings.size(), input_description.bindings.data(),
-		input_description.attributes.size(), input_description.attributes.data(), pipeline.layout
-	) != true) {
-		return false;
-	}
+            delete[] pOutShader->pShaderReflections[i]->pResources;
 
-	return true;
-}
+            delete pOutShader->pShaderReflections[i];
+            pOutShader->pShaderReflections[i] = nullptr;
 
-void vulkan_shader::shutdown()
-{
-	for (auto& layout : set_layouts) {
-		if (layout != VK_NULL_HANDLE) {
-			vkDestroyDescriptorSetLayout(pContext->device_context.handle, layout, pContext->allocator);
-			layout = VK_NULL_HANDLE;
-		}
-	}
+            if (pOutShader->pShaderModules[i]->mModule != VK_NULL_HANDLE)
+                vkDestroyShaderModule(context->mDevice.pHandle, pOutShader->pShaderModules[i]->mModule, context->allocator);
 
-    vulkan_pipeline_destroy(pContext, &pipeline);
-}
+            pOutShader->pShaderModules[i]->mModule = VK_NULL_HANDLE;
+            delete pOutShader->pShaderModules[i];
+            pOutShader->pShaderModules[i];
+        }
+    }
 
-struct descriptor_set_layout_data {
-	uint32_t set_number;
-	VkDescriptorSetLayoutCreateInfo create_info;
-	std::vector<VkDescriptorSetLayoutBinding> bindings;
-};
-
-b8 vulkan_shader::reflect_layout(VkDevice device)
-{
-	std::vector<descriptor_set_layout_data> set_layouts_data;
-	std::vector<VkPushConstantRange> constant_ranges;
-
-	for (auto& s : stage_infos) {
-
-		std::string path = "shader/";
-		path.append(s.shader_name);
-
-		std::string buffer;
-		read_file(buffer, path);
-
-		if (!SpirvHelper::GLSLtoSPV(s.stage_flag, buffer.c_str(), s.binary_code)) {
-			std::cout << "Failed to convert GLSL to Spriv\n";
-			return false;
-		}
-		VkShaderModuleCreateInfo module_create_info{ VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
-		module_create_info.codeSize = s.binary_code.size() * sizeof(u32);
-		module_create_info.pCode = s.binary_code.data();
-
-		VK_CHECK(vkCreateShaderModule(device, &module_create_info, nullptr, &s.shader_module));
-
-		SpvReflectShaderModule spvmodule;
-		SpvReflectResult result = spvReflectCreateShaderModule(s.binary_code.size() * sizeof(uint32_t), s.binary_code.data(), &spvmodule);
-
-		uint32_t count = 0;
-		result = spvReflectEnumerateDescriptorSets(&spvmodule, &count, NULL);
-		assert(result == SPV_REFLECT_RESULT_SUCCESS);
-
-		std::vector<SpvReflectDescriptorSet*> sets(count);
-		result = spvReflectEnumerateDescriptorSets(&spvmodule, &count, sets.data());
-		assert(result == SPV_REFLECT_RESULT_SUCCESS);
-
-		for (size_t i_set = 0; i_set < sets.size(); ++i_set) {
-
-			const SpvReflectDescriptorSet& refl_set = *(sets[i_set]);
-
-			descriptor_set_layout_data layout = {};
-
-			layout.bindings.resize(refl_set.binding_count);
-			for (uint32_t i_binding = 0; i_binding < refl_set.binding_count; ++i_binding) {
-				const SpvReflectDescriptorBinding& refl_binding = *(refl_set.bindings[i_binding]);
-				VkDescriptorSetLayoutBinding& layout_binding = layout.bindings[i_binding];
-				layout_binding.binding = refl_binding.binding;
-				layout_binding.descriptorType = static_cast<VkDescriptorType>(refl_binding.descriptor_type);
-				layout_binding.descriptorCount = 1;
-
-				for (uint32_t i_dim = 0; i_dim < refl_binding.array.dims_count; ++i_dim) {
-					layout_binding.descriptorCount *= refl_binding.array.dims[i_dim];
-				}
-				layout_binding.stageFlags = static_cast<VkShaderStageFlagBits>(spvmodule.shader_stage);
-
-				reflected_binding reflected;
-				reflected.binding = layout_binding.binding;
-				reflected.set = refl_set.set;
-				reflected.type = layout_binding.descriptorType;
-
-				bindings[refl_binding.name] = reflected;
-			}
-			layout.set_number = refl_set.set;
-			layout.create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-			layout.create_info.bindingCount = refl_set.binding_count;
-			layout.create_info.pBindings = layout.bindings.data();
-
-			set_layouts_data.push_back(layout);
-		}
-
-		//pushconstants	
-
-		result = spvReflectEnumeratePushConstantBlocks(&spvmodule, &count, NULL);
-		assert(result == SPV_REFLECT_RESULT_SUCCESS);
-
-		std::vector<SpvReflectBlockVariable*> pconstants(count);
-		result = spvReflectEnumeratePushConstantBlocks(&spvmodule, &count, pconstants.data());
-		assert(result == SPV_REFLECT_RESULT_SUCCESS);
-
-		if (count > 0) {
-			VkPushConstantRange pcs{};
-			pcs.offset = pconstants[0]->offset;
-			pcs.size = pconstants[0]->size;
-			pcs.stageFlags = s.stage_flag;
-
-			constant_ranges.push_back(pcs);
-		}
-	}
-
-	std::array<descriptor_set_layout_data, 4> merged_layouts;
-
-	for (int i = 0; i < 4; i++) {
-
-		descriptor_set_layout_data& ly = merged_layouts[i];
-
-		ly.set_number = i;
-
-		ly.create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-
-		std::unordered_map<int, VkDescriptorSetLayoutBinding> binds;
-		for (auto& s : set_layouts_data) {
-			if (s.set_number == i) {
-				for (auto& b : s.bindings)
-				{
-					auto it = binds.find(b.binding);
-					if (it == binds.end())
-					{
-						binds[b.binding] = b;
-						//ly.bindings.push_back(b);
-					}
-					else {
-						//merge flags
-						binds[b.binding].stageFlags |= b.stageFlags;
-					}
-
-				}
-			}
-		}
-		for (auto [k, v] : binds)
-		{
-			ly.bindings.push_back(v);
-		}
-		//sort the bindings, for hash purposes
-		std::sort(ly.bindings.begin(), ly.bindings.end(), [](VkDescriptorSetLayoutBinding& a, VkDescriptorSetLayoutBinding& b) {
-			return a.binding < b.binding;
-			});
-
-		ly.create_info.bindingCount = (uint32_t)ly.bindings.size();
-		ly.create_info.pBindings = ly.bindings.data();
-		ly.create_info.flags = 0;
-		ly.create_info.pNext = 0;
-
-		if (ly.create_info.bindingCount > 0) {
-			VK_CHECK(vkCreateDescriptorSetLayout(device, &ly.create_info, pContext->allocator, &set_layouts[i]));
-		}
-		else {
-			set_layouts[i] = VK_NULL_HANDLE;
-		}
-	}
-
-	//we start from just the default empty pipeline layout info
-	VkPipelineLayoutCreateInfo pipeline_layout_info{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-
-	pipeline_layout_info.pPushConstantRanges = constant_ranges.data();
-	pipeline_layout_info.pushConstantRangeCount = (uint32_t)constant_ranges.size();
-
-	std::array<VkDescriptorSetLayout, 4> compacted_layouts;
-	int s = 0;
-	for (int i = 0; i < 4; i++) {
-		if (set_layouts[i] != VK_NULL_HANDLE) {
-			compacted_layouts[s] = set_layouts[i];
-			s++;
-		}
-	}
-
-	pipeline_layout_info.setLayoutCount = s;
-	pipeline_layout_info.pSetLayouts = compacted_layouts.data();
-
-	VK_CHECK(vkCreatePipelineLayout(device, &pipeline_layout_info, pContext->allocator, &pipeline.layout));
-
-	return true;
-}
-
-b8 vulkan_global_data_initialize(VulkanContext* pContext, u32 buffer_size)
-{
-	b8 result = true;
-	
-	VkDescriptorSetLayoutBinding global_binding{};
-	global_binding.binding = 0;
-	global_binding.descriptorCount = 1;
-	global_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	global_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-	global_binding.pImmutableSamplers = VK_NULL_HANDLE;
-	
-	VkDescriptorSetLayoutCreateInfo global_layout_create_info{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-	global_layout_create_info.bindingCount = 1;
-	global_layout_create_info.pBindings = &global_binding;
-	//global_layout_create_info.flags
-
-	VK_CHECK(vkCreateDescriptorSetLayout(pContext->device_context.handle, &global_layout_create_info, pContext->allocator, &pContext->global_data.set_layout));
-
-	for (u32 i = 0; i < MAX_FRAME; ++i) {
-		//alloc_descriptor_set(pContext, pContext->, &pContext->global_data.set_layout, 1, &pContext->global_data.ubo_data[i].descriptor_set);
-		result = pContext->dynamic_descriptor_allocators[i].allocate(&pContext->global_data.ubo_data[i].descriptor_set, pContext->global_data.set_layout);
-		if (!result) {
-			std::cout << "global descriptor set allocation failed" << std::endl;
-			break;
-		}
-
-		vulkan_buffer_create(pContext, buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,&pContext->global_data.ubo_data[i].buffer);
-
-		VkDescriptorBufferInfo buffer_info{};
-		buffer_info.buffer = pContext->global_data.ubo_data[i].buffer.handle;
-		buffer_info.offset = 0;
-		buffer_info.range = buffer_size;
-
-		VkWriteDescriptorSet write_set{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-		write_set.dstSet = pContext->global_data.ubo_data[i].descriptor_set;
-		write_set.dstBinding = 0;
-		write_set.descriptorCount = 1;
-		write_set.pBufferInfo = &buffer_info;
-		write_set.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-
-    	VkDescriptorSet                  dstSet;
-    	uint32_t                         dstBinding;
-    	uint32_t                         dstArrayElement;
-    	uint32_t                         descriptorCount;
-    	VkDescriptorType                 descriptorType;
-    	const VkDescriptorImageInfo*     pImageInfo;
-    	const VkDescriptorBufferInfo*    pBufferInfo;
-    	const VkBufferView*              pTexelBufferView;
-
-
-		vkUpdateDescriptorSets(pContext->device_context.handle, 1, &write_set, 0, nullptr);
-	}
-
-	return result;
-}
-
-void vulkan_global_data_destroy(VulkanContext* pContext)
-{
-	for (uint32_t i = 0; i < MAX_FRAME; ++i)
-		vulkan_buffer_destroy(pContext, &pContext->global_data.ubo_data[i].buffer);
+    free(pOutShader);
+    pOutShader = NULL;
 }

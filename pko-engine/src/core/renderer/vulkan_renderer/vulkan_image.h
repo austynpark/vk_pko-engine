@@ -15,7 +15,7 @@ VkImageUsageFlags resource_state_to_vulkan_image_usage(ResourceState state);
 VkImageAspectFlags format_to_vulkan_image_aspect(VkFormat format);
 VkImageLayout resource_state_to_vulkan_image_layout(ResourceState state);
 
-b8 vulkan_texture_create(
+void vulkan_texture_create(
 	VulkanContext* pContext,
 	TextureDesc* pDesc,
 	Texture** ppTexture
@@ -29,9 +29,9 @@ void vulkan_texture_destroy(
 b8 vulkan_rendertarget_create(VulkanContext* pContext, RenderTargetDesc* pRenderTargetDesc, RenderTarget** ppRenderTarget);
 void vulkan_rendertarget_destroy(VulkanContext* pContext, RenderTarget* pRenderTarget);
 
-b8 vulkan_swapchain_create(VulkanContext* pContext, const SwapchainDesc* desc, VulkanSwapchain** out_swapchain);
-b8 vulkan_swapchain_destroy(VulkanContext* pContext, VulkanSwapchain* out_swapchain);
-b8 vulkan_swapchain_recreate(VulkanContext* pContext, i32 width, i32 height);
+b8 vulkan_swapchain_create(VulkanContext* pContext, const SwapchainDesc* desc, VulkanSwapchain** ppSwapchain);
+b8 vulkan_swapchain_destroy(VulkanContext* pContext, VulkanSwapchain* ppSwapchain);
+b8 vulkan_swapchain_recreate(VulkanContext* pContext, VulkanSwapchain** ppSwapchain, i32 width, i32 height);
 void vulkan_swapchain_get_support_info(VulkanContext* pContext, VulkanSwapchainSupportInfo* out_support_info);
 
 void vulkan_framebuffer_create(VulkanContext* pContext, VulkanRenderpass* renderpass, u32 attachment_count, VkImageView* image_view, VkFramebuffer* out_framebuffer);
@@ -51,7 +51,7 @@ b8 acquire_next_image_index_swapchain(
 b8 present_image_swapchain(
     VulkanContext* pContext,
     VulkanSwapchain* swapchain,
-    VkQueue present_queue,
+    VkQueue mPresentQueue,
     VkSemaphore render_complete_semaphore,
     u32 current_image_index
 );

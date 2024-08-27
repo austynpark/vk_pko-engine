@@ -3,12 +3,12 @@
 #include "core/application.h"
 
 int main() {
-	application::init("pko-engine", 100, 100, 1280, 720);
+	App::init("pko-engine", 100, 100, 1280, 720);
 
-	while (application::run()) {
+	while (App::run()) {
 	}
 
-	application::shutdown();
+	App::shutdown();
 
 	return 0;
 }

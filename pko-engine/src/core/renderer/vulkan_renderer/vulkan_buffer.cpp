@@ -39,7 +39,7 @@ void vulkan_buffer_copy(VulkanContext* pContext,
 )
 {
 	Command one_time_submit;
-	vulkan_command_pool_create(pContext, &one_time_submit, pContext->device_context.transfer_family.index);
+	vulkan_command_pool_create(pContext, &one_time_submit, QUEUE_TYPE_TRANSFER);
 	vulkan_command_buffer_allocate(pContext, &one_time_submit, true);
 
 	VkBufferCopy buffer_copy{
@@ -57,8 +57,8 @@ void vulkan_buffer_copy(VulkanContext* pContext,
 	submit_info.commandBufferCount = 1;
 	submit_info.pCommandBuffers = &one_time_submit.buffer;
 
-	VK_CHECK(vkQueueSubmit(pContext->device_context.transfer_queue, 1, &submit_info, VK_NULL_HANDLE));
-	vkQueueWaitIdle(pContext->device_context.transfer_queue);
+	VK_CHECK(vkQueueSubmit(pContext->device_context.mTransferQueue, 1, &submit_info, VK_NULL_HANDLE));
+	vkQueueWaitIdle(pContext->device_context.mTransferQueue);
 	vulkan_command_pool_destroy(pContext, &one_time_submit);
 }
 

@@ -111,13 +111,13 @@ b8 vulkan_device_destroy(VulkanContext* pContext, DeviceContext* device_context)
 void vulkan_get_device_queue(DeviceContext* device_context)
 {
 	if (device_context->graphics_family.index != -1)
-		vkGetDeviceQueue(device_context->handle, device_context->graphics_family.index, 0, &device_context->graphics_queue);
+		vkGetDeviceQueue(device_context->handle, device_context->graphics_family.index, 0, &device_context->mGraphicsQueue);
 	if (device_context->present_family.index != -1)
-		vkGetDeviceQueue(device_context->handle, device_context->present_family.index, 0, &device_context->present_queue);
+		vkGetDeviceQueue(device_context->handle, device_context->present_family.index, 0, &device_context->mPresentQueue);
 	if (device_context->transfer_family.index != -1)
-		vkGetDeviceQueue(device_context->handle, device_context->transfer_family.index, 0, &device_context->transfer_queue);
+		vkGetDeviceQueue(device_context->handle, device_context->transfer_family.index, 0, &device_context->mTransferQueue);
 	if (device_context->compute_family.index != -1)
-		vkGetDeviceQueue(device_context->handle, device_context->compute_family.index, 0, &device_context->compute_queue);
+		vkGetDeviceQueue(device_context->handle, device_context->compute_family.index, 0, &device_context->mComputeQueue);
 
 	std::cout << "device queue acquired" << std::endl;
 }
@@ -137,11 +137,6 @@ b8 pick_physical_device(VulkanContext* pContext, device_requirements* requiremen
 	VK_CHECK(vkEnumeratePhysicalDevices(pContext->instance, &physical_count, physical_devices.data()));
 
 	queue_family_info out_queue_family_info{ UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX };
-
-	pContext->device_context.graphics_family.type = QUEUE_TYPE_GRAPHICS;
-	pContext->device_context.compute_family.type = QUEUE_TYPE_COMPUTE;
-	pContext->device_context.present_family.type = QUEUE_TYPE_PRESENT;
-	pContext->device_context.transfer_family.type = QUEUE_TYPE_TRANSFER;
 
 	for (u32 i = 0; i < physical_count; ++i)
 	{

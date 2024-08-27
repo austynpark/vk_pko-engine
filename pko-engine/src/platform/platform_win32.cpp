@@ -7,6 +7,8 @@
 
 #if _WIN32
 
+#include <windowsx.h>
+
 #define SERIES_NAME "pko_window_class"
 
 static f64 clock_frequency;
@@ -201,7 +203,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
         // Key pressed/released
         b8 pressed = (message == WM_KEYDOWN || message == WM_SYSKEYDOWN);
 
-        input_system::process_key((keys)wParam, pressed);
+        InputSystem::process_key((keys)wParam, pressed);
     } break;
 
     case WM_MOUSEMOVE: {
@@ -209,14 +211,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
         i32 x_position = GET_X_LPARAM(lParam);
         i32 y_position = GET_Y_LPARAM(lParam);
 
-        input_system::process_mouse_move(x_position, y_position);
+        InputSystem::process_mouse_move(x_position, y_position);
     } break;
     case WM_MOUSEWHEEL: {
         i32 z_delta = GET_WHEEL_DELTA_WPARAM(wParam);
 
         if (z_delta != 0) {
             z_delta = (z_delta < 0) ? -1 : 1;
-            input_system::process_mouse_wheel(z_delta);
+            InputSystem::process_mouse_wheel(z_delta);
         }
 
     } break;
@@ -245,7 +247,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
         }
         //TODO: input processing
         if (mouse_button != BUTTON_MAX_BUTTONS) {
-            input_system::process_button(mouse_button, pressed);
+            InputSystem::process_button(mouse_button, pressed);
         }
 
     } break;
@@ -256,19 +258,5 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
     }
     return 0;
 }
-
-/*
-//NOTE: Vulkan specific
-void platform_create_vulkan_surface(vulkan_parameters* vulkan_parameter, PlatformState* platform_state) {
-
-    InternalState* state = (InternalState*)platform_state->state;
-
-    VkWin32SurfaceCreateInfoKHR create_info{ VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR };
-    create_info.hinstance = state->instance;
-    create_info.hwnd = state->handle;
-
-    VK_CHECK(vkCreateWin32SurfaceKHR(vulkan_parameter->instance, &create_info, vulkan_parameter->allocator, &vulkan_parameter->surface));
-}
-*/
 
 #endif

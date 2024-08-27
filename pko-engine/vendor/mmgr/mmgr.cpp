@@ -74,7 +74,8 @@
 //
 // ---------------------------------------------------------------------------------------------------------------------------------
 
-#include "stdafx.h"
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
@@ -83,10 +84,6 @@
 #include <time.h>
 #include <stdarg.h>
 #include <new>
-
-#ifndef	WIN32
-#include <unistd.h>
-#endif
 
 #include "mmgr.h"
 
@@ -287,7 +284,7 @@ static	void	doCleanupLogOnFirstRun()
 {
 	if (cleanupLogOnFirstRun)
 	{
-		unlink(memoryLogFile);
+		_unlink(memoryLogFile);
 		cleanupLogOnFirstRun = false;
 
 		// Print a header for the log
@@ -789,7 +786,7 @@ void	*operator new(size_t reportedSize)
 		// There isn't a way to determine the new handler, except through setting it. So we'll just set it to NULL, then
 		// set it back again.
 
-		new_handler	nh = std::set_new_handler(0);
+		std::new_handler	nh = std::set_new_handler(0);
 		std::set_new_handler(nh);
 
 		// If there is an error handler, call it
@@ -847,7 +844,7 @@ void	*operator new[](size_t reportedSize)
 		// There isn't a way to determine the new handler, except through setting it. So we'll just set it to NULL, then
 		// set it back again.
 
-		new_handler	nh = std::set_new_handler(0);
+		std::new_handler	nh = std::set_new_handler(0);
 		std::set_new_handler(nh);
 
 		// If there is an error handler, call it
@@ -905,7 +902,7 @@ void	*operator new(size_t reportedSize, const char *sourceFile, int sourceLine)
 		// There isn't a way to determine the new handler, except through setting it. So we'll just set it to NULL, then
 		// set it back again.
 
-		new_handler	nh = std::set_new_handler(0);
+		std::new_handler	nh = std::set_new_handler(0);
 		std::set_new_handler(nh);
 
 		// If there is an error handler, call it
@@ -957,7 +954,7 @@ void	*operator new[](size_t reportedSize, const char *sourceFile, int sourceLine
 		// There isn't a way to determine the new handler, except through setting it. So we'll just set it to NULL, then
 		// set it back again.
 
-		new_handler	nh = std::set_new_handler(0);
+		std::new_handler	nh = std::set_new_handler(0);
 		std::set_new_handler(nh);
 
 		// If there is an error handler, call it

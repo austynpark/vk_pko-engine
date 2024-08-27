@@ -17,7 +17,8 @@
 		assert(result_ == VK_SUCCESS); \
 	} while(0)
 
-constexpr int MAX_FRAME = 3;
+constexpr u32 MAX_FRAME = 3;
+constexpr u32 MAX_SHADER_STAGE_COUNT = 3;
 
 typedef union ClearValue
 {
@@ -31,7 +32,7 @@ typedef union ClearValue
 	struct
 	{
 		float    depth;
-		uint32_t stencil;
+		u32 stencil;
 	};
 }ClearValue;
 
@@ -44,7 +45,7 @@ typedef enum QueueType
 }QueueType;
 
 typedef struct QueueFamily {
-	u32 index = -1;
+	u32 index;
 	u32 count;
 	//std::vector<VkQueue> queues;
 }QueueFamily;
@@ -61,10 +62,10 @@ typedef struct DeviceContext {
 	QueueFamily transfer_family;
 	QueueFamily compute_family;
 
-	VkQueue graphics_queue;
-	VkQueue present_queue;
-	VkQueue transfer_queue;
-	VkQueue compute_queue;
+	VkQueue mGraphicsQueue;
+	VkQueue mPresentQueue;
+	VkQueue mTransferQueue;
+	VkQueue mComputeQueue;
 
 	VkFormat depth_format;
 }DeviceContext;
@@ -72,7 +73,7 @@ typedef struct DeviceContext {
 typedef struct Command {
 	VkCommandPool pool;
 	VkCommandBuffer buffer;
-	QueueType type;
+	QueueType mType;
 }Command;
 
 // Samplers should be managed by the texture system / as dynamic storage
@@ -100,21 +101,39 @@ typedef enum ResourceState
 typedef enum DescriptorType
 {
 	DESCRIPTOR_TYPE_UNDEFINED = 0x0,
-	DESCRIPTOR_TYPE_TEXTURE = 0x1,
+	DESCRIPTOR_TYPE_SAMPLER = 0x01,
+	// SRV Texture
+	DESCRIPTOR_TYPE_TEXTURE = 0x2,
+	// UAV Texture
 	DESCRIPTOR_TYPE_RW_TEXTURE = (DESCRIPTOR_TYPE_TEXTURE << 1),
+	// SRV Buffer
+	DESCRIPTOR_TYPE_BUFFER = (DESCRIPTOR_TYPE_RW_TEXTURE << 1),
+	DESCRIPTOR_TYPE_BUFFER_RAW = (DESCRIPTOR_TYPE_BUFFER | (DESCRIPTOR_TYPE_BUFFER << 1)),
+	/// UAV Buffer
+	DESCRIPTOR_TYPE_RW_BUFFER = (DESCRIPTOR_TYPE_BUFFER << 2),
+	DESCRIPTOR_TYPE_RW_BUFFER_RAW = (DESCRIPTOR_TYPE_RW_BUFFER | (DESCRIPTOR_TYPE_RW_BUFFER << 1)),
+	/// Uniform buffer
+	DESCRIPTOR_TYPE_UNIFORM_BUFFER = (DESCRIPTOR_TYPE_RW_BUFFER << 2),
+	/// Push constant
+	DESCRIPTOR_TYPE_PUSH_CONSTANT = (DESCRIPTOR_TYPE_UNIFORM_BUFFER << 1),
 }DescriptorType;
 ENUM_FLAGS_OPERATOR(u32, DescriptorType)
 
+typedef struct Buffer {
+	VkBuffer handle;
+	VmaAllocation allocation;
+}Buffer;
+
 typedef __declspec(align(32)) struct TextureDesc
 {
-	uint32_t width : 16;
-	uint32_t height : 16;
-	uint32_t mipLevels;
-	uint32_t sampleCount;
-	VkFormat format;
-	ClearValue clearValue;
-	ResourceState startState;
-	DescriptorType type;
+	u32 mWidth : 16;
+	u32 mHeight : 16;
+	u32 mMipLevels;
+	u32 mSampleCount;
+	VkFormat mFormat;
+	ClearValue mClearValue;
+	ResourceState mStartState;
+	DescriptorType mType;
 
 	const void* pNativeHandle;
 }TextureDesc;
@@ -124,26 +143,27 @@ typedef __declspec(align(32)) struct Texture {
 	VkImageView pSRVDescriptor;
 	VkImageView* pUAVDescriptors;
 
-	VmaAllocation allocation;
+	VmaAllocation pAlloc;
 
-	uint32_t width : 16;
-	uint32_t height : 16;
-	uint32_t format : 8;
-	uint32_t sampleCount : 4;
-	uint32_t aspectMask : 4;
-	uint32_t mipLevels : 5;
-	uint32_t ownsImage : 1;
+	u32 mWidth : 16;
+	u32 mHeight : 16;
+	u32 mFormat : 8;
+	u32 mSampleCount : 4;
+	u32 mAspectMask : 4;
+	u32 mMipLevels : 5;
+	u32 bOwnsImage : 1;
 }Texture;
 
 typedef __declspec(align(32)) struct RenderTargetDesc {
-	uint32_t width;
-	uint32_t height;
-	uint32_t mipLevels;
-	uint32_t sampleCount;
-	VkFormat format;
-	ClearValue clearValue;
+	u32 mWidth;
+	u32 mHeight;
+	u32 mMipLevels;
+	u32 mSampleCount;
+	VkFormat mFormat;
+	ClearValue mClearValue;
+	ResourceState mStartState;
 	// For Descriptor 
-	DescriptorType descriptorType;
+	DescriptorType mDescriptorType;
 	const void* pNativeHandle; // VkImage
 
 }RenderTargetDesc;
@@ -152,13 +172,13 @@ typedef __declspec(align(64)) struct RenderTarget
 {
 	Texture* pTexture;
 	ClearValue      mClearValue;
-	uint32_t        mArraySize : 16;
-	uint32_t        mDepth : 16;
-	uint32_t        mWidth : 16;
-	uint32_t        mHeight : 16;
-	uint32_t        mDescriptors : 20;
-	uint32_t        mMipLevels : 10;
-	uint32_t        mSampleQuality : 5;
+	u32        mArraySize : 16;
+	u32        mDepth : 16;
+	u32        mWidth : 16;
+	u32        mHeight : 16;
+	u32        mDescriptors : 20;
+	u32        mMipLevels : 10;
+	u32        mSampleQuality : 5;
 	VkFormat		mFormat;
 	VkSampleCountFlagBits     mSampleCount;
 
@@ -169,21 +189,98 @@ typedef __declspec(align(64)) struct RenderTarget
 
 typedef struct RenderTargetBarrier {
 	RenderTarget* pRenderTarget;
-	ResourceState currentState;
-	ResourceState newState;
+	ResourceState mCurrentState;
+	ResourceState mNewState;
 }RenderTargetBarrier;
 
 typedef struct TextureBarrier {
 	Texture* pTexture;
-	ResourceState currentState;
-	ResourceState newState;
+	ResourceState mCurrentState;
+	ResourceState mNewState;
 }TextureBarrier;
 
 typedef struct BufferBarrier {
 	Buffer* pBuffer;
-	ResourceState currentState;
-	ResourceState newState;
+	ResourceState mCurrentState;
+	ResourceState mNewState;
 }BufferBarrier;
+
+struct ShaderModule {
+	VkShaderModule mModule;
+	std::vector<u32> pCode;
+	u32 codeSize;
+};
+
+struct ShaderVariable
+{
+	enum Type {
+		SHADER_VARIABLE_FLOAT_TYPE,
+		SHADER_VARIABLE_INTEGER_TYPE,
+		SHADER_VARIABLE_UNSIGNED_TYPE,
+		SHADER_VARIABLE_MAT3X3_TYPE,
+		SHADER_VARIABLE_MAT4X4_TYPE,
+		//SHADER_VARIABLE_
+	};
+
+	b8 mIsDepth;
+	b8 mIsArray;
+	b8 mMSAA;
+	b8 mSampled;
+	Type mType;
+	const char* pName;
+
+	u32 mOffset;
+	u32 mSize;
+};
+
+struct ShaderResource
+{
+	u32 mSet;
+	u32 mBinding;
+	const char* pName;
+	b8 mIsStruct;
+
+	DescriptorType mType;
+	u32 mIndex;
+
+	u32 mSize;
+	u32 mMemberCount;
+	ShaderVariable* mMembers;
+
+	//Image
+	//Dimension
+	//Depth Bool
+	//Arrayed Bool
+	//MS
+	//Sampled
+	//Format
+	//Access
+};
+
+struct ShaderReflection
+{
+	ShaderResource* pResources;
+	u64 mResourceCount;
+	VkShaderStageFlagBits mStageFlag;
+	u8 mPushConstantIndex;
+};
+
+struct ShaderLoadDesc
+{
+	const char* mNames[MAX_SHADER_STAGE_COUNT];
+};
+
+struct Shader {
+	VkShaderStageFlags stageFlags;
+
+	u32 mVertStageIndex;
+	u32 mFragStageIndex;
+	u32 mCompStageIndex;
+
+	ShaderReflection* pShaderReflections[MAX_SHADER_STAGE_COUNT];
+	ShaderModule* pShaderModules[MAX_SHADER_STAGE_COUNT];
+	const char* mNames[MAX_SHADER_STAGE_COUNT];
+};
 
 typedef struct VulkanSwapchainSupportInfo {
 	VkSurfaceCapabilitiesKHR surface_capabilites;
@@ -197,9 +294,9 @@ typedef struct VulkanSwapchainSupportInfo {
 typedef __declspec(align(16)) struct SwapchainDesc
 {
 	void* phWnd;
-	uint32_t width : 16;
-	uint32_t height : 16;
-	uint32_t image_count : 2; // MAX_FRAMES (TRIPPLE BUFFERING)
+	u32 mWidth : 16;
+	u32 mHeight : 16;
+	u32 mImageCount : 2; // MAX_FRAMES (TRIPPLE BUFFERING)
 }SwapchainDesc;
 
 typedef struct VulkanSwapchain {
@@ -209,8 +306,8 @@ typedef struct VulkanSwapchain {
 	SwapchainDesc* pDesc;
 	
 	//VkPresentModeKHR present_mode;
-	VkSurfaceFormatKHR image_format;
-	u32 image_count;
+	VkSurfaceFormatKHR mSurfaceFormat;
+	u32 mImageCount;
 }VulkanSwapchain;
 
 typedef struct VulkanRenderpass {
@@ -220,11 +317,6 @@ typedef struct VulkanRenderpass {
 	u32 width;
 	u32 height;
 }VulkanRenderpass;
-
-typedef struct Buffer {
-	VkBuffer handle;
-	VmaAllocation allocation;
-}Buffer;
 
 typedef struct Pipeline {
 	VkPipeline handle;
@@ -305,13 +397,14 @@ typedef struct VulkanContext {
 	VkInstance	instance;
 	
 	//imgui
-	// VkDescriptorPool imgui_pool;
+	VkDescriptorPool imgui_pool;
 
 #if defined(_DEBUG)
 	VkDebugUtilsMessengerEXT	debug_messenger;
 #endif
 
 	u32 current_frame;
+	u32 image_index;
 
 	u32 framebuffer_width;
 	u32 framebuffer_height;
@@ -321,5 +414,5 @@ typedef struct VulkanContext {
 	VulkanSwapchainSupportInfo swapchain_support_info;
 	VulkanRenderpass main_renderpass;
 
-	DescriptorAllocator* pDynamic_descriptor_allocators;
+	DescriptorAllocator* pDynamicDescriptorAllocators;
 } VulkanContext;
