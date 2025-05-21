@@ -38,8 +38,8 @@ void vulkan_buffer_copy(RenderContext* context,
 	u64 dst_offset
 )
 {
-	vulkan_command one_time_submit;
-	vulkan_command_pool_create(context, &one_time_submit, context->device_context.transfer_family.index);
+	Command one_time_submit;
+	vulkan_command_pool_create(context, &one_time_submit, QUEUE_TYPE_TRANSFER);
 	vulkan_command_buffer_allocate(context, &one_time_submit, true);
 
 	VkBufferCopy buffer_copy{

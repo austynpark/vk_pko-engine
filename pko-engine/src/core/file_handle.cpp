@@ -19,6 +19,15 @@ void read_file(char* out_buffer, const std::string& filename) {
 	file.close();
 }
 
+const char *get_file_extension(const char *filename)
+ {
+    if (!filename) return NULL;
+
+    const char* dot = strrchr(filename, '.');
+    if (!dot || dot == filename) return NULL; // No extension or hidden file with no extension
+    return dot + 1;
+}
+
 void deallocate_file(char* out_buffer) {
     if (out_buffer == nullptr)
         throw std::runtime_error("failed to close file!");

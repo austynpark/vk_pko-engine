@@ -1,43 +1,33 @@
 #include "application.h"
 
 #include "platform/platform.h"
-#include "renderer/renderer_frontend.h"
+#include "core/renderer/vulkan_renderer/vulkan_renderer.h"
 
 #include "input.h"
 
 #include <iostream>
 
-struct application_state
+static AppState app_state;
+static ReloadDesc reload_desc = { ReloadType::RELOAD_TYPE_ALL };
+
+b8 App::init(const char* app_name ,i32 x, i32 y,u32 w, u32 h)
 {
-	platform_state platform;
-	renderer_frontend* renderer;
-	input_system* input;
+	app_state.platform_state = (PlatformState*)malloc(sizeof(PlatformState));
 
-	f32 delta_time;
-	f64 last_time;
-
-	u32 width;
-	u32 height;
-};
-
-static application_state app_state;
-
-b8 application::init(const char* app_name ,i32 x, i32 y,u32 w, u32 h)
-{
 	app_state.width = w;
 	app_state.height = h;
 	app_state.delta_time = 0.0f;
 	app_state.last_time = 0.0f;
 
-	app_state.input = new input_system();
+	app_state.input_system = new InputSystem();
 
-	if (!app_state.platform.init(app_name, x, y, w, h))
+	if (!app_state.platform_state->init(app_name, x, y, w, h))
 		return false;
 
 	
-	app_state.renderer = new renderer_frontend(app_state.platform.state);
+	app_state.renderer = new VulkanRenderer(&app_state);
 	
-	if (!app_state.renderer->init(w, h))
+	if (!app_state.renderer->Init())
 		return false;
 
 	event_system::bind_event(event_code::EVENT_CODE_ONRESIZED, on_resize);
@@ -45,37 +35,55 @@ b8 application::init(const char* app_name ,i32 x, i32 y,u32 w, u32 h)
 	return true;
 }
 
-b8 application::run()
+b8 App::run()
 {
-	if (!app_state.platform.platform_message()) {
+	if (!app_state.platform_state->platform_message()) {
+
+		reload_desc = { ReloadType::RELOAD_TYPE_ALL };
+		app_state.renderer->UnLoad(&reload_desc);
+		app_state.renderer->Shutdown();
+
 		return false;
 	}
 
-	f64 current_time = app_state.platform.get_absolute_time();
+	if (app_state.reload_type != RELOAD_TYPE_UNDEFINED)
+	{
+		app_state.renderer->Load(&reload_desc);
+		app_state.reload_type = RELOAD_TYPE_UNDEFINED;
+	}
+
+	f64 current_time = app_state.platform_state->get_absolute_time();
 	app_state.delta_time = current_time - app_state.last_time;
 	app_state.last_time = current_time;
 
-	app_state.renderer->draw(app_state.delta_time);
+	app_state.renderer->Update(app_state.delta_time);
+	app_state.renderer->Draw();
 
 	return true;
 }
 
-void application::shutdown()
+void App::shutdown()
 {
+	app_state.renderer->Shutdown();
 	delete app_state.renderer;
 	app_state.renderer = 0;
-	app_state.platform.shutdown();
-	delete app_state.input;
+
+	delete app_state.input_system;
+	app_state.input_system = 0;
+
+	app_state.platform_state->shutdown();
+	if (app_state.platform_state != NULL)
+	{
+		free(app_state.platform_state);
+		app_state.platform_state = NULL;
+	}
+	
 }
 
-b8 application::on_resize(u16 code, event_context context)
+b8 App::on_resize(u16 code, event_context context)
 {
 	u16 width = context.data.u32[0];
 	u16 height = context.data.u32[1];
-
-	b8 result =	app_state.renderer->on_resize(width, height);
-
-	if (!result) return false;
 
 	app_state.width = width;
 	app_state.height = height;

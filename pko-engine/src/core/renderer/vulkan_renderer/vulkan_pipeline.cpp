@@ -4,9 +4,11 @@
 #include "core/file_handle.h"
 #include <iostream>
 
+b8 vulkan_shader_module_create(RenderContext* context, VkShaderModule* out_shader_module, const char* path);
+
 b8 vulkan_graphics_pipeline_create(
 	RenderContext* context,
-	vulkan_renderpass* renderpass,
+	VulkanRenderpass* renderpass,
 	Pipeline* out_pipeline,
 	u32 binding_description_count,
 	VkVertexInputBindingDescription* binding_descriptions,
@@ -176,7 +178,7 @@ b8 vulkan_graphics_pipeline_create(
 	return true;
 }
 
-b8 vulkan_graphics_pipeline_create(RenderContext* context, vulkan_renderpass* renderpass, Pipeline* out_pipeline, VkShaderModule vertex_shader_module,
+b8 vulkan_graphics_pipeline_create(RenderContext* context, VulkanRenderpass* renderpass, Pipeline* out_pipeline, VkShaderModule vertex_shader_module,
 	VkShaderModule fragment_shader_module, u32 binding_description_count, VkVertexInputBindingDescription* binding_descriptions, u32 attribute_description_count, VkVertexInputAttributeDescription* attribute_descriptions, VkPipelineLayout pipeline_layout)
 {
 	VkPipelineShaderStageCreateInfo vert_create_info{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
@@ -326,6 +328,29 @@ void vulkan_pipeline_destroy(RenderContext* context, Pipeline* pipeline)
 		vkDestroyPipeline(context->device_context.handle, pipeline->handle, context->allocator);
 		pipeline->handle = VK_NULL_HANDLE;
 	}
+}
+
+void vulkan_pipeline_bind(Command* command_buffer,VkPipelineBindPoint bind_point ,Pipeline* pipeline) {
+	//TODO: command buffer
+	vkCmdBindPipeline(command_buffer->buffer, bind_point, pipeline->handle);
+}
+
+b8 vulkan_shader_module_create(RenderContext* context, VkShaderModule* out_shader_module, const char* path)
+{
+	file_handle file;
+	if (!pko_file_read(path, &file)) {
+		std::cout << "failed to read " << path << std::endl;
+		return false;
+	}
+	VkShaderModuleCreateInfo create_info{ VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
+	create_info.pCode = (uint32_t*)file.str;
+	create_info.codeSize = file.size;
+
+	VK_CHECK(vkCreateShaderModule(context->device_context.handle, &create_info, context->allocator, out_shader_module));
+
+	pko_file_close(&file);
+
+	return true;
 }
 
 VkPipelineShaderStageCreateInfo pipeline_shader_stage_create_info(VkShaderStageFlagBits stage, VkShaderModule shader_module)

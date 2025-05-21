@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdint.h>
 // Unsigned int types.
 typedef unsigned char u8;
 typedef unsigned short u16;
@@ -40,3 +41,23 @@ STATIC_ASSERT(sizeof(i64) == 8, "Expected i64 to be 8 bytes.");
 
 STATIC_ASSERT(sizeof(f32) == 4, "Expected f32 to be 4 bytes.");
 STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
+
+#define ENUM_FLAGS_OPERATOR(VALUE_TYPE, ENUM_TYPE) \
+	inline ENUM_TYPE operator& (ENUM_TYPE a, ENUM_TYPE b) \
+	{return (ENUM_TYPE)((VALUE_TYPE)a & (VALUE_TYPE)b);}	\
+	inline ENUM_TYPE operator| (ENUM_TYPE a, ENUM_TYPE b) \
+	{return (ENUM_TYPE)((VALUE_TYPE)a | (VALUE_TYPE)b);} \
+	inline ENUM_TYPE& operator&= (ENUM_TYPE& a, ENUM_TYPE b) \
+	{ENUM_TYPE result = (ENUM_TYPE)((VALUE_TYPE)a & (VALUE_TYPE)b); return result;} \
+	inline ENUM_TYPE& operator|= (ENUM_TYPE& a, ENUM_TYPE b) \
+	{ENUM_TYPE result = (ENUM_TYPE)((VALUE_TYPE)a | (VALUE_TYPE)b); return result;}
+
+#if defined (_MSC_VER)
+#define PKO_EXPORT __declspec(dllexport)
+#define PKO_IMPORT __declspec(dllimport)
+#elif defined (__GNUC__)
+#define PKO_EXPORT __attribute__((visibility("default")))
+#define PKO_IMPORT
+#endif //_MSC_VER
+
+
