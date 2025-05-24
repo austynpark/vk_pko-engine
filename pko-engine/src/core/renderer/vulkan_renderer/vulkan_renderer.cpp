@@ -276,14 +276,14 @@ void VulkanRenderer::Draw()
         return;
     }
 
-    Command* pCmd = &cmds[context.current_frame];
+    Command* command = &cmds[context.current_frame];
 
-    vulkan_command_pool_reset(pCmd);
-    vulkan_command_buffer_begin(pCmd, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+    vulkan_command_pool_reset(command);
+    vulkan_command_buffer_begin(command, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-    //drawImgui();
-    //ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), pCmd->buffer);
-    vulkan_command_buffer_end(pCmd);
+    drawImgui();
+    // ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), command->buffer);
+    vulkan_command_buffer_end(command);
 
     VkPipelineStageFlags wait_stages = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 
@@ -293,7 +293,7 @@ void VulkanRenderer::Draw()
     submit_info.pWaitDstStageMask = &wait_stages;
 
     submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &pCmd->buffer;
+    submit_info.pCommandBuffers = &command->buffer;
     submit_info.signalSemaphoreCount = 1;
     submit_info.pSignalSemaphores = &ready_to_render_semaphores[context.current_frame];
 
@@ -304,10 +304,8 @@ void VulkanRenderer::Draw()
                                  ready_to_render_semaphores[context.current_frame],
                                  context.image_index))
     {
-        /*
-        vulkan_swapchain_recreate(&pContext, pContext.framebuffer_width,
-        pContext.framebuffer_height); regenerate_framebuffer();
-        */
+        vkDeviceWaitIdle(context.device_context.handle);
+        vulkan_swapchain_recreate(&context, &swapchain);
     }
 }
 

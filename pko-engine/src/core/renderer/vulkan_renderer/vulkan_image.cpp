@@ -330,26 +330,18 @@ b8 vulkan_swapchain_destroy(RenderContext* context, VulkanSwapchain* swapchain)
     return true;
 }
 
-b8 vulkan_swapchain_recreate(RenderContext* context, VulkanSwapchain** ppSwapchain, i32 width,
-                             i32 height)
+b8 vulkan_swapchain_recreate(RenderContext* context, VulkanSwapchain** out_swapchain)
 {
-    assert(ppSwapchain);
+    assert(out_swapchain);
 
-    VulkanSwapchain* swapchain = *ppSwapchain;
-    swapchain->desc->width = width;
-    swapchain->desc->height = height;
+    VulkanSwapchain* swapchain = *out_swapchain;
+    SwapchainDesc swapchainDesc = *swapchain->desc;
+    vulkan_swapchain_destroy(context, swapchain);
 
-    if (!vulkan_swapchain_create(context, swapchain->desc, &swapchain))
+    if (!vulkan_swapchain_create(context, &swapchainDesc, &swapchain))
         return false;
 
-    // vulkan_swapchain_destroy(context, &context->swapchain);
-
-    // if(context->swapchain.handle != nullptr) {
-    //     vkDestroySwapchainKHR(context->device_context.handle,
-    //     context->swapchain.handle, context->allocator);
-    // }
-
-    // context->swapchain = out_swapchain;
+    *out_swapchain = swapchain;
 
     return true;
 }
