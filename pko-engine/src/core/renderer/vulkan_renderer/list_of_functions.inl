@@ -28,6 +28,7 @@ VK_INSTANCE_LEVEL_FUNCTION(vkEnumeratePhysicalDevices)
 VK_INSTANCE_LEVEL_FUNCTION(vkEnumerateDeviceExtensionProperties)
 VK_INSTANCE_LEVEL_FUNCTION(vkGetPhysicalDeviceProperties)
 VK_INSTANCE_LEVEL_FUNCTION(vkGetPhysicalDeviceFeatures)
+VK_INSTANCE_LEVEL_FUNCTION(vkGetPhysicalDeviceFeatures2);
 VK_INSTANCE_LEVEL_FUNCTION(vkGetPhysicalDeviceQueueFamilyProperties)
 VK_INSTANCE_LEVEL_FUNCTION(vkGetPhysicalDeviceSurfaceSupportKHR)
 VK_INSTANCE_LEVEL_FUNCTION(vkGetPhysicalDeviceSurfacePresentModesKHR)
@@ -53,7 +54,7 @@ VK_INSTANCE_LEVEL_FUNCTION(vkCreateDebugUtilsMessengerEXT)
 #define VK_DEVICE_LEVEL_FUNCTION(fun)
 #endif
 
-VK_DEVICE_LEVEL_FUNCTION(vkGetPhysicalDeviceFeatures2);
+
 VK_DEVICE_LEVEL_FUNCTION(vkDeviceWaitIdle)
 VK_DEVICE_LEVEL_FUNCTION(vkDestroyDevice)
 VK_DEVICE_LEVEL_FUNCTION(vkGetDeviceQueue)
