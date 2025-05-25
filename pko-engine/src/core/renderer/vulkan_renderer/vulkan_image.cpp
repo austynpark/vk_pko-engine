@@ -107,6 +107,9 @@ b8 vulkan_rendertarget_create(RenderContext* context, RenderTargetDesc* desc,
     VK_CHECK(
         vkQueueSubmit(context->device_context.graphics_queue, 1, &submit_info, VK_NULL_HANDLE));
     vkQueueWaitIdle(context->device_context.graphics_queue);
+
+     *out_render_target = render_target;
+
     return true;
 }
 
