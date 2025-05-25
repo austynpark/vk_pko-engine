@@ -1,52 +1,30 @@
 #pragma once
 
+#include <glm/glm.hpp>
+#include <memory>
+#include <unordered_map>
+
 #include "defines.h"
 
-#include <unordered_map>
-#include <memory>
+struct AppState;
+struct ReloadDesc;
 
-#include <glm/glm.hpp>
+class Renderer {
+ public:
+  Renderer() = delete;
+  Renderer(AppState* state) : app_state_(state), frame_number_(0){};
+  virtual ~Renderer(){};
 
-class renderer_frontend;
-class vulkan_shader;
+  virtual b8 Init() = 0;
+  virtual void Load(ReloadDesc* desc) = 0;
+  virtual void UnLoad(ReloadDesc* desc) = 0;
+  virtual void Update(float deltaTime) = 0;
+  virtual void Draw() = 0;
+  virtual void Shutdown() = 0;
+  // virtual b8 OnResize(u32 w, u32 h) = 0;
 
-struct global_uniform_object {
-	glm::mat4 projection;
-	glm::mat4 view;
-};
-
-class renderer {
-	friend renderer_frontend;
-public:
-	renderer() = delete;
-	renderer(void* state) : plat_state(state), frame_number(0) {};
-	virtual ~renderer() = 0 {};
-
-	virtual b8 init() = 0;
-	virtual b8 begin_frame(f32 dt) = 0;
-	virtual b8 end_frame() = 0;
-	virtual b8 begin_renderpass() = 0;
-	virtual b8 end_renderpass() = 0;
-
-	virtual	b8 draw() = 0;
-	virtual b8 draw_imgui() = 0;
-	virtual	void shutdown() = 0;
-
-	virtual b8 on_resize(u32 w, u32 h) = 0;
-
-	virtual b8 add_shader(const char* name) = 0;
-
-	// Must be called from child class
-	virtual void update_global_data();
-
-	virtual b8 bind_global_data() = 0;
-
-	u32 width;
-	u32 height;
-protected:
-	// platform internal state
-	void* plat_state;
-	u32 frame_number;
-	
-	global_uniform_object global_ubo;
+ protected:
+  // platform internal state
+  AppState* app_state_;
+  u32 frame_number_;
 };

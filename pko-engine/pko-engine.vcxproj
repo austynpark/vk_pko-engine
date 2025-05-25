@@ -1,14 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
-    <ProjectConfiguration Include="Debug|Win32">
-      <Configuration>Debug</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Release|Win32">
-      <Configuration>Release</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
     <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
       <Platform>x64</Platform>
@@ -22,30 +14,21 @@
     <ClInclude Include="src\core\application.h" />
     <ClInclude Include="src\core\event.h" />
     <ClInclude Include="src\core\file_handle.h" />
-    <ClInclude Include="src\core\material.h" />
     <ClInclude Include="src\core\input.h" />
     <ClInclude Include="src\core\renderer\camera.h" />
     <ClInclude Include="src\core\renderer\renderer.h" />
-    <ClInclude Include="src\core\renderer\renderer_frontend.h" />
-    <ClInclude Include="src\core\renderer\SPIRV-Reflect\include\spirv\unified1\spirv.h" />
     <ClInclude Include="src\core\renderer\SPIRV-Reflect\spirv_reflect.h" />
     <ClInclude Include="src\core\renderer\spirv_helper.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_buffer.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_command_buffer.h" />
-    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_descriptor_builder.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_device.h" />
-    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_framebuffer.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_functions.h" />
-    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_image.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_memory_allocate.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_mesh.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_pipeline.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_renderer.h" />
-    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_renderpass.h" />
-    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_scene\default_scene.h" />
-    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_scene\vulkan_scene.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_shader.h" />
-    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_swapchain.h" />
+    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_image.h" />
     <ClInclude Include="src\defines.h" />
     <ClInclude Include="src\platform\platform.h" />
     <ClInclude Include="vendor\imgui\backends\imgui_impl_vulkan.h" />
@@ -56,46 +39,56 @@
     <ClInclude Include="vendor\imgui\imstb_rectpack.h" />
     <ClInclude Include="vendor\imgui\imstb_textedit.h" />
     <ClInclude Include="vendor\imgui\imstb_truetype.h" />
+    <ClInclude Include="vendor\mmgr\mmgr.h" />
+    <ClInclude Include="vendor\SPIRV-Cross\GLSL.std.450.h" />
+    <ClInclude Include="vendor\SPIRV-Cross\spirv.h" />
+    <ClInclude Include="vendor\SPIRV-Cross\spirv.hpp" />
+    <ClInclude Include="vendor\SPIRV-Cross\spirv_cfg.hpp" />
+    <ClInclude Include="vendor\SPIRV-Cross\spirv_common.hpp" />
+    <ClInclude Include="vendor\SPIRV-Cross\spirv_cpp.hpp" />
+    <ClInclude Include="vendor\SPIRV-Cross\spirv_cross.hpp" />
+    <ClInclude Include="vendor\SPIRV-Cross\spirv_cross_c.h" />
+    <ClInclude Include="vendor\SPIRV-Cross\spirv_cross_containers.hpp" />
+    <ClInclude Include="vendor\SPIRV-Cross\spirv_cross_error_handling.hpp" />
+    <ClInclude Include="vendor\SPIRV-Cross\spirv_cross_parsed_ir.hpp" />
+    <ClInclude Include="vendor\SPIRV-Cross\spirv_cross_util.hpp" />
+    <ClInclude Include="vendor\SPIRV-Cross\spirv_glsl.hpp" />
+    <ClInclude Include="vendor\SPIRV-Cross\spirv_hlsl.hpp" />
+    <ClInclude Include="vendor\SPIRV-Cross\spirv_msl.hpp" />
+    <ClInclude Include="vendor\SPIRV-Cross\spirv_parser.hpp" />
+    <ClInclude Include="vendor\SPIRV-Cross\spirv_reflect.hpp" />
+    <ClInclude Include="vendor\stb_ds.h" />
     <ClInclude Include="vendor\stb_image.h" />
+    <ClInclude Include="vendor\tinydds.h" />
     <ClInclude Include="vendor\tiny_obj_loader.h" />
+    <ClInclude Include="vendor\vulkan\vk_mem_alloc.h" />
     <ClInclude Include="vendor\vulkan\vk_platform.h" />
     <ClInclude Include="vendor\vulkan\vulkan.h" />
+    <ClInclude Include="vendor\vulkan\vulkan_core.h" />
+    <ClInclude Include="vendor\vulkan\vulkan_win32.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\core\application.cpp" />
     <ClCompile Include="src\core\event.cpp" />
     <ClCompile Include="src\core\file_handle.cpp" />
-    <ClCompile Include="src\core\material.cpp" />
     <ClCompile Include="src\core\input.cpp" />
     <ClCompile Include="src\core\renderer\camera.cpp" />
-    <ClCompile Include="src\core\renderer\SPIRV-Reflect\spirv_reflect.c" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_buffer.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_command_buffer.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_descriptor_allocator.cpp" />
-    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_descriptor_builder.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_device.cpp" />
-    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_framebuffer.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_functions.cpp" />
-    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_image.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_memory_allocate.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_mesh.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_pipeline.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_renderer.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">pch.h</PrecompiledHeaderFile>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">pch.h</PrecompiledHeaderFile>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">pch.h</PrecompiledHeaderFile>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">pch.h</PrecompiledHeaderFile>
     </ClCompile>
-    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_renderpass.cpp" />
-    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_scene\default_scene.cpp" />
-    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_scene\vulkan_scene.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_shader.cpp" />
-    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_swapchain.cpp" />
-    <ClCompile Include="src\core\renderer\renderer_frontend.cpp" />
+    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_image.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\platform\platform_win32.cpp" />
     <ClCompile Include="vendor\imgui\backends\imgui_impl_vulkan.cpp" />
@@ -105,12 +98,29 @@
     <ClCompile Include="vendor\imgui\imgui_draw.cpp" />
     <ClCompile Include="vendor\imgui\imgui_tables.cpp" />
     <ClCompile Include="vendor\imgui\imgui_widgets.cpp" />
+    <ClCompile Include="vendor\mmgr\mmgr.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="vendor\SPIRV-Cross\spirv_cfg.cpp" />
+    <ClCompile Include="vendor\SPIRV-Cross\spirv_cpp.cpp" />
+    <ClCompile Include="vendor\SPIRV-Cross\spirv_cross.cpp" />
+    <ClCompile Include="vendor\SPIRV-Cross\spirv_cross_c.cpp" />
+    <ClCompile Include="vendor\SPIRV-Cross\spirv_cross_parsed_ir.cpp" />
+    <ClCompile Include="vendor\SPIRV-Cross\spirv_cross_util.cpp" />
+    <ClCompile Include="vendor\SPIRV-Cross\spirv_glsl.cpp" />
+    <ClCompile Include="vendor\SPIRV-Cross\spirv_hlsl.cpp" />
+    <ClCompile Include="vendor\SPIRV-Cross\spirv_msl.cpp" />
+    <ClCompile Include="vendor\SPIRV-Cross\spirv_parser.cpp" />
+    <ClCompile Include="vendor\SPIRV-Cross\spirv_reflect.cpp" />
+    <ClCompile Include="vendor\stb_ds.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shader\test.frag" />
     <None Include="shader\test.vert" />
     <None Include="src\core\renderer\vulkan_renderer\list_of_functions.inl" />
     <None Include="src\core\renderer\vulkan_renderer\vulkan_types.inl" />
+    <None Include="vendor\SPIRV-Cross\LICENSE" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -120,19 +130,6 @@
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
-    <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
-    <CharacterSet>MultiByte</CharacterSet>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
-    <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
-    <WholeProgramOptimization>true</WholeProgramOptimization>
-    <CharacterSet>MultiByte</CharacterSet>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
@@ -151,12 +148,6 @@
   </ImportGroup>
   <ImportGroup Label="Shared">
   </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-  </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-  </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
@@ -164,16 +155,6 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(ProjectDir)vendor\vulkan;$(ProjectDir)vendor;$(ProjectDir)vendor\spirv</IncludePath>
-    <LibraryPath>$(ProjectDir)vendor\spirv\glslang\lib;$(LibraryPath)</LibraryPath>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(ProjectDir)vendor\vulkan;$(ProjectDir)vendor;$(ProjectDir)vendor\spirv</IncludePath>
-    <LibraryPath>$(ProjectDir)vendor\spirv\glslang\lib;$(LibraryPath)</LibraryPath>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>$(ProjectDir)vendor\vulkan;$(ProjectDir)vendor;$(ProjectDir)vendor\glslang</IncludePath>
@@ -184,57 +165,25 @@
     <IncludePath>$(ProjectDir)vendor\vulkan;$(ProjectDir)vendor;$(ProjectDir)vendor\glslang</IncludePath>
     <LibraryPath>$(ProjectDir)vendor\glslang\glslang\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
-      <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)vendor/spirv/;$(ProjectDir)external/lib/;$(ProjectDir)vendor\assimp\include;$(ProjectDir)vendor\imgui</AdditionalIncludeDirectories>
-      <LanguageStandard>stdcpp17</LanguageStandard>
-    </ClCompile>
-    <Link>
-      <SubSystem>Console</SubSystem>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>assimp-vc142-mtd.lib;assimp-vc142-mtd.dll;GenericCodeGend.lib;glslangd.lib;glslang-default-resource-limitsd.lib;HLSLd.lib;MachineIndependentd.lib;OGLCompilerd.lib;OSDependentd.lib;SPIRVd.lib;SPIRV-Tools-opt.lib;SPVRemapperd.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(ProjectDir)vendor/spirv/glslang/lib;$(ProjectDir)vendor\assimp\lib\Debug;$(ProjectDir)vendor\assimp\bin\Debug</AdditionalLibraryDirectories>
-    </Link>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
-      <FunctionLevelLinking>true</FunctionLevelLinking>
-      <IntrinsicFunctions>true</IntrinsicFunctions>
-      <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)vendor/spirv/;$(ProjectDir)external/lib/;$(ProjectDir)vendor\assimp\include;$(ProjectDir)vendor\imgui</AdditionalIncludeDirectories>
-      <LanguageStandard>stdcpp17</LanguageStandard>
-    </ClCompile>
-    <Link>
-      <SubSystem>Console</SubSystem>
-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
-      <OptimizeReferences>true</OptimizeReferences>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>assimp-vc142-mtd.lib;assimp-vc142-mtd.dll;GenericCodeGen.lib;glslang.lib;glslang-default-resource-limits.lib;HLSL.lib;MachineIndependent.lib;OGLCompiler.lib;OSDependent.lib;SPIRV.lib;SPIRV-Tools.lib;SPVRemapper.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(ProjectDir)vendor/spirv/glslang/lib;$(ProjectDir)vendor\assimp\lib\Release;$(ProjectDir)vendor\assimp\bin\Release</AdditionalLibraryDirectories>
-    </Link>
-  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)vendor/glslang/;$(ProjectDir)vendor\assimp\include;$(ProjectDir)vendor\imgui</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)src;$(ProjectDir)vendor/glslang/;$(ProjectDir)vendor\assimp\include;$(ProjectDir)vendor\mmgr\;$(ProjectDir)vendor\imgui;$(ProjectDir)vendor\vulkan\</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>assimp-vc142-mtd.lib;GenericCodeGend.lib;glslangd.lib;glslang-default-resource-limitsd.lib;HLSLd.lib;MachineIndependentd.lib;OGLCompilerd.lib;OSDependentd.lib;SPIRVd.lib;SPIRV-Tools-opt.lib;SPVRemapperd.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(ProjectDir)vendor/glslang/glslang/lib/;$(ProjectDir)vendor\assimp\lib\Debug</AdditionalLibraryDirectories>
+      <AdditionalDependencies>assimp-vc143-mtd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)vendor\assimp\lib_debug</AdditionalLibraryDirectories>
     </Link>
+    <PostBuildEvent>
+      <Command>copy /Y "$(ProjectDir)vendor\assimp\lib_debug\assimp-vc143-mtd.dll" "$(OutDir)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -242,19 +191,23 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)vendor/glslang/;$(ProjectDir)vendor\assimp\include;$(ProjectDir)vendor\imgui\;$(ProjectDir)vendor\imgui</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)src;$(ProjectDir)vendor/glslang/;$(ProjectDir)vendor\assimp\include;$(ProjectDir)vendor\mmgr\;$(ProjectDir)vendor\imgui\;$(ProjectDir)vendor\vulkan\</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>assimp-vc142-mtd.lib;GenericCodeGen.lib;glslang.lib;glslang-default-resource-limits.lib;HLSL.lib;MachineIndependent.lib;OGLCompiler.lib;OSDependent.lib;SPIRV.lib;SPIRV-Tools.lib;SPVRemapper.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(ProjectDir)vendor/glslang/glslang/lib/;$(ProjectDir)vendor\assimp\lib\Release</AdditionalLibraryDirectories>
+      <AdditionalDependencies>assimp-vc143-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)vendor\assimp\lib_release</AdditionalLibraryDirectories>
     </Link>
+    <PostBuildEvent>
+      <Command>copy /Y "$(ProjectDir)vendor\assimp\lib_release\assimp-vc143-mt.dll" "$(OutDir)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

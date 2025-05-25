@@ -21,7 +21,7 @@ enum buttons {
     BUTTON_MAX_BUTTONS
 };
 
-class input_system {
+class InputSystem {
 
 private:
     struct keyboard_state {
@@ -42,8 +42,8 @@ private:
     };
 
 public:
-    input_system();
-    ~input_system();
+    InputSystem();
+    ~InputSystem();
 
     static void process_key(keys key_code, b8 is_pressed);
 

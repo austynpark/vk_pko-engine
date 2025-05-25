@@ -5,37 +5,34 @@
 
 #ifdef _WIN32
 
-#include <Windows.h>
-#include <windowsx.h>
+#include <windows.h>
 
 typedef HMODULE vulkan_library;
 
-typedef struct internal_state {
-    HINSTANCE instance;
-    HWND      handle;
-} internal_state;
+typedef struct InternalState {
+  HINSTANCE instance;
+  HWND handle;
 
-#endif
+  u32 width;
+  u32 height;
+} InternalState;
 
-struct platform_state {
-    public:
-        b8 init(const char* application_name, i32 x, i32 y, i32 width, i32 height);
-        void shutdown();
+#endif  //_WIN32
 
-        b8 platform_message();
+struct PlatformState {
+ public:
+  static InternalState& GetInternalState();
+  static void on_window_resize(u32 width, u32 height);
+  b8 init(const char* application_name, i32 x, i32 y, i32 width, i32 height);
+  void shutdown();
 
-        f64 get_absolute_time();
+  b8 platform_message();
 
-        // Sleep on the main thread for the microsecond
-        // only use for giving time back to the OS for unused update power
-        void sleep(u64 ms);
+  f64 get_absolute_time();
 
-        // Internal state
-        void* state;
-    private:
-        u32 width;
-        u32 height;
+  // Sleep on the main thread for the microsecond
+  // only use for giving time back to the OS for unused update power
+  void sleep(u64 ms);
 };
 
-#endif // !PLATFORM_H
-
+#endif  // !PLATFORM_H
