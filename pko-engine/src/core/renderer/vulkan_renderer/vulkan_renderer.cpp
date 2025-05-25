@@ -262,7 +262,7 @@ void VulkanRenderer::Update(float deltaTime) {}
 
 void VulkanRenderer::Draw()
 {
-    context.current_frame = frame_number_ % MAX_FRAME;
+    context.current_frame = frame_number_++ % MAX_FRAME;
     VK_CHECK(vkWaitForFences(context.device_context.handle, 1,
                              &render_fences[context.current_frame], true, UINT64_MAX));
     VK_CHECK(
@@ -277,12 +277,49 @@ void VulkanRenderer::Draw()
     }
 
     Command* command = &cmds[context.current_frame];
+    RenderTarget* rendertarget = swapchain->render_targets[context.current_frame];
 
     vulkan_command_pool_reset(command);
     vulkan_command_buffer_begin(command, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
+    // Present to RenderTarget
+    TextureBarrier textureBarrier{};
+    textureBarrier.current_state = RESOURCE_STATE_PRESENT;
+    textureBarrier.new_state = RESOURCE_STATE_RENDER_TARGET;
+    textureBarrier.texture = rendertarget->texture;
+
+    vulkan_command_resource_barrier(command, NULL, 0, &textureBarrier, 1, NULL, 0);
+
+    RenderTarget* rendertargets = rendertarget;
+    RenderTargetOperator rendertarget_op{};
+    rendertarget_op.load_op = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    rendertarget_op.store_op = VK_ATTACHMENT_STORE_OP_STORE;
+
+    RenderDesc render_desc{};
+    render_desc.render_targets = &rendertargets;
+    render_desc.render_target_count = 1;
+    render_desc.clear_color = {{1.0f, 0.0f, 0.0f, 1.0f}};
+    render_desc.render_area = {{0, 0}, {app_state_->width, app_state_->height}};
+    render_desc.render_target_operators = &rendertarget_op;
+    // render_desc.depth_target = depth_render_target;
+    // render_desc.clear_depth = {1.0f, 0.0f};
+    // render_desc.is_depth_stencil = false;
+
+    vulkan_command_buffer_rendering(command, &render_desc);
+
     drawImgui();
-    // ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), command->buffer);
+
+    // end rendering explicitly
+    vulkan_command_buffer_rendering(command, NULL);
+
+    // RenderTarget to Present
+    textureBarrier = {};
+    textureBarrier.current_state = RESOURCE_STATE_RENDER_TARGET;
+    textureBarrier.new_state = RESOURCE_STATE_PRESENT;
+    textureBarrier.texture = rendertarget->texture;
+
+    vulkan_command_resource_barrier(command, NULL, 0, &textureBarrier, 1, NULL, 0);
+
     vulkan_command_buffer_end(command);
 
     VkPipelineStageFlags wait_stages = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
@@ -311,6 +348,8 @@ void VulkanRenderer::Draw()
 
 void drawImgui()
 {
+    Command* command = &cmds[context.current_frame];
+
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
@@ -319,6 +358,7 @@ void drawImgui()
     ImGui::ShowDemoWindow(&demo);
     ImGuiIO& io = ImGui::GetIO();
     ImGui::Render();
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), command->buffer);
 }
 
 void VulkanRenderer::Shutdown()

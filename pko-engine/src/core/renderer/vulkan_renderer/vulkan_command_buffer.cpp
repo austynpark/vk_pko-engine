@@ -135,6 +135,7 @@ void vulkan_command_pool_create(RenderContext* context, Command* command, QueueT
     create_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     create_info.queueFamilyIndex = get_queue_family_index(&context->device_context, queueType);
     command->type = queueType;
+    command->is_rendering = false;
 
     VK_CHECK(vkCreateCommandPool(context->device_context.handle, &create_info, context->allocator,
                                  &command->pool));
@@ -180,6 +181,12 @@ void vulkan_command_buffer_end(Command* command)
 {
     if (command == NULL)
         return;
+
+    if (command->is_rendering)
+    {
+        vkCmdEndRenderingKHR(command->buffer);
+        command->is_rendering = false;
+    }
 
     VK_CHECK(vkEndCommandBuffer(command->buffer));
 }
@@ -336,5 +343,89 @@ void vulkan_command_resource_barrier(Command* command, BufferBarrier* bufferBarr
     {
         free(imageMemoryBarriers);
         imageMemoryBarriers = NULL;
+    }
+}
+
+void vulkan_command_buffer_rendering(Command* command, RenderDesc* desc)
+{
+    assert(command);
+
+    if (command->is_rendering)
+    {
+        vkCmdEndRenderingKHR(command->buffer);
+        command->is_rendering = false;
+    }
+
+    if (desc == NULL)
+    {
+        return;
+    }
+
+    assert(desc);
+    assert(desc->render_target_count <= MAX_COLOR_ATTACHMENT);
+
+    u32 render_target_idx = 0;
+    VkRenderingAttachmentInfoKHR color_attachment_info[MAX_COLOR_ATTACHMENT] = {};
+    VkRenderingAttachmentInfoKHR depth_attachment = {};
+    VkRenderingAttachmentInfoKHR stencil_attachment = {};
+
+    for (render_target_idx = 0; render_target_idx < desc->render_target_count; ++render_target_idx)
+    {
+        VkRenderingAttachmentInfoKHR& color_attachment = color_attachment_info[render_target_idx];
+        const RenderTarget* render_target = desc->render_targets[render_target_idx];
+        const RenderTargetOperator& render_target_op =
+            desc->render_target_operators[render_target_idx];
+        color_attachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+        color_attachment.imageView = render_target->descriptor;
+        color_attachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        color_attachment.loadOp = render_target_op.load_op;
+        color_attachment.storeOp = render_target_op.store_op;
+        color_attachment.clearValue = desc->clear_color;
+    }
+
+    const RenderTarget* depth_rt = desc->depth_target;
+    const RenderTarget* stencil_rt = desc->stencil_target;
+
+    if (depth_rt != NULL)
+    {
+        const RenderTargetOperator& render_target_op =
+            desc->render_target_operators[render_target_idx++];
+
+        depth_attachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+        depth_attachment.imageView = depth_rt->descriptor;
+        depth_attachment.imageLayout = desc->is_depth_stencil
+                                           ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+                                           : VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+        depth_attachment.loadOp = render_target_op.load_op;
+        depth_attachment.storeOp = render_target_op.store_op;
+        depth_attachment.clearValue = desc->clear_color;
+    }
+
+    if (stencil_rt != NULL)
+    {
+        const RenderTargetOperator& render_target_op =
+            desc->render_target_operators[render_target_idx];
+
+        stencil_attachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+        stencil_attachment.imageView = stencil_rt->descriptor;
+        stencil_attachment.imageLayout = VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL;
+        stencil_attachment.loadOp = render_target_op.load_op;
+        stencil_attachment.storeOp = render_target_op.store_op;
+        stencil_attachment.clearValue = desc->clear_color;
+    }
+
+    VkRenderingInfoKHR rendering_info = {};
+    rendering_info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
+    rendering_info.renderArea = desc->render_area;
+    rendering_info.layerCount = 1;  // TODO
+    rendering_info.colorAttachmentCount = desc->render_target_count;
+    rendering_info.pColorAttachments = color_attachment_info;
+    rendering_info.pDepthAttachment = depth_rt ? &depth_attachment : VK_NULL_HANDLE;
+    rendering_info.pStencilAttachment = stencil_rt ? &stencil_attachment : VK_NULL_HANDLE;
+
+    if (!command->is_rendering)
+    {
+        vkCmdBeginRenderingKHR(command->buffer, &rendering_info);
+        command->is_rendering = true;
     }
 }
