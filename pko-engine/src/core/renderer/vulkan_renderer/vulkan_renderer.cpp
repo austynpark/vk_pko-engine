@@ -37,6 +37,8 @@ VkFence render_fences[MAX_FRAME];
 
 RenderTarget* depth_render_target = NULL;
 
+Pipeline* main_pipeline = NULL;
+
 void drawImgui();
 
 static VKAPI_ATTR VkBool32 debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -177,72 +179,6 @@ b8 VulkanRenderer::Init()
         vulkan_command_pool_create(&context, &cmds[i], QUEUE_TYPE_GRAPHICS);
         vulkan_command_buffer_allocate(&context, &cmds[i], true);
     }
-
-    /*
-     * global descriptor initialize
-     */
-    // vulkan_global_data_initialize(&pContext, sizeof(global_ubo));
-
-    /*
-
-    //TODO: move to shader
-    VkVertexInputBindingDescription binding_description{};
-    binding_description.binding = 0;
-    binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-    binding_description.stride = sizeof(vertex);
-
-    VkVertexInputAttributeDescription position_attribute{};
-    position_attribute.binding = 0;
-    position_attribute.location = 0;
-    position_attribute.format = VK_FORMAT_R32G32B32_SFLOAT;
-
-    VkVertexInputAttributeDescription normal_attribute{};
-    normal_attribute.binding = 0;
-    normal_attribute.location = 1;
-    normal_attribute.format = VK_FORMAT_R32G32B32_SFLOAT;
-
-    VkVertexInputAttributeDescription uv_attribute{};
-    uv_attribute.binding = 0;
-    uv_attribute.location = 2;
-    uv_attribute.format = VK_FORMAT_R32G32_SFLOAT;
-
-    VkVertexInputAttributeDescription attribute_descriptions[] = {
-        position_attribute,
-        normal_attribute,
-        uv_attribute
-    };
-
-    /*
-    global_ubo.projection = glm::perspective(glm::radians(45.0f),
-    (f32)pContext.framebuffer_width / pContext.framebuffer_height, 0.1f, 100.0f);
-    // camera pos, pos + front, up
-    global_ubo.view = glm::lookAt(glm::vec3(0.0f, 0.0f, -10.0f), glm::vec3(0.0f,
-    0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
-    // Init global data
-    VkPushConstantRange push_constant_range{};
-    push_constant_range.offset = 0;
-    push_constant_range.size = sizeof(global_ubo);
-    push_constant_range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    */
-
-    /*
-    if (!vulkan_graphics_pipeline_create(
-        &pContext, &pContext.main_renderpass,
-        &pContext.graphics_pipeline,
-        1,
-        &binding_description,
-        3,
-        attribute_descriptions,
-        0,
-        nullptr,
-        1,
-        &pContext.global_data.set_layout,
-        "shader/test.vert.spv", "shader/test.frag.spv")) {
-        std::cout << "graphics pipeline create failed\n";
-
-        return false;
-    }
-    */
 
     return true;
 }
@@ -406,26 +342,6 @@ void VulkanRenderer::Shutdown()
     vulkan_library_loader = 0;
 }
 
-// b8 VulkanRenderer::OnResize(u32 w, u32 h)
-//{
-//     if (pContext.device_context.handle != nullptr) {
-//         vkDeviceWaitIdle(pContext.device_context.handle);
-//
-//		//get_app_framebuffer_size(&pContext.framebuffer_width,
-//&pContext.framebuffer_height);
-//         pContext.framebuffer_width = w;
-//         pContext.framebuffer_height = h;
-//
-//         if (!vulkan_swapchain_recreate(&pContext, pContext.framebuffer_width,
-//         pContext.framebuffer_height))
-//             return false;
-//
-//         return true;
-//     }
-//
-//	return false;
-// }
-
 b8 VulkanRenderer::createInstance()
 {
     std::cout << "create instance" << std::endl;
@@ -537,6 +453,19 @@ b8 VulkanRenderer::createSurface()
     return true;
 #endif
     return false;
+}
+
+void VulkanRenderer::createPipeline()
+{
+    VertexInputBinding input_binding{};
+    VertexInputAttribute input_attribute[3] = {};
+
+    // binding slot 0
+    input_binding.input_rate = VK_VERTEX_INPUT_RATE_VERTEX;
+    input_binding.binding = 0;
+    input_binding.stride = sizeof(vertex);
+
+    PipelineInputDesc input_desc{};
 }
 
 void VulkanRenderer::initImgui()
