@@ -117,9 +117,6 @@
     <ClInclude Include="vendor\mmgr\mmgr.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="vendor\stb_ds.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_shader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -190,6 +187,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="vendor\SPIRV-Cross\spirv_parser.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_descriptor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vendor\stb_ds.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -263,16 +266,13 @@
     <ClCompile Include="vendor\mmgr\mmgr.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="vendor\stb_ds.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_shader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_mesh.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_descriptor_allocator.cpp">
+    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_descriptor.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_command_buffer.cpp">
@@ -309,6 +309,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="vendor\SPIRV-Cross\spirv_reflect.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vendor\stb_ds.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

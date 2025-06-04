@@ -21,6 +21,7 @@
     <ClInclude Include="src\core\renderer\spirv_helper.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_buffer.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_command_buffer.h" />
+    <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_descriptor.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_device.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_functions.h" />
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_memory_allocate.h" />
@@ -75,7 +76,7 @@
     <ClCompile Include="src\core\renderer\camera.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_buffer.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_command_buffer.cpp" />
-    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_descriptor_allocator.cpp" />
+    <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_descriptor.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_device.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_functions.cpp" />
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_memory_allocate.cpp" />
