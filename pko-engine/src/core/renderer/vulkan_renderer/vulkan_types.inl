@@ -22,6 +22,7 @@
 constexpr u32 MAX_FRAME = 3;
 constexpr u32 MAX_SHADER_STAGE_COUNT = 3;
 constexpr u32 MAX_COLOR_ATTACHMENT = 8;
+constexpr u32 MAX_DESCRIPTOR_SET_LAYOUT = 4;
 
 typedef union ClearValue
 {
@@ -269,41 +270,34 @@ struct ShaderResource
     u32 mSize;
     u32 mMemberCount;
     ShaderVariable* mMembers;
-
-    // Image
-    // Dimension
-    // Depth Bool
-    // Arrayed Bool
-    // MS
-    // Sampled
-    // Format
-    // Access
+    VkShaderStageFlags stage_flags;
 };
 
 struct ShaderReflection
 {
-    ShaderResource* pResources;
-    u64 mResourceCount;
-    VkShaderStageFlagBits mStageFlag;
-    u8 mPushConstantIndex;
+    ShaderResource* resources;
+    u64 resource_count;
+    VkShaderStageFlagBits stage_flag;
+    // u8 mPushConstantIndex;
 };
 
 struct ShaderLoadDesc
 {
-    const char* mNames[MAX_SHADER_STAGE_COUNT];
+    const char* names[MAX_SHADER_STAGE_COUNT];
 };
 
 struct Shader
 {
-    VkShaderStageFlags stageFlags;
+    VkShaderStageFlags stage_flags;
 
-    u32 mVertStageIndex;
-    u32 mFragStageIndex;
-    u32 mCompStageIndex;
+    u32 vert_stage_index;
+    u32 frag_stage_index;
+    u32 comp_stage_index;
 
-    ShaderReflection* pShaderReflections[MAX_SHADER_STAGE_COUNT];
-    ShaderModule* pShaderModules[MAX_SHADER_STAGE_COUNT];
-    const char* mNames[MAX_SHADER_STAGE_COUNT];
+    ShaderResource* shader_resources;
+    u64 resource_count;
+    ShaderModule* shader_modules[MAX_SHADER_STAGE_COUNT];
+    const char* names[MAX_SHADER_STAGE_COUNT];
 };
 
 typedef struct VulkanSwapchainSupportInfo
@@ -331,19 +325,35 @@ typedef struct VulkanSwapchain
     VkSwapchainKHR handle;
     SwapchainDesc* desc;
 
-    // VkPresentModeKHR present_mode;
     VkSurfaceFormatKHR surface_format;
     u32 image_count;
 } VulkanSwapchain;
 
-typedef struct VulkanRenderpass
+typedef struct VertexInputBinding
 {
-    VkRenderPass handle;
-    u32 x;
-    u32 y;
-    u32 width;
-    u32 height;
-} VulkanRenderpass;
+    VkVertexInputRate input_rate;
+    u32 binding;
+    u32 stride;
+};
+
+typedef struct VertexInputAttribute
+{
+    u32 location;
+    u32 binding;
+    VkFormat format;
+    u32 offset;
+};
+
+typedef struct PipelineInputDesc
+{
+    VkPrimitiveTopology topology;
+    bool is_primitive_restart;
+
+    VertexInputBinding* bindings;
+    u32 binding_count;
+    VertexInputAttribute* attributes;
+    u32 attribute_count;
+};
 
 typedef struct Pipeline
 {
@@ -351,75 +361,95 @@ typedef struct Pipeline
     VkPipelineLayout layout;
 } Pipeline;
 
-class DescriptorAllocator
+// class DescriptorAllocator
+//{
+//    public:
+//     DescriptorAllocator() = default;
+//
+//     struct pool_sizes
+//     {
+//         std::vector<std::pair<VkDescriptorType, float>> sizes = {
+//             {VK_DESCRIPTOR_TYPE_SAMPLER, 0.5f},
+//             {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4.f},
+//             {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 4.f},
+//             {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1.f},
+//             {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1.f},
+//             {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1.f},
+//             {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2.f},
+//             {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2.f},
+//             {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1.f},
+//             {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1.f},
+//             {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 0.5f}};
+//
+//         VkDescriptorPool create_pool(VkDevice device, i32 count, VkDescriptorPoolCreateFlags
+//         flags);
+//     };
+//
+//     void reset_pools();
+//     bool allocate(VkDescriptorSet* set, VkDescriptorSetLayout layout);
+//
+//     void init(VkDevice new_device);
+//
+//     void cleanup();
+//
+//     VkDevice device = VK_NULL_HANDLE;
+//
+//    private:
+//     VkDescriptorPool grab_pool();
+//
+//     VkDescriptorPool current_pool{VK_NULL_HANDLE};
+//     pool_sizes descriptor_sizes;
+//     std::vector<VkDescriptorPool> used_pools;
+//     std::vector<VkDescriptorPool> free_pools;
+// };
+//
+// class DescriptorLayoutCache
+//{
+//    public:
+//     DescriptorLayoutCache() = default;
+//     void init(VkDevice new_device);
+//     void cleanup();
+//
+//     VkDescriptorSetLayout create_descriptor_layout(VkDescriptorSetLayoutCreateInfo* info);
+//
+//     struct DescriptorLayoutInfo
+//     {
+//         std::vector<VkDescriptorSetLayoutBinding> bindings;
+//
+//         bool operator==(const DescriptorLayoutInfo& other) const;
+//
+//         size_t hash() const;
+//     };
+//
+//    private:
+//     struct DescriptorLayoutHash
+//     {
+//         std::size_t operator()(const DescriptorLayoutInfo& info) const { return info.hash(); }
+//     };
+//
+//     std::unordered_map<DescriptorLayoutInfo, VkDescriptorSetLayout, DescriptorLayoutHash>
+//         layout_cache;
+//     VkDevice device = VK_NULL_HANDLE;
+// };
+
+typedef struct DescritporSetDesc
 {
-   public:
-    DescriptorAllocator() = default;
+    u32 binding_count;
 
-    struct pool_sizes
-    {
-        std::vector<std::pair<VkDescriptorType, float>> sizes = {
-            {VK_DESCRIPTOR_TYPE_SAMPLER, 0.5f},
-            {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4.f},
-            {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 4.f},
-            {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1.f},
-            {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1.f},
-            {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1.f},
-            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2.f},
-            {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2.f},
-            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1.f},
-            {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1.f},
-            {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 0.5f}};
+} DescriptorSetDesc;
 
-        VkDescriptorPool create_pool(VkDevice device, i32 count, VkDescriptorPoolCreateFlags flags);
-    };
-
-    void reset_pools();
-    bool allocate(VkDescriptorSet* set, VkDescriptorSetLayout layout);
-
-    void init(VkDevice new_device);
-
-    void cleanup();
-
-    VkDevice device = VK_NULL_HANDLE;
-
-   private:
-    VkDescriptorPool grab_pool();
-
-    VkDescriptorPool current_pool{VK_NULL_HANDLE};
-    pool_sizes descriptor_sizes;
-    std::vector<VkDescriptorPool> used_pools;
-    std::vector<VkDescriptorPool> free_pools;
+typedef struct DescriptorHashMap
+{
+    const char* key;
+    u32 value;
 };
 
-class DescriptorLayoutCache
+typedef struct PipelineLayout
 {
-   public:
-    DescriptorLayoutCache() = default;
-    void init(VkDevice new_device);
-    void cleanup();
-
-    VkDescriptorSetLayout create_descriptor_layout(VkDescriptorSetLayoutCreateInfo* info);
-
-    struct DescriptorLayoutInfo
-    {
-        std::vector<VkDescriptorSetLayoutBinding> bindings;
-
-        bool operator==(const DescriptorLayoutInfo& other) const;
-
-        size_t hash() const;
-    };
-
-   private:
-    struct DescriptorLayoutHash
-    {
-        std::size_t operator()(const DescriptorLayoutInfo& info) const { return info.hash(); }
-    };
-
-    std::unordered_map<DescriptorLayoutInfo, VkDescriptorSetLayout, DescriptorLayoutHash>
-        layout_cache;
-    VkDevice device = VK_NULL_HANDLE;
-};
+    DescriptorHashMap* descriptor_map;
+    VkDescriptorSetLayout set_layouts[MAX_DESCRIPTOR_SET_LAYOUT];
+    VkPipelineLayout handle;
+} DescriptorSetLayout;
 
 typedef struct RenderContext
 {
@@ -443,9 +473,7 @@ typedef struct RenderContext
     VkSurfaceKHR surface;
     DeviceContext device_context;
     VulkanSwapchainSupportInfo swapchain_support_info;
-    VulkanRenderpass main_renderpass;
 
-    DescriptorAllocator* pDynamicDescriptorAllocators;
 } VulkanContext;
 
 #endif  // !VULKAN_TYPES_INL
