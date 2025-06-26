@@ -22,6 +22,7 @@ class VulkanRenderer : public Renderer
 
    private:
     void createPipeline();
+    void createRenderTarget();
 
     void initImgui();
     b8 createInstance();

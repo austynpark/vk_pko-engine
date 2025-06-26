@@ -108,7 +108,7 @@ b8 vulkan_rendertarget_create(RenderContext* context, RenderTargetDesc* desc,
         vkQueueSubmit(context->device_context.graphics_queue, 1, &submit_info, VK_NULL_HANDLE));
     vkQueueWaitIdle(context->device_context.graphics_queue);
 
-     *out_render_target = render_target;
+    *out_render_target = render_target;
 
     return true;
 }
@@ -396,7 +396,7 @@ b8 acquire_next_image_index_swapchain(RenderContext* context, VulkanSwapchain* s
     return true;
 }
 
-b8 present_image_swapchain(RenderContext* context, VulkanSwapchain* swapchain,
+b8 present_image_swapchain(VulkanContext* context, VulkanSwapchain* swapchain,
                            VkQueue present_queue, VkSemaphore render_complete_semaphore,
                            u32 current_image_index)
 {
@@ -417,28 +417,6 @@ b8 present_image_swapchain(RenderContext* context, VulkanSwapchain* swapchain,
     }
 
     return true;
-}
-
-void vulkan_framebuffer_create(RenderContext* context, VulkanRenderpass* renderpass,
-                               u32 attachment_count, VkImageView* image_view,
-                               VkFramebuffer* out_framebuffer)
-{
-    VkFramebufferCreateInfo create_info{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
-    create_info.renderPass = renderpass->handle;
-    create_info.attachmentCount = attachment_count;
-    create_info.pAttachments = image_view;
-    create_info.width = context->framebuffer_width;
-    create_info.height = context->framebuffer_height;
-    create_info.layers = 1;
-
-    VK_CHECK(vkCreateFramebuffer(context->device_context.handle, &create_info, context->allocator,
-                                 out_framebuffer));
-}
-
-void vulkan_framebuffer_destroy(RenderContext* context, VkFramebuffer* framebuffer)
-{
-    vkDestroyFramebuffer(context->device_context.handle, *framebuffer, context->allocator);
-    framebuffer = 0;
 }
 
 bool is_image_format_depth_only(VkFormat format)

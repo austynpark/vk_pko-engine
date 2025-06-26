@@ -26,7 +26,7 @@ b8 vulkan_shader_module_create(RenderContext* context, ShaderModule** ppOutModul
     assert(fileName);
 
     ShaderModule* pShaderModule = (ShaderModule*)malloc(sizeof(ShaderModule));
-    memset(*ppOutModule, 0, sizeof(ShaderModule));
+    memset(pShaderModule, 0, sizeof(ShaderModule));
 
     size_t len = strlen(fileName) + strlen(shaderPathName) + strlen(spvExtension) + 1;
     char* fullPath = (char*)malloc(len * sizeof(char));

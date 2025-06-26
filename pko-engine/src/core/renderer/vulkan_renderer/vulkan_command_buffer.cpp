@@ -398,7 +398,7 @@ void vulkan_command_buffer_rendering(Command* command, RenderDesc* desc)
                                            : VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
         depth_attachment.loadOp = render_target_op.load_op;
         depth_attachment.storeOp = render_target_op.store_op;
-        depth_attachment.clearValue = desc->clear_color;
+        depth_attachment.clearValue = desc->clear_depth;
     }
 
     if (stencil_rt != NULL)
@@ -411,7 +411,7 @@ void vulkan_command_buffer_rendering(Command* command, RenderDesc* desc)
         stencil_attachment.imageLayout = VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL;
         stencil_attachment.loadOp = render_target_op.load_op;
         stencil_attachment.storeOp = render_target_op.store_op;
-        stencil_attachment.clearValue = desc->clear_color;
+        stencil_attachment.clearValue = desc->clear_depth;
     }
 
     VkRenderingInfoKHR rendering_info = {};

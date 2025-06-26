@@ -20,7 +20,6 @@
     } while (0)
 
 constexpr u32 MAX_FRAME = 3;
-constexpr u32 MAX_SHADER_STAGE_COUNT = 3;
 constexpr u32 MAX_COLOR_ATTACHMENT = 8;
 constexpr u32 MAX_DESCRIPTOR_SET_LAYOUT = 4;
 
@@ -227,6 +226,14 @@ typedef struct RenderDesc
     RenderTargetOperator* render_target_operators;
 };
 
+typedef enum ShaderStage
+{
+    SHADER_STAGE_VERTEX,
+    SHADER_STAGE_FRAGMENT,
+    SHADER_STAGE_COMPUTE,
+    MAX_SHADER_STAGE_COUNT
+} ShaderStage;
+
 struct ShaderModule
 {
     VkShaderModule module;
@@ -334,7 +341,7 @@ typedef struct VertexInputBinding
     VkVertexInputRate input_rate;
     u32 binding;
     u32 stride;
-};
+} VertexInputBinding;
 
 typedef struct VertexInputAttribute
 {
@@ -342,7 +349,7 @@ typedef struct VertexInputAttribute
     u32 binding;
     VkFormat format;
     u32 offset;
-};
+} VertexInputAttribute;
 
 typedef struct PipelineInputDesc
 {
@@ -353,84 +360,47 @@ typedef struct PipelineInputDesc
     u32 binding_count;
     VertexInputAttribute* attributes;
     u32 attribute_count;
-};
+} PipelineInputDesc;
 
-typedef struct Pipeline
+typedef struct RasterizeDesc
 {
-    VkPipeline handle;
-    VkPipelineLayout layout;
-} Pipeline;
+    u32 depth_clamp_enable;
+    u32 rasterizer_discard_enable;
 
-// class DescriptorAllocator
-//{
-//    public:
-//     DescriptorAllocator() = default;
-//
-//     struct pool_sizes
-//     {
-//         std::vector<std::pair<VkDescriptorType, float>> sizes = {
-//             {VK_DESCRIPTOR_TYPE_SAMPLER, 0.5f},
-//             {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4.f},
-//             {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 4.f},
-//             {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1.f},
-//             {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1.f},
-//             {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1.f},
-//             {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2.f},
-//             {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2.f},
-//             {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1.f},
-//             {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1.f},
-//             {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 0.5f}};
-//
-//         VkDescriptorPool create_pool(VkDevice device, i32 count, VkDescriptorPoolCreateFlags
-//         flags);
-//     };
-//
-//     void reset_pools();
-//     bool allocate(VkDescriptorSet* set, VkDescriptorSetLayout layout);
-//
-//     void init(VkDevice new_device);
-//
-//     void cleanup();
-//
-//     VkDevice device = VK_NULL_HANDLE;
-//
-//    private:
-//     VkDescriptorPool grab_pool();
-//
-//     VkDescriptorPool current_pool{VK_NULL_HANDLE};
-//     pool_sizes descriptor_sizes;
-//     std::vector<VkDescriptorPool> used_pools;
-//     std::vector<VkDescriptorPool> free_pools;
-// };
-//
-// class DescriptorLayoutCache
-//{
-//    public:
-//     DescriptorLayoutCache() = default;
-//     void init(VkDevice new_device);
-//     void cleanup();
-//
-//     VkDescriptorSetLayout create_descriptor_layout(VkDescriptorSetLayoutCreateInfo* info);
-//
-//     struct DescriptorLayoutInfo
-//     {
-//         std::vector<VkDescriptorSetLayoutBinding> bindings;
-//
-//         bool operator==(const DescriptorLayoutInfo& other) const;
-//
-//         size_t hash() const;
-//     };
-//
-//    private:
-//     struct DescriptorLayoutHash
-//     {
-//         std::size_t operator()(const DescriptorLayoutInfo& info) const { return info.hash(); }
-//     };
-//
-//     std::unordered_map<DescriptorLayoutInfo, VkDescriptorSetLayout, DescriptorLayoutHash>
-//         layout_cache;
-//     VkDevice device = VK_NULL_HANDLE;
-// };
+    VkPolygonMode polygon_mode;
+    VkCullModeFlagBits cull_mode;
+    VkFrontFace front_face;
+
+    u32 depth_bias_enable;
+    f32 depth_bias_constant_factor;
+    f32 depth_bias_clamp;
+    f32 depth_bias_slope_factor;
+
+    f32 line_width;
+} RasterizeDesc;
+
+typedef struct DepthStencilDesc
+{
+    u32 depth_test_enable;
+    u32 depth_write_enable;
+    u32 depth_bounds_test_enable;
+    u32 stencil_test_enable;
+
+    VkCompareOp depth_compare_op;
+    VkStencilOpState stencil_front_op_state;
+    VkStencilOpState stencil_back_op_state;
+
+    f32 min_depth_bounds;
+    f32 max_depth_bounds;
+} DepthStencilDesc;
+
+typedef enum ColorBlendMode
+{
+    COLOR_BLEND_OPAQUE,
+    COLOR_BLEND_ALPHA,
+    COLOR_BLEND_ADDITIVE,
+    COLOR_BLEND_MULTIPLICATIVE,
+} ColorBlendMode;
 
 typedef struct DescritporSetDesc
 {
@@ -442,7 +412,7 @@ typedef struct DescriptorHashMap
 {
     const char* key;
     u32 value;
-};
+} DescriptorHashMap;
 
 typedef struct PipelineLayout
 {
@@ -450,6 +420,27 @@ typedef struct PipelineLayout
     VkDescriptorSetLayout set_layouts[MAX_DESCRIPTOR_SET_LAYOUT];
     VkPipelineLayout handle;
 } DescriptorSetLayout;
+
+typedef struct PipelineDesc
+{
+    RasterizeDesc* rasterize_desc;
+    DepthStencilDesc* depth_stencil_desc;
+    PipelineInputDesc* input_desc;
+    PipelineLayout* layout;
+    Shader* shader;
+
+    ColorBlendMode* blend_modes;
+    u32 color_attachment_count;
+    VkFormat* color_attachment_formats;
+    VkFormat depth_attachment_format;
+    VkFormat stencil_attachment_format;
+    // view mask
+} PipelineDesc;
+
+typedef struct Pipeline
+{
+    VkPipeline handle;
+} Pipeline;
 
 typedef struct RenderContext
 {

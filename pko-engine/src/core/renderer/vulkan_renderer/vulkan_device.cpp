@@ -95,11 +95,16 @@ b8 vulkan_device_create(RenderContext* context, DeviceContext* device_context)
         queue_create_infos.at(i).pQueuePriorities = &queue_priorities;
     }
 
+    // VkPhysicalDevicePipelineCreationCacheControlFeaturesEXT pipeline_cache_control_features = {};
+    // pipeline_cache_control_features.sType =
+    //     VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_CREATION_CACHE_CONTROL_FEATURES_EXT;
+    // pipeline_cache_control_features.pipelineCreationCacheControl = VK_TRUE;
+
     VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeaturesKHR{};
     dynamicRenderingFeaturesKHR.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR;
     dynamicRenderingFeaturesKHR.dynamicRendering = VK_TRUE;
-    dynamicRenderingFeaturesKHR.pNext = nullptr;
+    dynamicRenderingFeaturesKHR.pNext = NULL;
 
     VkPhysicalDeviceDescriptorIndexingFeatures descriptorIndexingFeatures{};
     descriptorIndexingFeatures.sType =

@@ -20,6 +20,7 @@
 #include "vulkan_memory_allocate.h"
 #include "vulkan_pipeline.h"
 #include "vulkan_shader.h"
+#include "vulkan_mesh.h"
 
 #include "imgui/backends/imgui_impl_vulkan.h"
 #include "imgui/backends/imgui_impl_win32.h"
@@ -36,8 +37,9 @@ VkSemaphore image_available_semaphores[MAX_FRAME];
 VkFence render_fences[MAX_FRAME];
 
 RenderTarget* depth_render_target = NULL;
-
+PipelineLayout* main_pipeline_layout = NULL;
 Pipeline* main_pipeline = NULL;
+Shader* main_shader = NULL;
 
 void drawImgui();
 
@@ -164,16 +166,6 @@ b8 VulkanRenderer::Init()
     }
     std::cout << "sync objects created" << std::endl;
 
-    // descriptor allocator init
-    context.pDynamicDescriptorAllocators =
-        (DescriptorAllocator*)malloc(sizeof(DescriptorAllocator) * MAX_FRAME);
-
-    context.pDynamicDescriptorAllocators[MAX_FRAME];
-    for (u32 i = 0; i < MAX_FRAME; ++i)
-    {
-        context.pDynamicDescriptorAllocators[i].init(context.device_context.handle);
-    }
-
     for (u32 i = 0; i < MAX_FRAME; ++i)
     {
         vulkan_command_pool_create(&context, &cmds[i], QUEUE_TYPE_GRAPHICS);
@@ -189,10 +181,31 @@ void VulkanRenderer::Load(ReloadDesc* desc)
 
     if (reload_type & RELOAD_TYPE_RESIZE)
     {
+        ShaderLoadDesc shader_load_desc{};
+        shader_load_desc.names[SHADER_STAGE_VERTEX] = "test.vert";
+        shader_load_desc.names[SHADER_STAGE_FRAGMENT] = "test.frag";
+
+        // Shader Create
+        vulkan_shader_create(&context, &main_shader, &shader_load_desc);
+        // Pipeline Layout Create
+        vulkan_pipeline_layout_create(&context, main_shader, &main_pipeline_layout);
+
+        createRenderTarget();
+
+        createPipeline();
     }
 }
 
-void VulkanRenderer::UnLoad(ReloadDesc* desc) {}
+void VulkanRenderer::UnLoad(ReloadDesc* desc)
+{
+    ReloadType reload_type = desc->type;
+
+    if (reload_type & RELOAD_TYPE_RESIZE)
+    {
+        vulkan_graphics_pipeline_destroy(&context, main_pipeline);
+        vulkan_rendertarget_destroy(&context, depth_render_target);
+    }
+}
 
 void VulkanRenderer::Update(float deltaTime) {}
 
@@ -227,25 +240,40 @@ void VulkanRenderer::Draw()
     vulkan_command_resource_barrier(command, NULL, 0, &textureBarrier, 1, NULL, 0);
 
     RenderTarget* rendertargets = rendertarget;
-    RenderTargetOperator rendertarget_op{};
-    rendertarget_op.load_op = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    rendertarget_op.store_op = VK_ATTACHMENT_STORE_OP_STORE;
+    RenderTargetOperator rendertarget_ops[2];
+    rendertarget_ops[0].load_op = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    rendertarget_ops[0].store_op = VK_ATTACHMENT_STORE_OP_STORE;
+
+    rendertarget_ops[1].load_op = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    rendertarget_ops[1].store_op = VK_ATTACHMENT_STORE_OP_STORE;
 
     RenderDesc render_desc{};
     render_desc.render_targets = &rendertargets;
     render_desc.render_target_count = 1;
-    render_desc.clear_color = {{1.0f, 0.0f, 0.0f, 1.0f}};
+    render_desc.clear_color = {{0.0f, 0.0f, 0.0f, 1.0f}};
     render_desc.render_area = {{0, 0}, {app_state_->width, app_state_->height}};
-    render_desc.render_target_operators = &rendertarget_op;
-    // render_desc.depth_target = depth_render_target;
-    // render_desc.clear_depth = {1.0f, 0.0f};
-    // render_desc.is_depth_stencil = false;
+    render_desc.render_target_operators = rendertarget_ops;
+    render_desc.depth_target = depth_render_target;
+    render_desc.clear_depth = {{1.0f, 0U}};
+    render_desc.is_depth_stencil = false;
 
+    vulkan_command_buffer_rendering(command, &render_desc);
+    VkViewport viewport = {0, 0, app_state_->width, app_state_->height, 0.f, 1.f};
+    vkCmdSetViewport(command->buffer, 0, 1, &viewport);
+
+    VkRect2D scissor = {{0, 0}, {app_state_->width, app_state_->height}};
+    vkCmdSetScissor(command->buffer, 0, 1, &scissor);
+    vkCmdBindPipeline(command->buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, main_pipeline->handle);
+    vkCmdDraw(command->buffer, 3, 1, 0, 0);
+
+    // rendering imgui
+    render_desc.depth_target = NULL;
+    rendertarget_ops[0].load_op = VK_ATTACHMENT_LOAD_OP_LOAD;
+    rendertarget_ops[0].store_op = VK_ATTACHMENT_STORE_OP_STORE;
     vulkan_command_buffer_rendering(command, &render_desc);
 
     drawImgui();
 
-    // end rendering explicitly
     vulkan_command_buffer_rendering(command, NULL);
 
     // RenderTarget to Present
@@ -323,7 +351,6 @@ void VulkanRenderer::Shutdown()
     for (u32 i = 0; i < MAX_FRAME; ++i)
     {
         vulkan_command_pool_destroy(&context, &cmds[i]);
-        context.pDynamicDescriptorAllocators[i].cleanup();
     }
 
     vulkan_memory_allocator_destroy(&context);
@@ -331,8 +358,6 @@ void VulkanRenderer::Shutdown()
     vkDestroySurfaceKHR(context.instance, context.surface, context.allocator);
     vkDestroyDebugUtilsMessengerEXT(context.instance, context.debug_messenger, context.allocator);
     vkDestroyInstance(context.instance, context.allocator);
-
-    SAFE_FREE(context.pDynamicDescriptorAllocators);
 
 #if defined _WIN32
     FreeLibrary(vulkan_library_loader);
@@ -457,15 +482,93 @@ b8 VulkanRenderer::createSurface()
 
 void VulkanRenderer::createPipeline()
 {
-    VertexInputBinding input_binding{};
-    VertexInputAttribute input_attribute[3] = {};
+    // Pipeline Create
+    RasterizeDesc rasterize_desc{};
+    rasterize_desc.depth_clamp_enable = VK_FALSE;
+    rasterize_desc.rasterizer_discard_enable = VK_FALSE;
+    rasterize_desc.polygon_mode = VK_POLYGON_MODE_FILL;
+    rasterize_desc.cull_mode = VK_CULL_MODE_BACK_BIT;
+    rasterize_desc.front_face = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rasterize_desc.depth_bias_enable = VK_FALSE;
+    rasterize_desc.depth_bias_constant_factor = 0;
+    rasterize_desc.depth_bias_clamp = 0;
+    rasterize_desc.depth_bias_slope_factor = 0;
+    rasterize_desc.line_width = 0.0f;
 
-    // binding slot 0
-    input_binding.input_rate = VK_VERTEX_INPUT_RATE_VERTEX;
+    DepthStencilDesc depth_stencil_desc{};
+    depth_stencil_desc.depth_test_enable = VK_TRUE;
+    depth_stencil_desc.depth_write_enable = VK_TRUE;
+    depth_stencil_desc.depth_bounds_test_enable = VK_FALSE;
+    depth_stencil_desc.depth_compare_op = VK_COMPARE_OP_LESS;
+    depth_stencil_desc.min_depth_bounds = 0.0f;
+    depth_stencil_desc.max_depth_bounds = 1.0f;
+    depth_stencil_desc.stencil_test_enable = VK_FALSE;
+    // depth_stencil_desc.stencil_front_op_state;
+    // depth_stencil_desc.stencil_back_op_state;
+
+    VertexInputBinding input_binding;
     input_binding.binding = 0;
-    input_binding.stride = sizeof(vertex);
+    input_binding.input_rate = VK_VERTEX_INPUT_RATE_VERTEX;
+    input_binding.stride = sizeof(Vertex);
+
+    VertexInputAttribute input_attributes[3];
+    input_attributes[0].binding = 0;
+    input_attributes[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+    input_attributes[0].location = 0;
+    input_attributes[0].offset = offsetof(Vertex, position);
+
+    input_attributes[1].binding = 0;
+    input_attributes[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+    input_attributes[1].location = 1;
+    input_attributes[1].offset = offsetof(Vertex, normal);
+
+    input_attributes[2].binding = 0;
+    input_attributes[2].format = VK_FORMAT_R32G32_SFLOAT;
+    input_attributes[2].location = 2;
+    input_attributes[2].offset = offsetof(Vertex, uv);
 
     PipelineInputDesc input_desc{};
+    input_desc.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    input_desc.is_primitive_restart = VK_FALSE;
+    input_desc.bindings = NULL;  // &input_binding;
+    input_desc.binding_count = 1;
+    input_desc.attributes = NULL;  // input_attributes;
+    input_desc.attribute_count = 3;
+
+    ColorBlendMode blend_mode = COLOR_BLEND_OPAQUE;
+    VkFormat color_attachment_format = swapchain->render_targets[0]->vulkan_format;
+
+    PipelineDesc pipeline_desc{};
+    pipeline_desc.rasterize_desc = &rasterize_desc;
+    pipeline_desc.depth_stencil_desc = &depth_stencil_desc;
+    pipeline_desc.input_desc = &input_desc;
+    pipeline_desc.layout = main_pipeline_layout;
+    pipeline_desc.shader = main_shader;
+    pipeline_desc.blend_modes = &blend_mode;
+    pipeline_desc.color_attachment_count = 1;
+    pipeline_desc.color_attachment_formats = &color_attachment_format;
+    pipeline_desc.depth_attachment_format = depth_render_target->vulkan_format;
+    // pipeline_desc.stencil_attachment_format;
+
+    vulkan_graphics_pipeline_create(&context, &pipeline_desc, &main_pipeline);
+}
+
+void VulkanRenderer::createRenderTarget()
+{
+    ClearValue depth_clear_value{};
+    depth_clear_value.depth = 1.0f;
+
+    RenderTargetDesc depth_rt_desc{};
+    depth_rt_desc.width = app_state_->width;
+    depth_rt_desc.height = app_state_->height;
+    depth_rt_desc.mip_levels = 1;
+    depth_rt_desc.sample_count = 1;
+    depth_rt_desc.vulkan_format = VK_FORMAT_D32_SFLOAT;
+    depth_rt_desc.clear_value = depth_clear_value;
+    depth_rt_desc.start_state = RESOURCE_STATE_DEPTH_WRITE;
+    depth_rt_desc.descriptor_type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+
+    vulkan_rendertarget_create(&context, &depth_rt_desc, &depth_render_target);
 }
 
 void VulkanRenderer::initImgui()
