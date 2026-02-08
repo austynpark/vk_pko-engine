@@ -53,14 +53,17 @@ enum GBufferTarget
     GBUFFER_COUNT
 };
 
-static RenderTarget* gbuffer_render_targets[GBUFFER_COUNT] = {};
-static b8 use_gbuffer = true;
+RenderTarget* gbuffer_render_targets[GBUFFER_COUNT] = {};
+b8 use_gbuffer = true;
+PipelineLayout* gbuffer_resolve_layout = NULL;
+Pipeline* gbuffer_resolve_pipeline = NULL;
+Pipeline* gbuffer_pipeline = NULL;
+Shader* gbuffer_resolve_shader = NULL;
 
 PipelineLayout* main_pipeline_layout = NULL;
 Pipeline* main_pipeline = NULL;
-Pipeline* gbuffer_pipeline = NULL;
 Shader* main_shader = NULL;
-static Camera main_camera{};
+Camera main_camera{};
 
 // De-interleaved mesh GPU buffers and counts (globals for this sample)
 Buffer position_buffer{};
@@ -383,10 +386,9 @@ void VulkanRenderer::basePass()
         render_target_barrier_count = 1;
     }
 
-    vulkan_command_resource_barrier(command, NULL, 0,
-                                    texture_barrier_count ? &textureBarrier : NULL,
-                                    texture_barrier_count,
-                                    render_target_barriers, render_target_barrier_count);
+    vulkan_command_resource_barrier(
+        command, NULL, 0, texture_barrier_count ? &textureBarrier : NULL, texture_barrier_count,
+        render_target_barriers, render_target_barrier_count);
 
     RenderTarget* color_targets[GBUFFER_COUNT];
     u32 color_target_count = 0;
@@ -453,8 +455,7 @@ void VulkanRenderer::basePass()
         vkCmdBindIndexBuffer(command->buffer, index_buffer.handle, 0, VK_INDEX_TYPE_UINT32);
 
         Mesh* loaded_mesh = &mesh[0];
-        const u32 instance_count =
-            loaded_mesh->instances ? (u32)arrlen(loaded_mesh->instances) : 0;
+        const u32 instance_count = loaded_mesh->instances ? (u32)arrlen(loaded_mesh->instances) : 0;
         for (u32 i = 0; i < instance_count; ++i)
         {
             const MeshInstance& instance = loaded_mesh->instances[i];
@@ -468,22 +469,20 @@ void VulkanRenderer::basePass()
             if (loaded_mesh->materials && range.material_index < loaded_mesh->material_count)
             {
                 const MaterialInfo& mat = loaded_mesh->materials[range.material_index];
-                const u32 base_color =
-                    mat.base_color_texture_index > tex_mask ? invalid_tex_index
-                                                            : mat.base_color_texture_index;
-                const u32 normal =
-                    mat.normal_texture_index > tex_mask ? invalid_tex_index
-                                                        : mat.normal_texture_index;
-                const u32 metal_rough =
-                    mat.metallic_roughness_texture_index > tex_mask
-                        ? invalid_tex_index
-                        : mat.metallic_roughness_texture_index;
-                const u32 occlusion =
-                    mat.occlusion_texture_index > tex_mask ? invalid_tex_index
-                                                           : mat.occlusion_texture_index;
-                push.packed_material =
-                    ((base_color & tex_mask) << 0) | ((normal & tex_mask) << 8) |
-                    ((metal_rough & tex_mask) << 16) | ((occlusion & tex_mask) << 24);
+                const u32 base_color = mat.base_color_texture_index > tex_mask
+                                           ? invalid_tex_index
+                                           : mat.base_color_texture_index;
+                const u32 normal = mat.normal_texture_index > tex_mask ? invalid_tex_index
+                                                                       : mat.normal_texture_index;
+                const u32 metal_rough = mat.metallic_roughness_texture_index > tex_mask
+                                            ? invalid_tex_index
+                                            : mat.metallic_roughness_texture_index;
+                const u32 occlusion = mat.occlusion_texture_index > tex_mask
+                                          ? invalid_tex_index
+                                          : mat.occlusion_texture_index;
+                push.packed_material = ((base_color & tex_mask) << 0) | ((normal & tex_mask) << 8) |
+                                       ((metal_rough & tex_mask) << 16) |
+                                       ((occlusion & tex_mask) << 24);
             }
             else
             {
@@ -522,8 +521,8 @@ void VulkanRenderer::lightingPass()
     swapchain_barrier.new_state = RESOURCE_STATE_RENDER_TARGET;
     swapchain_barrier.texture = swapchain_rt->texture;
 
-    vulkan_command_resource_barrier(command, NULL, 0, &swapchain_barrier, 1,
-                                    gbuffer_barriers, GBUFFER_COUNT);
+    vulkan_command_resource_barrier(command, NULL, 0, &swapchain_barrier, 1, gbuffer_barriers,
+                                    GBUFFER_COUNT);
 
     RenderTarget* color_targets = swapchain_rt;
     RenderTargetOperator rendertarget_ops[2] = {};
@@ -1034,8 +1033,7 @@ void VulkanRenderer::createRenderTarget()
                           albedo_clear);
     create_gbuffer_target(&gbuffer_render_targets[GBUFFER_NORMAL], VK_FORMAT_R16G16B16A16_SFLOAT,
                           normal_clear);
-    create_gbuffer_target(&gbuffer_render_targets[GBUFFER_MR], VK_FORMAT_R8G8B8A8_UNORM,
-                          mr_clear);
+    create_gbuffer_target(&gbuffer_render_targets[GBUFFER_MR], VK_FORMAT_R8G8B8A8_UNORM, mr_clear);
 }
 
 void VulkanRenderer::createBuffer()
@@ -1048,8 +1046,7 @@ void VulkanRenderer::createBuffer()
     if (mesh && arrlen(mesh) > 0)
     {
         Mesh* loaded_mesh = &mesh[0];
-        const u32 instance_count =
-            loaded_mesh->instances ? (u32)arrlen(loaded_mesh->instances) : 0;
+        const u32 instance_count = loaded_mesh->instances ? (u32)arrlen(loaded_mesh->instances) : 0;
         if (instance_count > 0)
         {
             DrawData* draw_data = (DrawData*)malloc(sizeof(DrawData) * instance_count);
@@ -1075,7 +1072,6 @@ void VulkanRenderer::createBuffer()
         {
             draw_count = 0;
         }
-
     }
 }
 
@@ -1091,8 +1087,7 @@ void VulkanRenderer::createSceneDescriptors()
 
     VkDescriptorPoolSize pool_sizes[] = {{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1},
                                          {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1},
-                                         {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-                                          MAX_BINDLESS_TEXTURES},
+                                         {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, MAX_BINDLESS_TEXTURES},
                                          {VK_DESCRIPTOR_TYPE_SAMPLER, 1}};
 
     VkDescriptorPoolCreateInfo pool_info{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
@@ -1278,7 +1273,8 @@ void VulkanRenderer::destroyGBufferDescriptors()
 {
     if (gbuffer_desc_pool != VK_NULL_HANDLE)
     {
-        vkDestroyDescriptorPool(context.device_context.handle, gbuffer_desc_pool, context.allocator);
+        vkDestroyDescriptorPool(context.device_context.handle, gbuffer_desc_pool,
+                                context.allocator);
         gbuffer_desc_pool = VK_NULL_HANDLE;
         gbuffer_desc_set = VK_NULL_HANDLE;
     }
@@ -1365,7 +1361,6 @@ void VulkanRenderer::destroyBuffer()
     }
 
     draw_count = 0;
-
 }
 
 void VulkanRenderer::destroySceneDescriptors()
