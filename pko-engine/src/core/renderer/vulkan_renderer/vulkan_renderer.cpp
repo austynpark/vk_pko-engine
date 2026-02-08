@@ -44,8 +44,21 @@ VkSemaphore image_available_semaphores[MAX_FRAME];
 VkFence render_fences[MAX_FRAME];
 
 RenderTarget* depth_render_target = NULL;
+
+enum GBufferTarget
+{
+    GBUFFER_ALBEDO = 0,
+    GBUFFER_NORMAL,
+    GBUFFER_MR,
+    GBUFFER_COUNT
+};
+
+static RenderTarget* gbuffer_render_targets[GBUFFER_COUNT] = {};
+static b8 use_gbuffer = true;
+
 PipelineLayout* main_pipeline_layout = NULL;
 Pipeline* main_pipeline = NULL;
+Pipeline* gbuffer_pipeline = NULL;
 Shader* main_shader = NULL;
 static Camera main_camera{};
 
@@ -91,6 +104,8 @@ u32 draw_count = 0;
 VkSampler texture_sampler = VK_NULL_HANDLE;
 VkDescriptorPool scene_desc_pool = VK_NULL_HANDLE;
 VkDescriptorSet scene_desc_set = VK_NULL_HANDLE;
+VkDescriptorPool gbuffer_desc_pool = VK_NULL_HANDLE;
+VkDescriptorSet gbuffer_desc_set = VK_NULL_HANDLE;
 
 void drawImgui();
 
@@ -253,6 +268,7 @@ void VulkanRenderer::Load(ReloadDesc* desc)
 
     if (reload_all || reload_resize || reload_shader)
     {
+        destroyGBufferDescriptors();
         destroySceneDescriptors();
         destroyPipeline();
     }
@@ -277,6 +293,7 @@ void VulkanRenderer::Load(ReloadDesc* desc)
     if (reload_all || reload_resize || reload_shader)
     {
         createSceneDescriptors();
+        createGBufferDescriptors();
     }
 }
 
@@ -290,6 +307,7 @@ void VulkanRenderer::UnLoad(ReloadDesc* desc)
 
     if (reload_all || reload_resize || reload_shader)
     {
+        destroyGBufferDescriptors();
         destroySceneDescriptors();
         destroyPipeline();
     }
@@ -317,7 +335,7 @@ void VulkanRenderer::Update(const RenderFrameData& frame_data)
     vulkan_buffer_upload(&context, &camera_ubo, &camera_data, sizeof(CameraUBO));
 }
 
-void VulkanRenderer::Draw()
+b8 VulkanRenderer::beginFrame()
 {
     context.current_frame = frame_number_++ % MAX_FRAME;
     VK_CHECK(vkWaitForFences(context.device_context.handle, 1,
@@ -330,20 +348,30 @@ void VulkanRenderer::Draw()
                                             &context.image_index))
     {
         std::cout << "image acquire failed" << std::endl;
-        return;
+        return false;
     }
 
     Command* command = &cmds[context.current_frame];
-    RenderTarget* rendertarget = swapchain->render_targets[context.current_frame];
-
     vulkan_command_pool_reset(command);
     vulkan_command_buffer_begin(command, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+    return true;
+}
 
-    // Present to RenderTarget
+void VulkanRenderer::basePass()
+{
+    Command* command = &cmds[context.current_frame];
+    RenderTarget* rendertarget = swapchain->render_targets[context.current_frame];
+
+    // Present to RenderTarget (swapchain only). For GBuffer, no swapchain barrier is needed here.
     TextureBarrier textureBarrier{};
-    textureBarrier.current_state = RESOURCE_STATE_PRESENT;
-    textureBarrier.new_state = RESOURCE_STATE_RENDER_TARGET;
-    textureBarrier.texture = rendertarget->texture;
+    u32 texture_barrier_count = 0;
+    if (!use_gbuffer)
+    {
+        textureBarrier.current_state = RESOURCE_STATE_PRESENT;
+        textureBarrier.new_state = RESOURCE_STATE_RENDER_TARGET;
+        textureBarrier.texture = rendertarget->texture;
+        texture_barrier_count = 1;
+    }
 
     RenderTargetBarrier render_target_barriers[1]{};
     u32 render_target_barrier_count = 0;
@@ -355,20 +383,40 @@ void VulkanRenderer::Draw()
         render_target_barrier_count = 1;
     }
 
-    vulkan_command_resource_barrier(command, NULL, 0, &textureBarrier, 1,
+    vulkan_command_resource_barrier(command, NULL, 0,
+                                    texture_barrier_count ? &textureBarrier : NULL,
+                                    texture_barrier_count,
                                     render_target_barriers, render_target_barrier_count);
 
-    RenderTarget* rendertargets = rendertarget;
-    RenderTargetOperator rendertarget_ops[2];
-    rendertarget_ops[0].load_op = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    rendertarget_ops[0].store_op = VK_ATTACHMENT_STORE_OP_STORE;
+    RenderTarget* color_targets[GBUFFER_COUNT];
+    u32 color_target_count = 0;
+    if (use_gbuffer && gbuffer_render_targets[0] != nullptr)
+    {
+        for (u32 i = 0; i < GBUFFER_COUNT; ++i)
+        {
+            color_targets[i] = gbuffer_render_targets[i];
+        }
+        color_target_count = GBUFFER_COUNT;
+    }
+    else
+    {
+        color_targets[0] = rendertarget;
+        color_target_count = 1;
+    }
 
-    rendertarget_ops[1].load_op = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    rendertarget_ops[1].store_op = VK_ATTACHMENT_STORE_OP_STORE;
+    RenderTargetOperator rendertarget_ops[MAX_COLOR_ATTACHMENT + 1];
+    for (u32 i = 0; i < color_target_count; ++i)
+    {
+        rendertarget_ops[i].load_op = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        rendertarget_ops[i].store_op = VK_ATTACHMENT_STORE_OP_STORE;
+    }
+    // Depth operator is placed after color ops.
+    rendertarget_ops[color_target_count].load_op = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    rendertarget_ops[color_target_count].store_op = VK_ATTACHMENT_STORE_OP_STORE;
 
     RenderDesc render_desc{};
-    render_desc.render_targets = &rendertargets;
-    render_desc.render_target_count = 1;
+    render_desc.render_targets = color_targets;
+    render_desc.render_target_count = color_target_count;
     render_desc.clear_color = {{0.0f, 0.0f, 0.0f, 1.0f}};
     render_desc.render_area = {{0, 0}, {app_state_->width, app_state_->height}};
     render_desc.render_target_operators = rendertarget_ops;
@@ -382,7 +430,12 @@ void VulkanRenderer::Draw()
 
     VkRect2D scissor = {{0, 0}, {app_state_->width, app_state_->height}};
     vkCmdSetScissor(command->buffer, 0, 1, &scissor);
-    vkCmdBindPipeline(command->buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, main_pipeline->handle);
+    Pipeline* active_pipeline = use_gbuffer ? gbuffer_pipeline : main_pipeline;
+    if (active_pipeline)
+    {
+        vkCmdBindPipeline(command->buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          active_pipeline->handle);
+    }
 
     if (scene_desc_set != VK_NULL_HANDLE && main_pipeline_layout)
     {
@@ -447,19 +500,117 @@ void VulkanRenderer::Draw()
     {
         vkCmdDraw(command->buffer, 3, 1, 0, 0);
     }
+}
 
-    // rendering imgui
-    render_desc.depth_target = NULL;
-    rendertarget_ops[0].load_op = VK_ATTACHMENT_LOAD_OP_LOAD;
+void VulkanRenderer::lightingPass()
+{
+    Command* command = &cmds[context.current_frame];
+    RenderTarget* swapchain_rt = swapchain->render_targets[context.current_frame];
+
+    // Transition GBuffer from render target to shader resource for sampling.
+    RenderTargetBarrier gbuffer_barriers[GBUFFER_COUNT] = {};
+    for (u32 i = 0; i < GBUFFER_COUNT; ++i)
+    {
+        gbuffer_barriers[i].render_target = gbuffer_render_targets[i];
+        gbuffer_barriers[i].current_state = RESOURCE_STATE_RENDER_TARGET;
+        gbuffer_barriers[i].new_state = RESOURCE_STATE_SHADER_RESOURCE;
+    }
+
+    // Ensure swapchain is in render-target state.
+    TextureBarrier swapchain_barrier{};
+    swapchain_barrier.current_state = RESOURCE_STATE_PRESENT;
+    swapchain_barrier.new_state = RESOURCE_STATE_RENDER_TARGET;
+    swapchain_barrier.texture = swapchain_rt->texture;
+
+    vulkan_command_resource_barrier(command, NULL, 0, &swapchain_barrier, 1,
+                                    gbuffer_barriers, GBUFFER_COUNT);
+
+    RenderTarget* color_targets = swapchain_rt;
+    RenderTargetOperator rendertarget_ops[2] = {};
+    rendertarget_ops[0].load_op = VK_ATTACHMENT_LOAD_OP_CLEAR;
     rendertarget_ops[0].store_op = VK_ATTACHMENT_STORE_OP_STORE;
+
+    RenderDesc render_desc{};
+    render_desc.render_targets = &color_targets;
+    render_desc.render_target_count = 1;
+    render_desc.clear_color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+    render_desc.render_area = {{0, 0}, {app_state_->width, app_state_->height}};
+    render_desc.render_target_operators = rendertarget_ops;
+    render_desc.depth_target = NULL;
+    render_desc.is_depth_stencil = false;
+
     vulkan_command_buffer_rendering(command, &render_desc);
 
-    drawImgui();
+    VkViewport viewport = {0, 0, app_state_->width, app_state_->height, 0.f, 1.f};
+    vkCmdSetViewport(command->buffer, 0, 1, &viewport);
+    VkRect2D scissor = {{0, 0}, {app_state_->width, app_state_->height}};
+    vkCmdSetScissor(command->buffer, 0, 1, &scissor);
 
+    if (gbuffer_resolve_pipeline && gbuffer_resolve_layout)
+    {
+        vkCmdBindPipeline(command->buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          gbuffer_resolve_pipeline->handle);
+        if (gbuffer_desc_set != VK_NULL_HANDLE)
+        {
+            vkCmdBindDescriptorSets(command->buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                    gbuffer_resolve_layout->handle, 0, 1, &gbuffer_desc_set, 0,
+                                    NULL);
+        }
+        vkCmdDraw(command->buffer, 3, 1, 0, 0);
+    }
+
+    // Transition GBuffer back to render-target for next frame.
+    for (u32 i = 0; i < GBUFFER_COUNT; ++i)
+    {
+        gbuffer_barriers[i].current_state = RESOURCE_STATE_SHADER_RESOURCE;
+        gbuffer_barriers[i].new_state = RESOURCE_STATE_RENDER_TARGET;
+    }
+    vulkan_command_resource_barrier(command, NULL, 0, NULL, 0, gbuffer_barriers, GBUFFER_COUNT);
+}
+
+void VulkanRenderer::debugPass()
+{
+    Command* command = &cmds[context.current_frame];
+    RenderTarget* rendertarget = swapchain->render_targets[context.current_frame];
+
+    if (use_gbuffer)
+    {
+        // Ensure swapchain image is in render-target state for imgui overlay.
+        TextureBarrier textureBarrier{};
+        textureBarrier.current_state = RESOURCE_STATE_PRESENT;
+        textureBarrier.new_state = RESOURCE_STATE_RENDER_TARGET;
+        textureBarrier.texture = rendertarget->texture;
+        vulkan_command_resource_barrier(command, NULL, 0, &textureBarrier, 1, NULL, 0);
+    }
+
+    RenderTarget* rendertargets = rendertarget;
+    RenderTargetOperator rendertarget_ops[2];
+    rendertarget_ops[0].load_op = VK_ATTACHMENT_LOAD_OP_LOAD;
+    rendertarget_ops[0].store_op = VK_ATTACHMENT_STORE_OP_STORE;
+
+    rendertarget_ops[1].load_op = VK_ATTACHMENT_LOAD_OP_LOAD;
+    rendertarget_ops[1].store_op = VK_ATTACHMENT_STORE_OP_STORE;
+
+    RenderDesc render_desc{};
+    render_desc.render_targets = &rendertargets;
+    render_desc.render_target_count = 1;
+    render_desc.render_area = {{0, 0}, {app_state_->width, app_state_->height}};
+    render_desc.render_target_operators = rendertarget_ops;
+    render_desc.depth_target = NULL;
+    render_desc.is_depth_stencil = false;
+
+    vulkan_command_buffer_rendering(command, &render_desc);
+    drawImgui();
     vulkan_command_buffer_rendering(command, NULL);
+}
+
+void VulkanRenderer::endFrame()
+{
+    Command* command = &cmds[context.current_frame];
+    RenderTarget* rendertarget = swapchain->render_targets[context.current_frame];
 
     // RenderTarget to Present
-    textureBarrier = {};
+    TextureBarrier textureBarrier{};
     textureBarrier.current_state = RESOURCE_STATE_RENDER_TARGET;
     textureBarrier.new_state = RESOURCE_STATE_PRESENT;
     textureBarrier.texture = rendertarget->texture;
@@ -490,6 +641,21 @@ void VulkanRenderer::Draw()
         vkDeviceWaitIdle(context.device_context.handle);
         vulkan_swapchain_recreate(&context, &swapchain);
     }
+}
+
+void VulkanRenderer::Draw()
+{
+    if (!beginFrame())
+    {
+        return;
+    }
+    basePass();
+    if (use_gbuffer)
+    {
+        lightingPass();
+    }
+    debugPass();
+    endFrame();
 }
 
 void drawImgui()
@@ -540,6 +706,7 @@ void VulkanRenderer::Shutdown()
         vulkan_command_pool_destroy(&context, &cmds[i]);
     }
 
+    destroyGBufferDescriptors();
     destroySceneDescriptors();
     destroyRenderTarget();
     destroyPipeline();
@@ -679,12 +846,18 @@ void VulkanRenderer::createShader()
 
     // Shader Create
     vulkan_shader_create(&context, &main_shader, &shader_load_desc);
+
+    ShaderLoadDesc gbuffer_shader_desc{};
+    gbuffer_shader_desc.names[SHADER_STAGE_VERTEX] = "gbuffer_resolve.vert";
+    gbuffer_shader_desc.names[SHADER_STAGE_FRAGMENT] = "gbuffer_resolve.frag";
+    vulkan_shader_create(&context, &gbuffer_resolve_shader, &gbuffer_shader_desc);
 }
 
 void VulkanRenderer::createPipeline()
 {
     // Pipeline Layout Create
     vulkan_pipeline_layout_create(&context, main_shader, &main_pipeline_layout);
+    vulkan_pipeline_layout_create(&context, gbuffer_resolve_shader, &gbuffer_resolve_layout);
 
     // Pipeline Create
     RasterizeDesc rasterize_desc{};
@@ -748,7 +921,7 @@ void VulkanRenderer::createPipeline()
     input_desc.attribute_count = 3;
 
     ColorBlendMode blend_mode = COLOR_BLEND_OPAQUE;
-    VkFormat color_attachment_format = swapchain->render_targets[0]->vulkan_format;
+    VkFormat swapchain_format = swapchain->render_targets[0]->vulkan_format;
 
     PipelineDesc pipeline_desc{};
     pipeline_desc.rasterize_desc = &rasterize_desc;
@@ -758,11 +931,53 @@ void VulkanRenderer::createPipeline()
     pipeline_desc.shader = main_shader;
     pipeline_desc.blend_modes = &blend_mode;
     pipeline_desc.color_attachment_count = 1;
-    pipeline_desc.color_attachment_formats = &color_attachment_format;
+    pipeline_desc.color_attachment_formats = &swapchain_format;
     pipeline_desc.depth_attachment_format = depth_render_target->vulkan_format;
     // pipeline_desc.stencil_attachment_format;
 
     vulkan_graphics_pipeline_create(&context, &pipeline_desc, &main_pipeline);
+
+    VkFormat gbuffer_formats[GBUFFER_COUNT] = {
+        gbuffer_render_targets[GBUFFER_ALBEDO]->vulkan_format,
+        gbuffer_render_targets[GBUFFER_NORMAL]->vulkan_format,
+        gbuffer_render_targets[GBUFFER_MR]->vulkan_format};
+
+    pipeline_desc.color_attachment_count = GBUFFER_COUNT;
+    pipeline_desc.color_attachment_formats = gbuffer_formats;
+
+    vulkan_graphics_pipeline_create(&context, &pipeline_desc, &gbuffer_pipeline);
+
+    // GBuffer resolve pipeline (fullscreen triangle, no depth)
+    RasterizeDesc resolve_rasterize = rasterize_desc;
+    resolve_rasterize.cull_mode = VK_CULL_MODE_NONE;
+
+    DepthStencilDesc resolve_depth{};
+    resolve_depth.depth_test_enable = VK_FALSE;
+    resolve_depth.depth_write_enable = VK_FALSE;
+    resolve_depth.depth_bounds_test_enable = VK_FALSE;
+    resolve_depth.depth_compare_op = VK_COMPARE_OP_ALWAYS;
+    resolve_depth.stencil_test_enable = VK_FALSE;
+
+    PipelineInputDesc resolve_input{};
+    resolve_input.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    resolve_input.is_primitive_restart = VK_FALSE;
+    resolve_input.bindings = NULL;
+    resolve_input.binding_count = 0;
+    resolve_input.attributes = NULL;
+    resolve_input.attribute_count = 0;
+
+    PipelineDesc resolve_desc{};
+    resolve_desc.rasterize_desc = &resolve_rasterize;
+    resolve_desc.depth_stencil_desc = &resolve_depth;
+    resolve_desc.input_desc = &resolve_input;
+    resolve_desc.layout = gbuffer_resolve_layout;
+    resolve_desc.shader = gbuffer_resolve_shader;
+    resolve_desc.blend_modes = &blend_mode;
+    resolve_desc.color_attachment_count = 1;
+    resolve_desc.color_attachment_formats = &swapchain_format;
+    resolve_desc.depth_attachment_format = VK_FORMAT_UNDEFINED;
+
+    vulkan_graphics_pipeline_create(&context, &resolve_desc, &gbuffer_resolve_pipeline);
 }
 
 void VulkanRenderer::createRenderTarget()
@@ -781,6 +996,46 @@ void VulkanRenderer::createRenderTarget()
     depth_rt_desc.descriptor_type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
 
     vulkan_rendertarget_create(&context, &depth_rt_desc, &depth_render_target);
+
+    // GBuffer scaffolding (not wired into rendering yet)
+    auto create_gbuffer_target = [&](RenderTarget** out_rt, VkFormat format, ClearValue clear)
+    {
+        RenderTargetDesc desc{};
+        desc.width = app_state_->width;
+        desc.height = app_state_->height;
+        desc.mip_levels = 1;
+        desc.sample_count = 1;
+        desc.vulkan_format = format;
+        desc.clear_value = clear;
+        desc.start_state = RESOURCE_STATE_RENDER_TARGET;
+        desc.descriptor_type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+        vulkan_rendertarget_create(&context, &desc, out_rt);
+    };
+
+    ClearValue albedo_clear{};
+    albedo_clear.r = 0.0f;
+    albedo_clear.g = 0.0f;
+    albedo_clear.b = 0.0f;
+    albedo_clear.a = 1.0f;
+
+    ClearValue normal_clear{};
+    normal_clear.r = 0.5f;
+    normal_clear.g = 0.5f;
+    normal_clear.b = 1.0f;
+    normal_clear.a = 1.0f;
+
+    ClearValue mr_clear{};
+    mr_clear.r = 0.0f;
+    mr_clear.g = 0.0f;
+    mr_clear.b = 0.0f;
+    mr_clear.a = 1.0f;
+
+    create_gbuffer_target(&gbuffer_render_targets[GBUFFER_ALBEDO], VK_FORMAT_R8G8B8A8_UNORM,
+                          albedo_clear);
+    create_gbuffer_target(&gbuffer_render_targets[GBUFFER_NORMAL], VK_FORMAT_R16G16B16A16_SFLOAT,
+                          normal_clear);
+    create_gbuffer_target(&gbuffer_render_targets[GBUFFER_MR], VK_FORMAT_R8G8B8A8_UNORM,
+                          mr_clear);
 }
 
 void VulkanRenderer::createBuffer()
@@ -940,12 +1195,107 @@ void VulkanRenderer::createSceneDescriptors()
     vkUpdateDescriptorSets(context.device_context.handle, 4, writes, 0, nullptr);
 }
 
+void VulkanRenderer::createGBufferDescriptors()
+{
+    if (!gbuffer_resolve_layout || gbuffer_resolve_layout->set_layouts[0] == VK_NULL_HANDLE)
+    {
+        return;
+    }
+
+    if (gbuffer_desc_pool != VK_NULL_HANDLE)
+    {
+        destroyGBufferDescriptors();
+    }
+
+    VkDescriptorPoolSize pool_sizes[] = {{VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1},
+                                         {VK_DESCRIPTOR_TYPE_SAMPLER, 1}};
+
+    VkDescriptorPoolCreateInfo pool_info{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+    pool_info.poolSizeCount = 2;
+    pool_info.pPoolSizes = pool_sizes;
+    pool_info.maxSets = 1;
+
+    VK_CHECK(vkCreateDescriptorPool(context.device_context.handle, &pool_info, context.allocator,
+                                    &gbuffer_desc_pool));
+
+    VkDescriptorSetLayout layout = gbuffer_resolve_layout->set_layouts[0];
+    VkDescriptorSetAllocateInfo allocate_info{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+    allocate_info.descriptorPool = gbuffer_desc_pool;
+    allocate_info.descriptorSetCount = 1;
+    allocate_info.pSetLayouts = &layout;
+
+    VK_CHECK(
+        vkAllocateDescriptorSets(context.device_context.handle, &allocate_info, &gbuffer_desc_set));
+
+    if (texture_sampler == VK_NULL_HANDLE)
+    {
+        VkSamplerCreateInfo sampler_info{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+        sampler_info.magFilter = VK_FILTER_LINEAR;
+        sampler_info.minFilter = VK_FILTER_LINEAR;
+        sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        sampler_info.mipLodBias = 0.0f;
+        sampler_info.anisotropyEnable = VK_FALSE;
+        sampler_info.maxAnisotropy = 1.0f;
+        sampler_info.compareEnable = VK_FALSE;
+        sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
+        sampler_info.minLod = 0.0f;
+        sampler_info.maxLod = 0.0f;
+        sampler_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+        sampler_info.unnormalizedCoordinates = VK_FALSE;
+        VK_CHECK(vkCreateSampler(context.device_context.handle, &sampler_info, context.allocator,
+                                 &texture_sampler));
+    }
+
+    VkDescriptorImageInfo image_info{};
+    image_info.imageView = gbuffer_render_targets[GBUFFER_ALBEDO]->descriptor;
+    image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    VkDescriptorImageInfo sampler_info{};
+    sampler_info.sampler = texture_sampler;
+
+    VkWriteDescriptorSet writes[2] = {};
+    writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writes[0].dstSet = gbuffer_desc_set;
+    writes[0].dstBinding = 0;
+    writes[0].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    writes[0].descriptorCount = 1;
+    writes[0].pImageInfo = &image_info;
+
+    writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writes[1].dstSet = gbuffer_desc_set;
+    writes[1].dstBinding = 1;
+    writes[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+    writes[1].descriptorCount = 1;
+    writes[1].pImageInfo = &sampler_info;
+
+    vkUpdateDescriptorSets(context.device_context.handle, 2, writes, 0, nullptr);
+}
+
+void VulkanRenderer::destroyGBufferDescriptors()
+{
+    if (gbuffer_desc_pool != VK_NULL_HANDLE)
+    {
+        vkDestroyDescriptorPool(context.device_context.handle, gbuffer_desc_pool, context.allocator);
+        gbuffer_desc_pool = VK_NULL_HANDLE;
+        gbuffer_desc_set = VK_NULL_HANDLE;
+    }
+}
+
 void VulkanRenderer::destroyShader()
 {
     if (main_shader)
     {
         vulkan_shader_destroy(&context, main_shader);
         main_shader = nullptr;
+    }
+
+    if (gbuffer_resolve_shader)
+    {
+        vulkan_shader_destroy(&context, gbuffer_resolve_shader);
+        gbuffer_resolve_shader = nullptr;
     }
 }
 
@@ -958,11 +1308,25 @@ void VulkanRenderer::destroyPipeline()
         main_pipeline = nullptr;
     }
 
+    if (gbuffer_pipeline)
+    {
+        vulkan_graphics_pipeline_destroy(&context, gbuffer_pipeline);
+        free(gbuffer_pipeline);
+        gbuffer_pipeline = nullptr;
+    }
+
     if (main_pipeline_layout)
     {
         vulkan_pipeline_layout_destroy(&context, main_pipeline_layout);
         free(main_pipeline_layout);
         main_pipeline_layout = nullptr;
+    }
+
+    if (gbuffer_resolve_layout)
+    {
+        vulkan_pipeline_layout_destroy(&context, gbuffer_resolve_layout);
+        free(gbuffer_resolve_layout);
+        gbuffer_resolve_layout = nullptr;
     }
 }
 
@@ -972,6 +1336,15 @@ void VulkanRenderer::destroyRenderTarget()
     {
         vulkan_rendertarget_destroy(&context, depth_render_target);
         depth_render_target = nullptr;
+    }
+
+    for (u32 i = 0; i < GBUFFER_COUNT; ++i)
+    {
+        if (gbuffer_render_targets[i])
+        {
+            vulkan_rendertarget_destroy(&context, gbuffer_render_targets[i]);
+            gbuffer_render_targets[i] = nullptr;
+        }
     }
 }
 

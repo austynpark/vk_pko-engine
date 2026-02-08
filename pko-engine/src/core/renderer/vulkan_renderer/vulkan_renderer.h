@@ -21,17 +21,25 @@ public:
 	// b8 OnResize(u32 w, u32 h) override;
 
 private:
+	b8 beginFrame();
+	void basePass();
+	void lightingPass();
+	void debugPass();
+	void endFrame();
+
 	void createShader();
 	void createPipeline();
 	void createRenderTarget();
 	void createBuffer();
 	void createSceneDescriptors();
+	void createGBufferDescriptors();
 
 	void destroyShader();
 	void destroyPipeline();
 	void destroyRenderTarget();
 	void destroyBuffer();
 	void destroySceneDescriptors();
+	void destroyGBufferDescriptors();
 	void destroyMeshResources();
 
 	void initImgui();
