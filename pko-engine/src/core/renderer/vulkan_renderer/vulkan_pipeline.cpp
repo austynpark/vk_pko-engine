@@ -2,6 +2,7 @@
 
 #include "vulkan_types.inl"
 #include <stb_ds.h>
+#include <string.h>
 
 VkShaderStageFlagBits get_vulkan_shader_stage_flag(u32 shader_index)
 {
@@ -115,6 +116,7 @@ void vulkan_pipeline_layout_create(RenderContext* context, Shader* shader,
     }
 
     VkDescriptorSetLayoutBinding* binding_map[MAX_DESCRIPTOR_SET_LAYOUT] = {};
+    VkDescriptorBindingFlags* binding_flags_map[MAX_DESCRIPTOR_SET_LAYOUT] = {};
     VkPushConstantRange push_constant_ranges[MAX_SHADER_STAGE_COUNT] = {};
     u32 push_constant_count = 0;
 
@@ -128,26 +130,64 @@ void vulkan_pipeline_layout_create(RenderContext* context, Shader* shader,
         {
             VkDescriptorSetLayoutBinding layout_binding{};
             layout_binding.binding = binding;
-            layout_binding.descriptorCount = resources[resource_index].mSize;
+
+            if ((resources[resource_index].type == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE) &&
+                resources[resource_index].name &&
+                (strcmp(resources[resource_index].name, "uTextures") == 0))
+            {
+                layout_binding.descriptorCount = MAX_BINDLESS_TEXTURES;
+            }
+            else
+            {
+                layout_binding.descriptorCount = 1;
+            }
             layout_binding.descriptorType = resources[resource_index].type;
             layout_binding.pImmutableSamplers = VK_NULL_HANDLE;
             layout_binding.stageFlags = resources[resource_index].stage_flags;
 
             arrput(binding_map[set], layout_binding);
+
+            VkDescriptorBindingFlags binding_flags = 0;
+            if ((resources[resource_index].type == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE) &&
+                resources[resource_index].name &&
+                (strcmp(resources[resource_index].name, "uTextures") == 0))
+            {
+                binding_flags = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT |
+                                VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
+            }
+            arrput(binding_flags_map[set], binding_flags);
         }
         else
         {
-            push_constant_ranges[push_constant_count].offset = 0;
-            push_constant_ranges[push_constant_count].size = resources[resource_index].mSize;
-            push_constant_ranges[push_constant_count].stageFlags =
-                resources[resource_index].stage_flags;
-            push_constant_count++;
+            const u32 pc_offset = 0;
+            const u32 pc_size = resources[resource_index].mSize;
+            bool merged = false;
+            for (u32 i = 0; i < push_constant_count; ++i)
+            {
+                if (push_constant_ranges[i].offset == pc_offset &&
+                    push_constant_ranges[i].size == pc_size)
+                {
+                    push_constant_ranges[i].stageFlags |= resources[resource_index].stage_flags;
+                    merged = true;
+                    break;
+                }
+            }
+
+            if (!merged)
+            {
+                push_constant_ranges[push_constant_count].offset = pc_offset;
+                push_constant_ranges[push_constant_count].size = pc_size;
+                push_constant_ranges[push_constant_count].stageFlags =
+                    resources[resource_index].stage_flags;
+                push_constant_count++;
+            }
         }
     }
 
     for (u32 layout_index = 0; layout_index < MAX_DESCRIPTOR_SET_LAYOUT; ++layout_index)
     {
         VkDescriptorSetLayoutBinding* bindings = binding_map[layout_index];
+        VkDescriptorBindingFlags* binding_flags = binding_flags_map[layout_index];
 
         u32 binding_count = arrlen(bindings);
 
@@ -158,7 +198,28 @@ void vulkan_pipeline_layout_create(RenderContext* context, Shader* shader,
             layout_create_info.pBindings = bindings;
             layout_create_info.bindingCount = binding_count;
             layout_create_info.flags = 0;
+
+            VkDescriptorSetLayoutBindingFlagsCreateInfo binding_flags_info{};
+            binding_flags_info.sType =
+                VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
+            binding_flags_info.pBindingFlags = binding_flags;
+            binding_flags_info.bindingCount = binding_count;
             layout_create_info.pNext = VK_NULL_HANDLE;
+
+            bool has_update_after_bind = false;
+            for (u32 i = 0; i < binding_count; ++i)
+            {
+                if (binding_flags[i] & VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT)
+                {
+                    has_update_after_bind = true;
+                    break;
+                }
+            }
+            if (has_update_after_bind)
+            {
+                layout_create_info.flags |= VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
+                layout_create_info.pNext = &binding_flags_info;
+            }
 
             VK_CHECK(vkCreateDescriptorSetLayout(context->device_context.handle,
                                                  &layout_create_info, VK_NULL_HANDLE,
@@ -192,6 +253,10 @@ void vulkan_pipeline_layout_create(RenderContext* context, Shader* shader,
     *out_layout = layout;
 
     arrfree(resources);
+    for (u32 layout_index = 0; layout_index < MAX_DESCRIPTOR_SET_LAYOUT; ++layout_index)
+    {
+        arrfree(binding_flags_map[layout_index]);
+    }
 }
 
 void vulkan_pipeline_layout_destroy(RenderContext* context, PipelineLayout* layout)

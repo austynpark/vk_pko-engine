@@ -11,7 +11,8 @@
 #include <glm/gtx/transform.hpp>
 #include <iostream>
 
-enum class camera_movement {
+enum class camera_movement
+{
     FORWARD,
     BACKWARD,
     LEFT,
@@ -25,25 +26,28 @@ const float SPEED = 2.5f;
 const float SENSITIVITY = 0.1f;
 const float ZOOM = 45.0f;
 
-struct camera {
-	glm::vec3 pos;
-	glm::vec3 front;
-	glm::vec3 up;
-	glm::vec3 right;
-	glm::vec3 world_up;
+struct Camera
+{
+    glm::vec3 pos;
+    glm::vec3 front;
+    glm::vec3 up;
+    glm::vec3 right;
+    glm::vec3 world_up;
 
-	f32 yaw;
-	f32 pitch;
+    f32 yaw;
+    f32 pitch;
 
-	f32 movement_speed;
-	f32 mouse_sensitivity;
-	f32 zoom;
+    f32 movement_speed;
+    f32 mouse_sensitivity;
+    f32 zoom;
 
-    void init(glm::vec3 position = glm::vec3(0.0f, 0.0f, 10.0f), glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f));
+    void init(glm::vec3 position = glm::vec3(0.0f, 0.0f, 10.0f),
+              glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f));
     // returns the view matrix calculated using Euler Angles and the LookAt Matrix
     glm::mat4 get_view_matrix();
 
-	// processes input received from any keyboard-like input system. Accepts input parameter in the form of camera defined ENUM (to abstract it from windowing systems)
+    // processes input received from any keyboard-like input system. Accepts input parameter in the
+    // form of camera defined ENUM (to abstract it from windowing systems)
     void process_keyboard(camera_movement direction, f32 deltaTime)
     {
         f32 velocity = movement_speed * deltaTime;
@@ -57,7 +61,8 @@ struct camera {
             pos += right * velocity;
     }
 
-    // processes input received from a mouse input system. Expects the offset value in both the x and y direction.
+    // processes input received from a mouse input system. Expects the offset value in both the x
+    // and y direction.
     void process_mouse_movement(f32 xoffset, f32 yoffset, b8 constrainPitch = true)
     {
         xoffset *= mouse_sensitivity;
@@ -81,9 +86,6 @@ struct camera {
 
     void process_keyboard_rotate(f32 xoffset, f32 yoffset)
     {
-        std::cout << "yaw :" << yaw << std::endl;
-        std::cout << "pitch :" << pitch << std::endl;
-
         yaw += xoffset;
         pitch += yoffset;
 
@@ -95,7 +97,8 @@ struct camera {
         update_camera_vectors();
     }
 
-    // processes input received from a mouse scroll-wheel event. Only requires input on the vertical wheel-axis
+    // processes input received from a mouse scroll-wheel event. Only requires input on the vertical
+    // wheel-axis
     void process_mouse_scroll(float yoffset)
     {
         zoom -= (float)yoffset;
@@ -116,8 +119,8 @@ struct camera {
         if (zoom < 1.0f)
             zoom = 1.0f;
     }
-	
-private:
+
+   private:
     // calculates the front vector from the Camera's (updated) Euler Angles
     void update_camera_vectors()
     {
@@ -129,9 +132,12 @@ private:
         this->front = glm::normalize(front);
 
         // also re-calculate the Right and Up vector
-        right = glm::normalize(glm::cross(this->front, world_up));  // normalize the vectors, because their length gets closer to 0 the more you look up or down which results in slower movement.
+        right = glm::normalize(glm::cross(
+            this->front,
+            world_up));  // normalize the vectors, because their length gets closer to 0 the more
+                         // you look up or down which results in slower movement.
         up = glm::normalize(glm::cross(right, this->front));
     }
 };
 
-#endif // !CAMERA_H
+#endif  // !CAMERA_H

@@ -3,7 +3,7 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/transform.hpp>
 
-void camera::init(glm::vec3 position, glm::vec3 up)
+void Camera::init(glm::vec3 position, glm::vec3 up)
 {
     front = glm::vec3(0.0f, 0.0f, -1.0f);
     movement_speed = SPEED;
@@ -16,7 +16,7 @@ void camera::init(glm::vec3 position, glm::vec3 up)
     update_camera_vectors();
 }
 
-glm::mat4 camera::get_view_matrix()
+glm::mat4 Camera::get_view_matrix()
 {
-	return glm::lookAt(pos, pos + front, up);
+    return glm::lookAt(pos, pos + front, up);
 }

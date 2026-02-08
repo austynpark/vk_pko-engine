@@ -255,7 +255,7 @@ b8 check_physical_device_requirements(VkPhysicalDevice device, VkSurfaceKHR surf
             if (strcmp(extension_properties.at(k).extensionName,
                        requirements->extensions_name[i]) == 0)
             {
-                std::cout << requirements->extensions_name[i] << " is missing" << std::endl;
+                std::cout << requirements->extensions_name[i] << " is found" << std::endl;
                 found = true;
                 break;
             }

@@ -1,72 +1,72 @@
 #ifndef VULKAN_MESH_H
 #define VULKAN_MESH_H
 
-#include "vulkan_types.inl"
-
 #include "vulkan_image.h"
-
 #include <glm/glm.hpp>
 
-#include <assimp/Importer.hpp>
-#include <assimp/scene.h>
-#include <assimp/postprocess.h>
+struct RenderContext;
+struct cgltf_data;
 
-#include <memory>
-#include <vector>
-#include <string>
-
-struct model_constant
+typedef struct ModelConstants
 {
-    glm::mat4 model;
-    glm::mat3 normal_matrix;
-    glm::vec3 padding;
-};
+	glm::mat4 model;
+	glm::mat3 normal_matrix;
+	glm::vec3 padding;
+} ModelConstants;
 
-struct Vertex
+typedef struct RawImageData
 {
-    glm::vec3 position;
-    glm::vec3 normal;
-    glm::vec2 uv;
-};
+	void* pixels;
+	u32 width;
+	u32 height;
+	u32 channels;
+	u32 size;
+} RawImageData;
 
-struct Mesh
+typedef struct MeshRange
 {
-    std::vector<Vertex> vertices;
-    std::vector<u32> indices;
-    std::vector<Texture> textures;
-    glm::mat4 transform_matrix;
-};
+	u32 vertex_offset;
+	u32 vertex_count;
+	u32 index_offset;
+	u32 index_count;
+	u32 material_index;
+} MeshRange;
 
-class vulkan_render_object
+typedef struct MaterialInfo
 {
-   public:
-    vulkan_render_object(VulkanContext* pContext, const char* path);
-    void upload_mesh();
-    void vulkan_render_object_destroy();
-    ~vulkan_render_object();
+	u32 base_color_texture_index;
+	u32 normal_texture_index;
+	u32 metallic_roughness_texture_index;
+	u32 occlusion_texture_index;
+} MaterialInfo;
 
-    void load_model(std::string path);
+typedef struct MeshInstance
+{
+	glm::mat4 model_matrix;
+	u32 range_index;
+} MeshInstance;
 
-    std::vector<Mesh> meshes;
+typedef struct Mesh
+{
+	f32* positions;
+	f32* normals;
+	f32* uvs;
+	u32* indices;
+	MeshRange* ranges;
+	MeshInstance* instances;
+	MaterialInfo* materials;
+	u32 material_count;
+} Mesh;
 
-    std::vector<Buffer> vertex_buffers;
-    std::vector<Buffer> index_buffers;
+b8 create_deinterleaved_mesh_buffers(RenderContext* context, const Mesh* mesh,
+	Buffer* out_positions, Buffer* out_normals, Buffer* out_uvs,
+	Buffer* out_indices, u32* out_vertex_count,
+	u32* out_index_count);
 
-    glm::mat4 get_transform_matrix() const;
-    void rotate(float degree, glm::vec3 axis);
-    void draw(VkCommandBuffer command_buffer);
+// GLTF Loaded to single Mesh
+b8 load_gltf_from_file(RenderContext* context, const char* filename, Mesh** out_meshes,
+	Texture** out_textures);
 
-    glm::vec3 position;
-    glm::vec3 scale;
-    glm::vec3 rotation;
-
-   private:
-    void process_node(aiNode* node, const aiScene* scene);
-    Mesh process_mesh(aiMesh* mesh, const aiScene* scene);
-    std::vector<Texture> load_material_textures(aiMaterial* mat, aiTextureType type,
-                                                std::string typeName);
-
-    VulkanContext* pContext;
-};
+void free_mesh(Mesh* mesh, u32 mesh_count);
 
 #endif  // !VULKAN_MESH_H

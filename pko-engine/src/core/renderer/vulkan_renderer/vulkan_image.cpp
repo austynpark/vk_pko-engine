@@ -7,9 +7,9 @@
 #include "vulkan_types.inl"
 
 #define STB_IMAGE_IMPLEMENTATION
-#include <iostream>
-
 #include "stb_image.h"
+
+#include <iostream>
 
 b8 vulkan_rendertarget_create(RenderContext* context, RenderTargetDesc* desc,
                               RenderTarget** out_render_target)
@@ -108,6 +108,8 @@ b8 vulkan_rendertarget_create(RenderContext* context, RenderTargetDesc* desc,
         vkQueueSubmit(context->device_context.graphics_queue, 1, &submit_info, VK_NULL_HANDLE));
     vkQueueWaitIdle(context->device_context.graphics_queue);
 
+    vulkan_command_pool_destroy(context, &oneTimeSubmit);
+
     *out_render_target = render_target;
 
     return true;
@@ -123,7 +125,7 @@ void vulkan_rendertarget_destroy(RenderContext* context, RenderTarget* render_ta
                            context->allocator);
     }
 
-    if (render_target->array_descriptors)
+    if (render_target->mip_levels > 1)
     {
         for (u32 i = 0; i < render_target->mip_levels; ++i)
         {
@@ -473,10 +475,10 @@ VkImageUsageFlags descriptor_type_to_vulkan_image_usage(VkDescriptorType type)
 {
     VkImageUsageFlags flags = 0;
 
-    if (type & VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE)
+    if (type == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE)
         flags |= VK_IMAGE_USAGE_SAMPLED_BIT;
 
-    if (type & VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
+    if (type == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
         flags |= VK_IMAGE_USAGE_STORAGE_BIT;
 
     return flags;
@@ -497,6 +499,9 @@ VkImageUsageFlags resource_state_to_vulkan_image_usage(ResourceState state)
 
     if (state & RESOURCE_STATE_COPY_SOURCE)
         flags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+
+    if (state & RESOURCE_STATE_UNORDERED_ACCESS)
+        flags |= VK_IMAGE_USAGE_STORAGE_BIT;
 
     return flags;
 }
@@ -548,6 +553,15 @@ VkImageLayout resource_state_to_vulkan_image_layout(ResourceState state)
             break;
         case RESOURCE_STATE_DEPTH_READ:
             result = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL;
+            break;
+        case RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE:
+        case RESOURCE_STATE_PIXEL_SHADER_RESOURCE:
+        case RESOURCE_STATE_SHADER_RESOURCE:
+            result = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            break;
+        case RESOURCE_STATE_UNORDERED_ACCESS:
+            result = VK_IMAGE_LAYOUT_GENERAL;
+            break;
         case RESOURCE_STATE_PRESENT:
             result = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
             break;
@@ -568,17 +582,13 @@ void vulkan_texture_create(RenderContext* context, TextureDesc* desc, Texture** 
     assert(desc);
     assert(ptexture);
 
-    Texture* texture = (Texture*)alloc_aligned_memory(
-        sizeof(Texture) + desc->type & VK_DESCRIPTOR_TYPE_STORAGE_IMAGE
-            ? sizeof(VkImageView) * desc->mip_levels
-            : 0,
-        16);
-    memset(texture, 0,
-           sizeof(sizeof(Texture) + desc->type & VK_DESCRIPTOR_TYPE_STORAGE_IMAGE
-                      ? sizeof(VkImageView) * desc->mip_levels
-                      : 0));
+    const u64 extra_views =
+        (desc->type & VK_DESCRIPTOR_TYPE_STORAGE_IMAGE) ? (sizeof(VkImageView) * desc->mip_levels)
+                                                        : 0;
+    Texture* texture = (Texture*)alloc_aligned_memory(sizeof(Texture) + extra_views, 16);
+    memset(texture, 0, sizeof(Texture) + extra_views);
 
-    if (desc->type & VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
+    if ((desc->type & VK_DESCRIPTOR_TYPE_STORAGE_IMAGE) == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
         texture->uav_descriptors = (VkImageView*)(texture + 1);
 
     if (desc->native_handle == NULL)
@@ -645,13 +655,13 @@ void vulkan_texture_create(RenderContext* context, TextureDesc* desc, Texture** 
     viewCreateInfo.subresourceRange.aspectMask = format_to_vulkan_image_aspect(desc->vulkan_format);
     texture->aspect_mask = format_to_vulkan_image_aspect(desc->vulkan_format);
 
-    if (desc->type & VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE)
+    if ((desc->type & VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE) == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE)
     {
         VK_CHECK(vkCreateImageView(context->device_context.handle, &viewCreateInfo,
                                    context->allocator, &texture->srv_descriptor));
     }
 
-    if (desc->type & VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
+    if ((desc->type & VK_DESCRIPTOR_TYPE_STORAGE_IMAGE) == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
     {
         viewCreateInfo.subresourceRange.levelCount = 1;
         for (u32 i = 0; i < desc->mip_levels; ++i)
@@ -676,7 +686,7 @@ void vulkan_texture_destroy(RenderContext* context, Texture* texture)
                            context->allocator);
     }
 
-    if (texture->uav_descriptors)
+    if (texture->mip_levels > 1)
     {
         for (u32 i = 0; i < texture->mip_levels; ++i)
         {
@@ -734,21 +744,17 @@ b8 load_image_from_file(RenderContext* context, const char* file, Texture* textu
 
     vulkan_command_buffer_begin(&one_time_submit, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-    // vulkan_image_layout_transition(
-    //     out_image,
-    //     &one_time_submit,
-    //     VK_IMAGE_LAYOUT_UNDEFINED,
-    //     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-    //     0,
-    //     VK_ACCESS_TRANSFER_WRITE_BIT,
-    //     VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-    //     VK_PIPELINE_STAGE_TRANSFER_BIT
-    //);
+    // transition image to transfer destination
+    TextureBarrier textureBarrier{};
+    textureBarrier.texture = texture;
+    textureBarrier.current_state = RESOURCE_STATE_UNDEFINED;
+    textureBarrier.new_state = RESOURCE_STATE_COPY_DEST;
+    vulkan_command_resource_barrier(&one_time_submit, NULL, 0, &textureBarrier, 1, NULL, 0);
 
     VkBufferImageCopy copy_region = {};
     copy_region.bufferOffset = 0;
-    copy_region.bufferRowLength = 0;
-    copy_region.bufferImageHeight = 0;
+    copy_region.bufferRowLength = texture->width;
+    copy_region.bufferImageHeight = texture->height;
 
     // TODO: mipmap
     copy_region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -761,16 +767,10 @@ b8 load_image_from_file(RenderContext* context, const char* file, Texture* textu
     vkCmdCopyBufferToImage(one_time_submit.buffer, staging_buffer.handle, texture->image,
                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region);
 
-    // vulkan_image_layout_transition(
-    //     out_image,
-    //     &one_time_submit,
-    //     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-    //     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-    //     VK_ACCESS_TRANSFER_WRITE_BIT,
-    //     VK_ACCESS_SHADER_READ_BIT,
-    //     VK_PIPELINE_STAGE_TRANSFER_BIT,
-    //     VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
-    //);
+    // transition image for shader access
+    textureBarrier.current_state = RESOURCE_STATE_COPY_DEST;
+    textureBarrier.new_state = RESOURCE_STATE_SHADER_RESOURCE;
+    vulkan_command_resource_barrier(&one_time_submit, NULL, 0, &textureBarrier, 1, NULL, 0);
 
     vulkan_command_buffer_end(&one_time_submit);
 

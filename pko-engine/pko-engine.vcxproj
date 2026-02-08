@@ -32,6 +32,17 @@
     <ClInclude Include="src\core\renderer\vulkan_renderer\vulkan_image.h" />
     <ClInclude Include="src\defines.h" />
     <ClInclude Include="src\platform\platform.h" />
+    <ClInclude Include="vendor\basis_universal\transcoder\basisu.h" />
+    <ClInclude Include="vendor\basis_universal\transcoder\basisu_astc_hdr_core.h" />
+    <ClInclude Include="vendor\basis_universal\transcoder\basisu_astc_helpers.h" />
+    <ClInclude Include="vendor\basis_universal\transcoder\basisu_containers.h" />
+    <ClInclude Include="vendor\basis_universal\transcoder\basisu_containers_impl.h" />
+    <ClInclude Include="vendor\basis_universal\transcoder\basisu_file_headers.h" />
+    <ClInclude Include="vendor\basis_universal\transcoder\basisu_transcoder.h" />
+    <ClInclude Include="vendor\basis_universal\transcoder\basisu_transcoder_internal.h" />
+    <ClInclude Include="vendor\basis_universal\transcoder\basisu_transcoder_uastc.h" />
+    <ClInclude Include="vendor\basis_universal\zstd\zstd.h" />
+    <ClInclude Include="vendor\cgltf.h" />
     <ClInclude Include="vendor\imgui\backends\imgui_impl_vulkan.h" />
     <ClInclude Include="vendor\imgui\backends\imgui_impl_win32.h" />
     <ClInclude Include="vendor\imgui\imconfig.h" />
@@ -92,6 +103,8 @@
     <ClCompile Include="src\core\renderer\vulkan_renderer\vulkan_image.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\platform\platform_win32.cpp" />
+    <ClCompile Include="vendor\basis_universal\transcoder\basisu_transcoder.cpp" />
+    <ClCompile Include="vendor\basis_universal\zstd\zstd.c" />
     <ClCompile Include="vendor\imgui\backends\imgui_impl_vulkan.cpp" />
     <ClCompile Include="vendor\imgui\backends\imgui_impl_win32.cpp" />
     <ClCompile Include="vendor\imgui\imgui.cpp" />
@@ -117,10 +130,22 @@
     <ClCompile Include="vendor\stb_ds.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="shader\mesh_basic.frag" />
+    <None Include="shader\mesh_basic.vert" />
     <None Include="shader\test.frag" />
     <None Include="shader\test.vert" />
     <None Include="src\core\renderer\vulkan_renderer\list_of_functions.inl" />
     <None Include="src\core\renderer\vulkan_renderer\vulkan_types.inl" />
+    <None Include="vendor\basis_universal\transcoder\basisu_transcoder_tables_astc.inc" />
+    <None Include="vendor\basis_universal\transcoder\basisu_transcoder_tables_astc_0_255.inc" />
+    <None Include="vendor\basis_universal\transcoder\basisu_transcoder_tables_atc_55.inc" />
+    <None Include="vendor\basis_universal\transcoder\basisu_transcoder_tables_atc_56.inc" />
+    <None Include="vendor\basis_universal\transcoder\basisu_transcoder_tables_bc7_m5_alpha.inc" />
+    <None Include="vendor\basis_universal\transcoder\basisu_transcoder_tables_bc7_m5_color.inc" />
+    <None Include="vendor\basis_universal\transcoder\basisu_transcoder_tables_dxt1_5.inc" />
+    <None Include="vendor\basis_universal\transcoder\basisu_transcoder_tables_dxt1_6.inc" />
+    <None Include="vendor\basis_universal\transcoder\basisu_transcoder_tables_pvrtc2_45.inc" />
+    <None Include="vendor\basis_universal\transcoder\basisu_transcoder_tables_pvrtc2_alpha_33.inc" />
     <None Include="vendor\SPIRV-Cross\LICENSE" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

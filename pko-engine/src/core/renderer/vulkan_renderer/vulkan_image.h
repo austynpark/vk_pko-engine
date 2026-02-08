@@ -28,7 +28,7 @@ b8 vulkan_swapchain_recreate(RenderContext* context, VulkanSwapchain** out_swapc
 void vulkan_swapchain_get_support_info(RenderContext* context,
                                        VulkanSwapchainSupportInfo* out_support_info);
 
-b8 load_image_from_file(RenderContext* context, const char* pFile, Texture* texture);
+//b8 load_image_from_file(RenderContext* context, const char* pFile, Texture* texture);
 
 b8 acquire_next_image_index_swapchain(RenderContext* context, VulkanSwapchain* swapchain,
                                       u64 timeout_ns, VkSemaphore semaphore, VkFence fence,

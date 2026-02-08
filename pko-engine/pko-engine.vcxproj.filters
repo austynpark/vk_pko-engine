@@ -195,6 +195,39 @@
     <ClInclude Include="vendor\stb_ds.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="vendor\basis_universal\transcoder\basisu.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vendor\basis_universal\transcoder\basisu_astc_hdr_core.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vendor\basis_universal\transcoder\basisu_astc_helpers.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vendor\basis_universal\transcoder\basisu_containers.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vendor\basis_universal\transcoder\basisu_containers_impl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vendor\basis_universal\transcoder\basisu_file_headers.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vendor\basis_universal\transcoder\basisu_transcoder.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vendor\basis_universal\transcoder\basisu_transcoder_internal.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vendor\basis_universal\transcoder\basisu_transcoder_uastc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vendor\cgltf.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vendor\basis_universal\zstd\zstd.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -314,6 +347,12 @@
     <ClCompile Include="vendor\stb_ds.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="vendor\basis_universal\transcoder\basisu_transcoder.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vendor\basis_universal\zstd\zstd.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="src\core\renderer\vulkan_renderer\vulkan_types.inl">
@@ -325,5 +364,37 @@
     <None Include="shader\test.vert" />
     <None Include="shader\test.frag" />
     <None Include="vendor\SPIRV-Cross\LICENSE" />
+    <None Include="vendor\basis_universal\transcoder\basisu_transcoder_tables_astc.inc">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="vendor\basis_universal\transcoder\basisu_transcoder_tables_astc_0_255.inc">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="vendor\basis_universal\transcoder\basisu_transcoder_tables_atc_55.inc">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="vendor\basis_universal\transcoder\basisu_transcoder_tables_atc_56.inc">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="vendor\basis_universal\transcoder\basisu_transcoder_tables_bc7_m5_alpha.inc">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="vendor\basis_universal\transcoder\basisu_transcoder_tables_bc7_m5_color.inc">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="vendor\basis_universal\transcoder\basisu_transcoder_tables_dxt1_5.inc">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="vendor\basis_universal\transcoder\basisu_transcoder_tables_dxt1_6.inc">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="vendor\basis_universal\transcoder\basisu_transcoder_tables_pvrtc2_45.inc">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="vendor\basis_universal\transcoder\basisu_transcoder_tables_pvrtc2_alpha_33.inc">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="shader\mesh_basic.vert" />
+    <None Include="shader\mesh_basic.frag" />
   </ItemGroup>
 </Project>
